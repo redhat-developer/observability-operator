@@ -1,0 +1,24 @@
+# permissions for end users to edit observabilities.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: observability-editor-role
+rules:
+- apiGroups:
+  - observability.redhat.com
+  resources:
+  - observabilities
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - observability.redhat.com
+  resources:
+  - observabilities/status
+  verbs:
+  - get
