@@ -19,7 +19,11 @@ package main
 import (
 	"context"
 	"flag"
+	prometheusv1 "github.com/coreos/prometheus-operator/pkg/apis/monitoring/v1"
 	"github.com/go-logr/logr"
+	coreosv1 "github.com/operator-framework/api/pkg/operators/v1"
+	coreosv1alpha1 "github.com/operator-framework/api/pkg/operators/v1alpha1"
+	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
@@ -31,6 +35,10 @@ import (
 
 	apiv1 "github.com/jeremyary/observability-operator/api/v1"
 	"github.com/jeremyary/observability-operator/controllers"
+	projectv1 "github.com/openshift/api/project/v1"
+	routev1 "github.com/openshift/api/route/v1"
+
+
 	// +kubebuilder:scaffold:imports
 )
 
@@ -43,6 +51,17 @@ func init() {
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
 
 	utilruntime.Must(apiv1.AddToScheme(scheme))
+
+	utilruntime.Must(projectv1.AddToScheme(scheme))
+
+	utilruntime.Must(routev1.AddToScheme(scheme))
+
+	utilruntime.Must(prometheusv1.AddToScheme(scheme))
+
+	utilruntime.Must(coreosv1alpha1.AddToScheme(scheme))
+
+	utilruntime.Must(coreosv1.AddToScheme(scheme))
+
 	// +kubebuilder:scaffold:scheme
 }
 
@@ -87,11 +106,14 @@ func main() {
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "managed-services-observability",
-			Namespace: "openshift-monitoring",
+			Namespace: "kafka-observability",
+		},
+		Spec: apiv1.ObservabilitySpec{
+			ClusterMonitoringNamespace: "managed-services-prometheus",
 		},
 	}
 	err = mgr.GetClient().Create(context.Background(), o)
-	if err != nil {
+	if err != nil && !errors.IsAlreadyExists(err) {
 		setupLog.Error(err, "Error creating Observablity CR")
 		os.Exit(1)
 	}

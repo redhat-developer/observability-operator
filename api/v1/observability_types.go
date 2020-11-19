@@ -23,19 +23,32 @@ import (
 // EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
 // NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
 
+type ObservabilityStageName string
+
+type ObservabilityStageStatus string
+
+const (
+	PrometheusInstallation  ObservabilityStageName = "Prometheus"
+	PrometheusConfiguration ObservabilityStageName = "PrometheusConfiguration"
+)
+
+const (
+	ResultSuccess    ObservabilityStageStatus = "success"
+	ResultFailed     ObservabilityStageStatus = "failed"
+	ResultInProgress ObservabilityStageStatus = "in progress"
+)
+
 // ObservabilitySpec defines the desired state of Observability
 type ObservabilitySpec struct {
-	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
-	// Important: Run "make" to regenerate code after modifying this file
-
-	// Foo is an example field of Observability. Edit Observability_types.go to remove/update
-	Foo string `json:"foo,omitempty"`
+	// The namespace where the cluster monitoring gets installed
+	ClusterMonitoringNamespace string `json:"clusterMonitoringNamespace"`
 }
 
 // ObservabilityStatus defines the observed state of Observability
 type ObservabilityStatus struct {
-	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
-	// Important: Run "make" to regenerate code after modifying this file
+	Stage       ObservabilityStageName   `json:"stage"`
+	StageStatus ObservabilityStageStatus `json:"stageStatus"`
+	LastMessage string                   `json:"lastMessage,omitempty"`
 }
 
 // +kubebuilder:object:root=true

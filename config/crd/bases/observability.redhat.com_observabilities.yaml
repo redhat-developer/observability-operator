@@ -36,13 +36,24 @@ spec:
         spec:
           description: ObservabilitySpec defines the desired state of Observability
           properties:
-            foo:
-              description: Foo is an example field of Observability. Edit Observability_types.go
-                to remove/update
+            clusterMonitoringNamespace:
+              description: The namespace where the cluster monitoring gets installed
               type: string
+          required:
+          - clusterMonitoringNamespace
           type: object
         status:
           description: ObservabilityStatus defines the observed state of Observability
+          properties:
+            lastMessage:
+              type: string
+            stage:
+              type: string
+            stageStatus:
+              type: string
+          required:
+          - stage
+          - stageStatus
           type: object
       type: object
   version: v1
