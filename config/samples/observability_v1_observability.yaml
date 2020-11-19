@@ -3,5 +3,4 @@ kind: Observability
 metadata:
   name: observability-sample
 spec:
-  # Add fields here
-  foo: bar
+  clusterMonitoringNamespace: "managed-services-prometheus"
