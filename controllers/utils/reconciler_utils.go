@@ -75,3 +75,7 @@ func ReconcileNamespace(ctx context.Context, client k8sclient.Client, namespace 
 
 	return observabilityv1.ResultSuccess, nil
 }
+
+func PtrToInt32(i int32) *int32 {
+	return &i
+}
