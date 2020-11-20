@@ -36,11 +36,19 @@ spec:
         spec:
           description: ObservabilitySpec defines the desired state of Observability
           properties:
-            clusterMonitoringNamespace:
-              description: The namespace where the cluster monitoring gets installed
-              type: string
-          required:
-          - clusterMonitoringNamespace
+            observatorium:
+              properties:
+                gateway:
+                  type: string
+                tenant:
+                  type: string
+                token:
+                  type: string
+              required:
+              - gateway
+              - tenant
+              - token
+              type: object
           type: object
         status:
           description: ObservabilityStatus defines the observed state of Observability

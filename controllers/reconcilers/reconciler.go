@@ -7,4 +7,5 @@ import (
 
 type ObservabilityReconciler interface {
 	Reconcile(ctx context.Context, cr *v1.Observability) (v1.ObservabilityStageStatus, error)
+	Cleanup(ctx context.Context, cr *v1.Observability) (v1.ObservabilityStageStatus, error)
 }

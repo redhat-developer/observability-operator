@@ -3,4 +3,7 @@ kind: Observability
 metadata:
   name: observability-sample
 spec:
-  clusterMonitoringNamespace: "managed-services-prometheus"
+  observatorium:
+    gateway: "https://observatorium-observatorium.apps-crc.testing"
+    token: ""
+    tenant: "test"
