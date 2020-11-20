@@ -2,14 +2,18 @@ package prometheus_configuration
 
 import (
 	"context"
+	"encoding/json"
+	"fmt"
 	prometheusv1 "github.com/coreos/prometheus-operator/pkg/apis/monitoring/v1"
 	"github.com/go-logr/logr"
 	v1 "github.com/jeremyary/observability-operator/api/v1"
+	"github.com/jeremyary/observability-operator/controllers/model"
 	"github.com/jeremyary/observability-operator/controllers/reconcilers"
-	"github.com/jeremyary/observability-operator/controllers/utils"
 	routev1 "github.com/openshift/api/route/v1"
+	v13 "k8s.io/api/apps/v1"
 	core "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
 	v12 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -28,76 +32,137 @@ func NewReconciler(client client.Client, logger logr.Logger) reconcilers.Observa
 	}
 }
 
+func (r *Reconciler) Cleanup(ctx context.Context, cr *v1.Observability) (v1.ObservabilityStageStatus, error) {
+	// Delete pod monitors
+	o := model.GetStrimziPodMonitor(cr)
+	err := r.client.Delete(ctx, o)
+	if err != nil && !errors.IsNotFound(err) {
+		return v1.ResultFailed, err
+	}
+
+	o = model.GetKafkaPodMonitor(cr)
+	err = r.client.Delete(ctx, o)
+	if err != nil && !errors.IsNotFound(err) {
+		return v1.ResultFailed, err
+	}
+
+	// Delete additional scrape config
+	s := model.GetPrometheusAdditionalScrapeConfig(cr)
+	err = r.client.Delete(ctx, s)
+	if err != nil && !errors.IsNotFound(err) {
+		return v1.ResultFailed, err
+	}
+
+	// Delete route
+	route := model.GetPrometheusRoute(cr)
+	err = r.client.Delete(ctx, route)
+	if err != nil && !errors.IsNotFound(err) {
+		return v1.ResultFailed, err
+	}
+
+	// Delete Prometheus CR
+	prom := model.GetPrometheus(cr)
+	err = r.client.Delete(ctx, prom)
+	if err != nil && !errors.IsNotFound(err) {
+		return v1.ResultFailed, err
+	}
+
+	// Wait for the operator to be removed
+	status, err := r.waitForPrometheusToBeRemoved(ctx, cr)
+	if status != v1.ResultSuccess {
+		return status, err
+	}
+
+	// Delete role and rolebinding
+	rb := model.GetPrometheusClusterRoleBinding()
+	err = r.client.Delete(ctx, rb)
+	if err != nil && !errors.IsNotFound(err) {
+		return v1.ResultFailed, err
+	}
+
+	role := model.GetPrometheusClusterRole()
+	err = r.client.Delete(ctx, role)
+	if err != nil && !errors.IsNotFound(err) {
+		return v1.ResultFailed, err
+	}
+
+	// Service account
+	sa := model.GetPrometheusServiceAccount(cr)
+	err = r.client.Delete(ctx, sa)
+	if err != nil && !errors.IsNotFound(err) {
+		return v1.ResultFailed, err
+	}
+
+	return v1.ResultSuccess, nil
+}
+
+func (r *Reconciler) waitForPrometheusToBeRemoved(ctx context.Context, cr *v1.Observability) (v1.ObservabilityStageStatus, error) {
+	list := &v13.StatefulSetList{}
+	opts := &client.ListOptions{
+		Namespace: cr.Namespace,
+	}
+	err := r.client.List(ctx, list, opts)
+	if err != nil && !errors.IsNotFound(err) {
+		return v1.ResultFailed, err
+	}
+
+	prom := model.GetPrometheus(cr)
+
+	for _, ss := range list.Items {
+		if ss.Name == fmt.Sprintf("prometheus-%s", prom.Name) {
+			return v1.ResultInProgress, nil
+		}
+	}
+
+	return v1.ResultSuccess, nil
+}
+
 func (r *Reconciler) Reconcile(ctx context.Context, cr *v1.Observability) (v1.ObservabilityStageStatus, error) {
 	// prometheus service account
 	status, err := r.reconcileServiceAccount(ctx, cr)
 	if status != v1.ResultSuccess {
-		if err != nil {
-			r.logger.Error(err, "error reconciling service account")
-		}
 		return status, err
 	}
 
 	// prometheus cluster role
 	status, err = r.reconcileClusterRole(ctx)
 	if status != v1.ResultSuccess {
-		if err != nil {
-			r.logger.Error(err, "error reconciling cluster role")
-		}
 		return status, err
 	}
 
 	// prometheus cluster role binding
 	status, err = r.reconcileClusterRoleBinding(ctx, cr)
 	if status != v1.ResultSuccess {
-		if err != nil {
-			r.logger.Error(err, "error reconciling cluster role binding")
-		}
 		return status, err
 	}
 
 	// prometheus route
 	status, err = r.reconcileRoute(ctx, cr)
 	if status != v1.ResultSuccess {
-		if err != nil {
-			r.logger.Error(err, "error reconciling route")
-		}
 		return status, err
 	}
 
 	// additional scrape config secret
 	status, err = r.reconcileSecret(ctx, cr)
 	if status != v1.ResultSuccess {
-		if err != nil {
-			r.logger.Error(err, "error reconciling scrape config secret")
-		}
 		return status, err
 	}
 
 	// prometheus instance CR
 	status, err = r.reconcilePrometheus(ctx, cr)
 	if status != v1.ResultSuccess {
-		if err != nil {
-			r.logger.Error(err, "error reconciling Prometheus CR")
-		}
 		return status, err
 	}
 
 	// strimzi PodMonitor
 	status, err = r.reconcileStrimziPodMonitor(ctx, cr)
 	if status != v1.ResultSuccess {
-		if err != nil {
-			r.logger.Error(err, "error reconciling Strimzi PodMonitor")
-		}
 		return status, err
 	}
 
 	// kafka PodMonitor
 	status, err = r.reconcileKafkaPodMonitor(ctx, cr)
 	if status != v1.ResultSuccess {
-		if err != nil {
-			r.logger.Error(err, "error reconciling Kafka PodMonitor")
-		}
 		return status, err
 	}
 
@@ -105,12 +170,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, cr *v1.Observability) (v1.Ob
 }
 
 func (r *Reconciler) reconcileServiceAccount(ctx context.Context, cr *v1.Observability) (v1.ObservabilityStageStatus, error) {
-	serviceAccount := &core.ServiceAccount{
-		ObjectMeta: v12.ObjectMeta{
-			Name:      "kafka-prometheus",
-			Namespace: cr.Spec.ClusterMonitoringNamespace,
-		},
-	}
+	serviceAccount := model.GetPrometheusServiceAccount(cr)
 
 	_, err := controllerutil.CreateOrUpdate(ctx, r.client, serviceAccount, func() error { return nil })
 
@@ -122,11 +182,7 @@ func (r *Reconciler) reconcileServiceAccount(ctx context.Context, cr *v1.Observa
 }
 
 func (r *Reconciler) reconcileClusterRole(ctx context.Context) (v1.ObservabilityStageStatus, error) {
-	clusterRole := &rbacv1.ClusterRole{
-		ObjectMeta: v12.ObjectMeta{
-			Name: "kafka-prometheus",
-		},
-	}
+	clusterRole := model.GetPrometheusClusterRole()
 
 	_, err := controllerutil.CreateOrUpdate(ctx, r.client, clusterRole, func() error {
 		clusterRole.Rules = []rbacv1.PolicyRule{
@@ -152,24 +208,21 @@ func (r *Reconciler) reconcileClusterRole(ctx context.Context) (v1.Observability
 }
 
 func (r *Reconciler) reconcileClusterRoleBinding(ctx context.Context, cr *v1.Observability) (v1.ObservabilityStageStatus, error) {
-	clusterRoleBinding := &rbacv1.ClusterRoleBinding{
-		ObjectMeta: v12.ObjectMeta{
-			Name: "kafka-prometheus",
-		},
-	}
+	clusterRoleBinding := model.GetPrometheusClusterRoleBinding()
+	role := model.GetPrometheusClusterRole()
 
 	_, err := controllerutil.CreateOrUpdate(ctx, r.client, clusterRoleBinding, func() error {
+		clusterRoleBinding.Subjects = []rbacv1.Subject{
+			{
+				Kind:      rbacv1.ServiceAccountKind,
+				Name:      model.GetPrometheusServiceAccount(cr).Name,
+				Namespace: cr.Namespace,
+			},
+		}
 		clusterRoleBinding.RoleRef = rbacv1.RoleRef{
 			APIGroup: "rbac.authorization.k8s.io",
 			Kind:     "ClusterRole",
-			Name:     "kafka-prometheus",
-		}
-		clusterRoleBinding.Subjects = []rbacv1.Subject{
-			{
-				Kind:      "ServiceAccount",
-				Name:      "kafka-prometheus",
-				Namespace: cr.Spec.ClusterMonitoringNamespace,
-			},
+			Name:     role.Name,
 		}
 		return nil
 	})
@@ -182,19 +235,13 @@ func (r *Reconciler) reconcileClusterRoleBinding(ctx context.Context, cr *v1.Obs
 }
 
 func (r *Reconciler) reconcileRoute(ctx context.Context, cr *v1.Observability) (v1.ObservabilityStageStatus, error) {
-	route := &routev1.Route{
-		ObjectMeta: v12.ObjectMeta{
-			Name:      "kafka-prometheus",
-			Namespace: cr.Spec.ClusterMonitoringNamespace,
-		},
-	}
+	route := model.GetPrometheusRoute(cr)
 
 	_, err := controllerutil.CreateOrUpdate(ctx, r.client, route, func() error {
 		route.Spec = routev1.RouteSpec{
 			To: routev1.RouteTargetReference{
-				Kind:   "Service",
-				Name:   "prometheus-operated",
-				Weight: utils.PtrToInt32(100),
+				Kind: "Service",
+				Name: "prometheus-operated",
 			},
 			Port: &routev1.RoutePort{
 				TargetPort: intstr.FromString("web"),
@@ -211,51 +258,57 @@ func (r *Reconciler) reconcileRoute(ctx context.Context, cr *v1.Observability) (
 	return v1.ResultSuccess, nil
 }
 
-func (r *Reconciler) reconcileSecret(ctx context.Context, cr *v1.Observability) (v1.ObservabilityStageStatus, error) {
-	secret := &core.Secret{
-		ObjectMeta: v12.ObjectMeta{
-			Name:      "additional-scrape-configs",
-			Namespace: cr.Spec.ClusterMonitoringNamespace,
-		},
+func (r *Reconciler) getOpenshiftMonitoringCredentials(ctx context.Context) (string, string, error) {
+	secret := &core.Secret{}
+	selector := client.ObjectKey{
+		Namespace: "openshift-monitoring",
+		Name:      "grafana-datasources",
 	}
 
-	_, err := controllerutil.CreateOrUpdate(ctx, r.client, secret, func() error {
+	err := r.client.Get(ctx, selector, secret)
+	if err != nil {
+		return "", "", err
+	}
+
+	// It says yaml but it's actually json
+	j := secret.Data["prometheus.yaml"]
+
+	type datasource struct {
+		BasicAuthUser     string `json:"basicAuthUser"`
+		BasicAuthPassword string `json:"basicAuthPassword"`
+	}
+
+	type datasources struct {
+		Sources []datasource `json:"datasources"`
+	}
+
+	ds := &datasources{}
+	err = json.Unmarshal(j, ds)
+	if err != nil {
+		return "", "", err
+	}
+
+	return ds.Sources[0].BasicAuthUser, ds.Sources[0].BasicAuthPassword, nil
+}
+
+func (r *Reconciler) reconcileSecret(ctx context.Context, cr *v1.Observability) (v1.ObservabilityStageStatus, error) {
+	secret := model.GetPrometheusAdditionalScrapeConfig(cr)
+
+	user, password, err := r.getOpenshiftMonitoringCredentials(ctx)
+	if err != nil {
+		return v1.ResultFailed, err
+	}
+
+	federationConfig, err := model.GetFederationConfig(user, password)
+	if err != nil {
+		return v1.ResultFailed, err
+	}
+
+	_, err = controllerutil.CreateOrUpdate(ctx, r.client, secret, func() error {
 		secret.Type = core.SecretTypeOpaque
 		secret.StringData = map[string]string{
-			"additional-scrape-config.yaml": `- job_name: openshift-monitoring-federation
-  honor_labels: true
-  kubernetes_sd_configs:
-    - role: service
-      namespaces:
-        names:
-          - openshift-monitoring
-  scrape_interval: 30s
-  metrics_path: /federate
-  params:
-    match[]:
-      - 'console_url'
-      - 'cluster_version'
-      - 'ALERTS'
-      - 'subscription_sync_total'
-      - 'kubelet_volume_stats_used_bytes{endpoint="https-metrics",namespace!~"openshift-.*$",namespace!~"kube-.*$",namespace!="default"}'
-      - 'kubelet_volume_stats_available_bytes{endpoint="https-metrics",namespace!~"openshift-.*$",namespace!~"kube-.*$",namespace!="default"}'
-      - 'kubelet_volume_stats_capacity_bytes{endpoint="https-metrics",namespace!~"openshift-.*$",namespace!~"kube-.*$",namespace!="default"}'
-      - '{service="kube-state-metrics"}'
-      - '{service="node-exporter"}'
-      - '{__name__=~"node_namespace_pod_container:.*"}'
-      - '{__name__=~"node:.*"}'
-      - '{__name__=~"instance:.*"}'
-      - '{__name__=~"container_memory_.*"}'
-      - '{__name__=~"container_cpu_.*"}'
-      - '{__name__=~":node_memory_.*"}'
-      - '{__name__=~"csv_.*"}'
-  scheme: https
-  tls_config:
-    insecure_skip_verify: true
-  basic_auth:
-    username: <user>
-    password: <pass>`,
-		} //TODO ^ dynamic user/pass required here
+			"additional-scrape-config.yaml": string(federationConfig),
+		}
 		return nil
 	})
 
@@ -267,12 +320,7 @@ func (r *Reconciler) reconcileSecret(ctx context.Context, cr *v1.Observability) 
 }
 
 func (r *Reconciler) reconcilePrometheus(ctx context.Context, cr *v1.Observability) (v1.ObservabilityStageStatus, error) {
-	prometheus := &prometheusv1.Prometheus{
-		ObjectMeta: v12.ObjectMeta{
-			Name:      "kafka-prometheus",
-			Namespace: cr.Spec.ClusterMonitoringNamespace,
-		},
-	}
+	prometheus := model.GetPrometheus(cr)
 
 	_, err := controllerutil.CreateOrUpdate(ctx, r.client, prometheus, func() error {
 		prometheus.Spec = prometheusv1.PrometheusSpec{
@@ -283,29 +331,10 @@ func (r *Reconciler) reconcilePrometheus(ctx context.Context, cr *v1.Observabili
 				},
 				Key: "additional-scrape-config.yaml",
 			},
-			PodMonitorNamespaceSelector: &v12.LabelSelector{},
-			PodMonitorSelector:          &v12.LabelSelector{},
 			ExternalLabels: map[string]string{
 				"cluster_id": "TODO", //TODO dynamic value here instead
 			},
-			RuleSelector:                    &v12.LabelSelector{},
-			RuleNamespaceSelector:           &v12.LabelSelector{},
-			ServiceMonitorNamespaceSelector: &v12.LabelSelector{},
-			ServiceMonitorSelector:          &v12.LabelSelector{},
-			RemoteWrite: []prometheusv1.RemoteWriteSpec{
-				{
-					URL: "", //TODO backfill once we can dynamically provide centralized collection URL
-					WriteRelabelConfigs: []prometheusv1.RelabelConfig{
-						{
-							Action: "keep",
-							Regex:  "(kafka_controller.*$|console_url$|csv_succeeded$|csv_abnormal$|cluster_version$|ALERTS$|strimzi_.*$|subscription_sync_total)",
-							SourceLabels: []string{
-								"__name__",
-							},
-						},
-					},
-				},
-			},
+			RemoteWrite: model.GetPrometheusRemoteWriteConfig(cr),
 		}
 		return nil
 	})
@@ -318,13 +347,7 @@ func (r *Reconciler) reconcilePrometheus(ctx context.Context, cr *v1.Observabili
 }
 
 func (r *Reconciler) reconcileStrimziPodMonitor(ctx context.Context, cr *v1.Observability) (v1.ObservabilityStageStatus, error) {
-	podMonitor := &prometheusv1.PodMonitor{
-		ObjectMeta: v12.ObjectMeta{
-			Name:      "strimzi-metrics",
-			Namespace: cr.Spec.ClusterMonitoringNamespace,
-			Labels:    map[string]string{"app": "strimzi"},
-		},
-	}
+	podMonitor := model.GetStrimziPodMonitor(cr)
 
 	_, err := controllerutil.CreateOrUpdate(ctx, r.client, podMonitor, func() error {
 		podMonitor.Spec = prometheusv1.PodMonitorSpec{
@@ -352,13 +375,7 @@ func (r *Reconciler) reconcileStrimziPodMonitor(ctx context.Context, cr *v1.Obse
 }
 
 func (r *Reconciler) reconcileKafkaPodMonitor(ctx context.Context, cr *v1.Observability) (v1.ObservabilityStageStatus, error) {
-	podMonitor := &prometheusv1.PodMonitor{
-		ObjectMeta: v12.ObjectMeta{
-			Name:      "kafka-metrics",
-			Namespace: cr.Spec.ClusterMonitoringNamespace,
-			Labels:    map[string]string{"app": "strimzi"},
-		},
-	}
+	podMonitor := model.GetKafkaPodMonitor(cr)
 
 	_, err := controllerutil.CreateOrUpdate(ctx, r.client, podMonitor, func() error {
 		podMonitor.Spec = prometheusv1.PodMonitorSpec{

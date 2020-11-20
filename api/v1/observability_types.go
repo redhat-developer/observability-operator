@@ -41,10 +41,15 @@ const (
 	ResultInProgress ObservabilityStageStatus = "in progress"
 )
 
+type ObservatoriumConfig struct {
+	Gateway string `json:"gateway"`
+	Token   string `json:"token"`
+	Tenant  string `json:"tenant"`
+}
+
 // ObservabilitySpec defines the desired state of Observability
 type ObservabilitySpec struct {
-	// The namespace where the cluster monitoring gets installed
-	ClusterMonitoringNamespace string `json:"clusterMonitoringNamespace"`
+	Observatorium *ObservatoriumConfig `json:"observatorium,omitempty"`
 }
 
 // ObservabilityStatus defines the observed state of Observability

@@ -23,8 +23,6 @@ import (
 	"github.com/go-logr/logr"
 	coreosv1 "github.com/operator-framework/api/pkg/operators/v1"
 	coreosv1alpha1 "github.com/operator-framework/api/pkg/operators/v1alpha1"
-	"k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
@@ -96,29 +94,9 @@ func main() {
 	}
 	// +kubebuilder:scaffold:builder
 
-	// TODO: creating Observability CR here for now
-	o := &apiv1.Observability{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: "observability.redhat.com/v1",
-			Kind:       "Observability",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "managed-services-observability",
-			Namespace: "kafka-observability",
-		},
-		Spec: apiv1.ObservabilitySpec{
-			ClusterMonitoringNamespace: "managed-services-observability",
-		},
-	}
-	err = mgr.GetClient().Create(context.Background(), o)
-	if err != nil && !errors.IsAlreadyExists(err) {
-		setupLog.Error(err, "Error creating Observability CR")
-		os.Exit(1)
-	}
-
 	//TODO: injecting handler to auto-delete our CR when stopping locally running operator for early dev
-	//if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
-	if err := injectStopHandler(mgr, o, setupLog); err != nil {
+	if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
+		// if err := injectStopHandler(mgr, o, setupLog); err != nil {
 		setupLog.Error(err, "problem running manager")
 		os.Exit(1)
 	}

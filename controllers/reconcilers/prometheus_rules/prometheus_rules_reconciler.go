@@ -5,8 +5,9 @@ import (
 	prometheusv1 "github.com/coreos/prometheus-operator/pkg/apis/monitoring/v1"
 	"github.com/go-logr/logr"
 	v1 "github.com/jeremyary/observability-operator/api/v1"
+	"github.com/jeremyary/observability-operator/controllers/model"
 	"github.com/jeremyary/observability-operator/controllers/reconcilers"
-	v12 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
@@ -24,26 +25,28 @@ func NewReconciler(client client.Client, logger logr.Logger) reconcilers.Observa
 	}
 }
 
+func (r *Reconciler) Cleanup(ctx context.Context, cr *v1.Observability) (v1.ObservabilityStageStatus, error) {
+	// delete kafka prometheus rule
+	rule := model.GetKafkaPrometheusRules(cr)
+	err := r.client.Delete(ctx, rule)
+	if err != nil && !errors.IsNotFound(err) {
+		return v1.ResultFailed, err
+	}
+
+	return v1.ResultSuccess, nil
+}
+
 func (r *Reconciler) Reconcile(ctx context.Context, cr *v1.Observability) (v1.ObservabilityStageStatus, error) {
 	// prometheus service account
 	status, err := r.reconcileRule(ctx, cr)
 	if status != v1.ResultSuccess {
-		if err != nil {
-			r.logger.Error(err, "error reconciling prometheus rules")
-		}
 		return status, err
 	}
 	return v1.ResultSuccess, nil
 }
 
 func (r *Reconciler) reconcileRule(ctx context.Context, cr *v1.Observability) (v1.ObservabilityStageStatus, error) {
-	rule := &prometheusv1.PrometheusRule{
-		ObjectMeta: v12.ObjectMeta{
-			Name:      "kafka-prometheus-rules",
-			Namespace: cr.Spec.ClusterMonitoringNamespace,
-			Labels:    map[string]string{"app": "strimzi"},
-		},
-	}
+	rule := model.GetKafkaPrometheusRules(cr)
 
 	_, err := controllerutil.CreateOrUpdate(ctx, r.client, rule, func() error {
 		rule.Spec = prometheusv1.PrometheusRuleSpec{

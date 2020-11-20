@@ -24,3 +24,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, cr *v1.Observability) (v1.Ob
 
 	return v1.ResultSuccess, nil
 }
+
+func (r *Reconciler) Cleanup(ctx context.Context, cr *v1.Observability) (v1.ObservabilityStageStatus, error) {
+	return v1.ResultSuccess, nil
+}

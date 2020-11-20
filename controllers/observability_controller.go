@@ -8,6 +8,7 @@ import (
 	"github.com/jeremyary/observability-operator/controllers/reconcilers/grafana_installation"
 	"github.com/jeremyary/observability-operator/controllers/reconcilers/prometheus_configuration"
 	"github.com/jeremyary/observability-operator/controllers/reconcilers/prometheus_installation"
+	"github.com/jeremyary/observability-operator/controllers/reconcilers/prometheus_rules"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"reflect"
@@ -19,8 +20,9 @@ import (
 )
 
 const (
-	RequeueDelaySuccess = 10 * time.Second
-	RequeueDelayError   = 5 * time.Second
+	RequeueDelaySuccess    = 10 * time.Second
+	RequeueDelayError      = 5 * time.Second
+	ObservabilityFinalizer = "observability-cleanup"
 )
 
 // ObservabilityReconciler reconciles a Observability object
@@ -53,17 +55,41 @@ func (r *ObservabilityReconciler) Reconcile(req ctrl.Request) (ctrl.Result, erro
 		return ctrl.Result{}, err
 	}
 
+	// Add a cleanup finalizer if not already present
+	if obs.DeletionTimestamp == nil && len(obs.Finalizers) == 0 {
+		obs.Finalizers = append(obs.Finalizers, ObservabilityFinalizer)
+		err = r.Update(ctx, obs)
+		return ctrl.Result{}, err
+	}
+
 	var lastStage apiv1.ObservabilityStageName
 	var lastStatus apiv1.ObservabilityStageStatus
 	var lastMessage = ""
+	var finished = true
 
-	for _, stage := range r.getStages() {
+	var stages []apiv1.ObservabilityStageName
+	if obs.DeletionTimestamp == nil {
+		stages = r.getInstallationStages()
+	} else {
+		stages = r.getCleanupStages()
+	}
+
+	for _, stage := range stages {
 		lastStage = stage
 
 		reconciler := r.getReconcilerForStage(stage)
 		if reconciler != nil {
-			status, err := reconciler.Reconcile(ctx, obs)
+			var status apiv1.ObservabilityStageStatus
+			var err error
+
+			if obs.DeletionTimestamp == nil {
+				status, err = reconciler.Reconcile(ctx, obs)
+			} else {
+				status, err = reconciler.Cleanup(ctx, obs)
+			}
+
 			if err != nil {
+				r.Log.Error(err, "reconciler error")
 				lastMessage = err.Error()
 			}
 
@@ -71,9 +97,18 @@ func (r *ObservabilityReconciler) Reconcile(req ctrl.Request) (ctrl.Result, erro
 
 			// If a stage is not complete, do not continue with the next
 			if status != apiv1.ResultSuccess {
+				finished = false
 				break
 			}
 		}
+	}
+
+	// Ready for deletion?
+	// Only remove the finalizer when all stages were successful
+	if obs.DeletionTimestamp != nil && finished {
+		obs.Finalizers = []string{}
+		err = r.Update(ctx, obs)
+		return ctrl.Result{}, err
 	}
 
 	return r.updateStatus(obs, lastStage, lastStatus, lastMessage)
@@ -85,13 +120,23 @@ func (r *ObservabilityReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Complete(r)
 }
 
-func (r *ObservabilityReconciler) getStages() []apiv1.ObservabilityStageName {
+func (r *ObservabilityReconciler) getInstallationStages() []apiv1.ObservabilityStageName {
 	return []apiv1.ObservabilityStageName{
-		apiv1.GrafanaInstallation,
-		apiv1.GrafanaConfiguration,
+		// apiv1.GrafanaInstallation,
+		// apiv1.GrafanaConfiguration,
 		apiv1.PrometheusInstallation,
 		apiv1.PrometheusConfiguration,
 		apiv1.PrometheusRules,
+	}
+}
+
+func (r *ObservabilityReconciler) getCleanupStages() []apiv1.ObservabilityStageName {
+	return []apiv1.ObservabilityStageName{
+		// apiv1.GrafanaInstallation,
+		// apiv1.GrafanaConfiguration,
+		apiv1.PrometheusRules,
+		apiv1.PrometheusConfiguration,
+		apiv1.PrometheusInstallation,
 	}
 }
 
@@ -121,14 +166,13 @@ func (r *ObservabilityReconciler) updateStatus(cr *apiv1.Observability, stage ap
 func (r *ObservabilityReconciler) getReconcilerForStage(stage apiv1.ObservabilityStageName) reconcilers.ObservabilityReconciler {
 	switch stage {
 	case apiv1.PrometheusInstallation:
-		return prometheus_installation.NewReconciler(r.Client, r.Log)
+		return prometheus_installation.NewReconciler(r.Client, r.Log, r.Scheme)
 
 	case apiv1.PrometheusConfiguration:
 		return prometheus_configuration.NewReconciler(r.Client, r.Log)
 
-	// TODO rules stage causing webhook error on create
-	//case apiv1.PrometheusRules:
-	//	return prometheus_rules.NewReconciler(r.Client, r.Log)
+	case apiv1.PrometheusRules:
+		return prometheus_rules.NewReconciler(r.Client, r.Log)
 
 	case apiv1.GrafanaInstallation:
 		return grafana_installation.NewReconciler(r.Client, r.Log)

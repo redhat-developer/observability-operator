@@ -5,7 +5,6 @@ import (
 	"github.com/go-logr/logr"
 	v1 "github.com/jeremyary/observability-operator/api/v1"
 	"github.com/jeremyary/observability-operator/controllers/reconcilers"
-	"github.com/jeremyary/observability-operator/controllers/utils"
 	coreosv1 "github.com/operator-framework/api/pkg/operators/v1"
 	"github.com/operator-framework/api/pkg/operators/v1alpha1"
 	v12 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -25,46 +24,31 @@ func NewReconciler(client client.Client, logger logr.Logger) reconcilers.Observa
 	}
 }
 
-func (r *Reconciler) Reconcile(ctx context.Context, cr *v1.Observability) (v1.ObservabilityStageStatus, error) {
-	// Namespace via project request
-	status, err := r.reconcileNamespace(ctx, cr)
-	if status != v1.ResultSuccess {
-		if err != nil {
-			r.logger.Error(err, "error reconciling namespace")
-		}
-		return status, err
-	}
+func (r *Reconciler) Cleanup(ctx context.Context, cr *v1.Observability) (v1.ObservabilityStageStatus, error) {
+	return v1.ResultSuccess, nil
+}
 
+func (r *Reconciler) Reconcile(ctx context.Context, cr *v1.Observability) (v1.ObservabilityStageStatus, error) {
 	// Grafana subscription
-	status, err = r.reconcileSubscription(ctx, cr)
+	status, err := r.reconcileSubscription(ctx, cr)
 	if status != v1.ResultSuccess {
-		if err != nil {
-			r.logger.Error(err, "error reconciling subscription")
-		}
 		return status, err
 	}
 
 	// Observability operator group
 	status, err = r.reconcileOperatorgroup(ctx, cr)
 	if status != v1.ResultSuccess {
-		if err != nil {
-			r.logger.Error(err, "error reconciling operator group")
-		}
 		return status, err
 	}
 
 	return v1.ResultSuccess, nil
 }
 
-func (r *Reconciler) reconcileNamespace(ctx context.Context, cr *v1.Observability) (v1.ObservabilityStageStatus, error) {
-	return utils.ReconcileNamespace(ctx, r.client, cr.Spec.ClusterMonitoringNamespace)
-}
-
 func (r *Reconciler) reconcileSubscription(ctx context.Context, cr *v1.Observability) (v1.ObservabilityStageStatus, error) {
 	subscription := &v1alpha1.Subscription{
 		ObjectMeta: v12.ObjectMeta{
 			Name:      "grafana-subscription",
-			Namespace: cr.Spec.ClusterMonitoringNamespace,
+			Namespace: cr.Namespace,
 		},
 	}
 
@@ -89,13 +73,13 @@ func (r *Reconciler) reconcileOperatorgroup(ctx context.Context, cr *v1.Observab
 	operatorgroup := &coreosv1.OperatorGroup{
 		ObjectMeta: v12.ObjectMeta{
 			Name:      "observability-operatorgroup",
-			Namespace: cr.Spec.ClusterMonitoringNamespace,
+			Namespace: cr.Namespace,
 		},
 	}
 
 	_, err := controllerutil.CreateOrUpdate(ctx, r.client, operatorgroup, func() error {
 		operatorgroup.Spec = coreosv1.OperatorGroupSpec{
-			TargetNamespaces: []string{cr.Spec.ClusterMonitoringNamespace},
+			TargetNamespaces: []string{cr.Namespace},
 		}
 		return nil
 	})
