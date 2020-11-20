@@ -1,4 +1,4 @@
-package prometheus_installation
+package grafana_installation
 
 import (
 	"context"
@@ -35,7 +35,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, cr *v1.Observability) (v1.Ob
 		return status, err
 	}
 
-	// Prometheus subscription
+	// Grafana subscription
 	status, err = r.reconcileSubscription(ctx, cr)
 	if status != v1.ResultSuccess {
 		if err != nil {
@@ -63,7 +63,7 @@ func (r *Reconciler) reconcileNamespace(ctx context.Context, cr *v1.Observabilit
 func (r *Reconciler) reconcileSubscription(ctx context.Context, cr *v1.Observability) (v1.ObservabilityStageStatus, error) {
 	subscription := &v1alpha1.Subscription{
 		ObjectMeta: v12.ObjectMeta{
-			Name:      "prometheus-subscription",
+			Name:      "grafana-subscription",
 			Namespace: cr.Spec.ClusterMonitoringNamespace,
 		},
 	}
@@ -72,8 +72,8 @@ func (r *Reconciler) reconcileSubscription(ctx context.Context, cr *v1.Observabi
 		subscription.Spec = &v1alpha1.SubscriptionSpec{
 			CatalogSource:          "community-operators",
 			CatalogSourceNamespace: "openshift-marketplace",
-			Package:                "prometheus",
-			Channel:                "beta",
+			Package:                "grafana-operator",
+			Channel:                "alpha",
 		}
 		return nil
 	})

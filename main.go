@@ -37,8 +37,6 @@ import (
 	"github.com/jeremyary/observability-operator/controllers"
 	projectv1 "github.com/openshift/api/project/v1"
 	routev1 "github.com/openshift/api/route/v1"
-
-
 	// +kubebuilder:scaffold:imports
 )
 
@@ -109,12 +107,12 @@ func main() {
 			Namespace: "kafka-observability",
 		},
 		Spec: apiv1.ObservabilitySpec{
-			ClusterMonitoringNamespace: "managed-services-prometheus",
+			ClusterMonitoringNamespace: "managed-services-observability",
 		},
 	}
 	err = mgr.GetClient().Create(context.Background(), o)
 	if err != nil && !errors.IsAlreadyExists(err) {
-		setupLog.Error(err, "Error creating Observablity CR")
+		setupLog.Error(err, "Error creating Observability CR")
 		os.Exit(1)
 	}
 

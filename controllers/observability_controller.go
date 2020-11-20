@@ -4,6 +4,9 @@ import (
 	"context"
 	"github.com/go-logr/logr"
 	"github.com/jeremyary/observability-operator/controllers/reconcilers"
+	"github.com/jeremyary/observability-operator/controllers/reconcilers/grafana_configuration"
+	"github.com/jeremyary/observability-operator/controllers/reconcilers/grafana_installation"
+	"github.com/jeremyary/observability-operator/controllers/reconcilers/prometheus_configuration"
 	"github.com/jeremyary/observability-operator/controllers/reconcilers/prometheus_installation"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -84,8 +87,11 @@ func (r *ObservabilityReconciler) SetupWithManager(mgr ctrl.Manager) error {
 
 func (r *ObservabilityReconciler) getStages() []apiv1.ObservabilityStageName {
 	return []apiv1.ObservabilityStageName{
+		apiv1.GrafanaInstallation,
+		apiv1.GrafanaConfiguration,
 		apiv1.PrometheusInstallation,
 		apiv1.PrometheusConfiguration,
+		apiv1.PrometheusRules,
 	}
 }
 
@@ -116,6 +122,20 @@ func (r *ObservabilityReconciler) getReconcilerForStage(stage apiv1.Observabilit
 	switch stage {
 	case apiv1.PrometheusInstallation:
 		return prometheus_installation.NewReconciler(r.Client, r.Log)
+
+	case apiv1.PrometheusConfiguration:
+		return prometheus_configuration.NewReconciler(r.Client, r.Log)
+
+	// TODO rules stage causing webhook error on create
+	//case apiv1.PrometheusRules:
+	//	return prometheus_rules.NewReconciler(r.Client, r.Log)
+
+	case apiv1.GrafanaInstallation:
+		return grafana_installation.NewReconciler(r.Client, r.Log)
+
+	case apiv1.GrafanaConfiguration:
+		return grafana_configuration.NewReconciler(r.Client, r.Log)
+
 	default:
 		return nil
 	}

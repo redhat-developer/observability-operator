@@ -28,8 +28,11 @@ type ObservabilityStageName string
 type ObservabilityStageStatus string
 
 const (
+	GrafanaInstallation     ObservabilityStageName = "Grafana"
+	GrafanaConfiguration    ObservabilityStageName = "GrafanaConfiguration"
 	PrometheusInstallation  ObservabilityStageName = "Prometheus"
 	PrometheusConfiguration ObservabilityStageName = "PrometheusConfiguration"
+	PrometheusRules         ObservabilityStageName = "PrometheusRules"
 )
 
 const (
