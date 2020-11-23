@@ -77,6 +77,13 @@ func GetFederationConfig(user, pass string) ([]byte, error) {
           - openshift-monitoring
   scrape_interval: 30s
   metrics_path: /federate
+  relabel_configs:
+    - action: keep
+      source_labels: ['__meta_kubernetes_service_name']
+      regex: prometheus-k8s
+    - action: keep
+      source_labels: ['__meta_kubernetes_service_port_name']
+      regex: web
   params:
     match[]:
       - 'console_url'
@@ -162,7 +169,7 @@ func GetStrimziPodMonitor(cr *v1.Observability) *prometheusv1.PodMonitor {
 		ObjectMeta: v12.ObjectMeta{
 			Name:      "strimzi-metrics",
 			Namespace: cr.Namespace,
-			Labels:    map[string]string{"app": "strimzi"},
+			Labels:    GetResourceLabels(),
 		},
 	}
 }
@@ -172,7 +179,7 @@ func GetKafkaPodMonitor(cr *v1.Observability) *prometheusv1.PodMonitor {
 		ObjectMeta: v12.ObjectMeta{
 			Name:      "kafka-metrics",
 			Namespace: cr.Namespace,
-			Labels:    map[string]string{"app": "strimzi"},
+			Labels:    GetResourceLabels(),
 		},
 	}
 }
@@ -182,7 +189,11 @@ func GetKafkaPrometheusRules(cr *v1.Observability) *prometheusv1.PrometheusRule 
 		ObjectMeta: v12.ObjectMeta{
 			Name:      "kafka-prometheus-rules",
 			Namespace: cr.Namespace,
-			Labels:    map[string]string{"app": "strimzi"},
+			Labels:    GetResourceLabels(),
 		},
 	}
+}
+
+func GetResourceLabels() map[string]string {
+	return map[string]string{"app": "strimzi"}
 }

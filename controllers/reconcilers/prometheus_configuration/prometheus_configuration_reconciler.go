@@ -334,6 +334,12 @@ func (r *Reconciler) reconcilePrometheus(ctx context.Context, cr *v1.Observabili
 			ExternalLabels: map[string]string{
 				"cluster_id": "TODO", //TODO dynamic value here instead
 			},
+			PodMonitorSelector: &v12.LabelSelector{
+				MatchLabels: model.GetResourceLabels(),
+			},
+			ServiceMonitorSelector: &v12.LabelSelector{
+				MatchLabels: model.GetResourceLabels(),
+			},
 			RemoteWrite: model.GetPrometheusRemoteWriteConfig(cr),
 		}
 		return nil
