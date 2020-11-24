@@ -21,6 +21,7 @@ import (
 	"flag"
 	prometheusv1 "github.com/coreos/prometheus-operator/pkg/apis/monitoring/v1"
 	"github.com/go-logr/logr"
+	grafana "github.com/integr8ly/grafana-operator/v3/pkg/apis/integreatly/v1alpha1"
 	coreosv1 "github.com/operator-framework/api/pkg/operators/v1"
 	coreosv1alpha1 "github.com/operator-framework/api/pkg/operators/v1alpha1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -57,6 +58,8 @@ func init() {
 	utilruntime.Must(coreosv1alpha1.AddToScheme(scheme))
 
 	utilruntime.Must(coreosv1.AddToScheme(scheme))
+
+	utilruntime.Must(grafana.AddToScheme(scheme))
 
 	// +kubebuilder:scaffold:scheme
 }
