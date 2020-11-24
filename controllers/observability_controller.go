@@ -4,6 +4,7 @@ import (
 	"context"
 	"github.com/go-logr/logr"
 	"github.com/jeremyary/observability-operator/controllers/reconcilers"
+	"github.com/jeremyary/observability-operator/controllers/reconcilers/csv"
 	"github.com/jeremyary/observability-operator/controllers/reconcilers/grafana_configuration"
 	"github.com/jeremyary/observability-operator/controllers/reconcilers/grafana_installation"
 	"github.com/jeremyary/observability-operator/controllers/reconcilers/prometheus_configuration"
@@ -122,21 +123,22 @@ func (r *ObservabilityReconciler) SetupWithManager(mgr ctrl.Manager) error {
 
 func (r *ObservabilityReconciler) getInstallationStages() []apiv1.ObservabilityStageName {
 	return []apiv1.ObservabilityStageName{
-		// apiv1.GrafanaInstallation,
-		// apiv1.GrafanaConfiguration,
 		apiv1.PrometheusInstallation,
 		apiv1.PrometheusConfiguration,
 		apiv1.PrometheusRules,
+		apiv1.GrafanaInstallation,
+		apiv1.GrafanaConfiguration,
 	}
 }
 
 func (r *ObservabilityReconciler) getCleanupStages() []apiv1.ObservabilityStageName {
 	return []apiv1.ObservabilityStageName{
-		// apiv1.GrafanaInstallation,
-		// apiv1.GrafanaConfiguration,
 		apiv1.PrometheusRules,
 		apiv1.PrometheusConfiguration,
+		apiv1.GrafanaConfiguration,
 		apiv1.PrometheusInstallation,
+		apiv1.GrafanaInstallation,
+		apiv1.CsvRemoval,
 	}
 }
 
@@ -153,6 +155,12 @@ func (r *ObservabilityReconciler) updateStatus(cr *apiv1.Observability, stage ap
 			return ctrl.Result{
 				Requeue:      true,
 				RequeueAfter: RequeueDelayError,
+			}, err
+		} else {
+			// No need to requeue, status was updated so will be requeued
+			// automatically
+			return ctrl.Result{
+				Requeue: false,
 			}, err
 		}
 	}
@@ -179,6 +187,9 @@ func (r *ObservabilityReconciler) getReconcilerForStage(stage apiv1.Observabilit
 
 	case apiv1.GrafanaConfiguration:
 		return grafana_configuration.NewReconciler(r.Client, r.Log)
+
+	case apiv1.CsvRemoval:
+		return csv.NewReconciler(r.Client, r.Log)
 
 	default:
 		return nil

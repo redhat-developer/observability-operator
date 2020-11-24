@@ -9,6 +9,7 @@ import (
 	v1 "github.com/jeremyary/observability-operator/api/v1"
 	"github.com/jeremyary/observability-operator/controllers/model"
 	"github.com/jeremyary/observability-operator/controllers/reconcilers"
+	"github.com/jeremyary/observability-operator/controllers/utils"
 	routev1 "github.com/openshift/api/route/v1"
 	v13 "k8s.io/api/apps/v1"
 	core "k8s.io/api/core/v1"
@@ -142,6 +143,11 @@ func (r *Reconciler) Reconcile(ctx context.Context, cr *v1.Observability) (v1.Ob
 		return status, err
 	}
 
+	status, err = r.waitForRoute(ctx, cr)
+	if status != v1.ResultSuccess {
+		return status, err
+	}
+
 	// additional scrape config secret
 	status, err = r.reconcileSecret(ctx, cr)
 	if status != v1.ResultSuccess {
@@ -251,11 +257,33 @@ func (r *Reconciler) reconcileRoute(ctx context.Context, cr *v1.Observability) (
 		return nil
 	})
 
-	if err != nil {
+	if err != nil && !errors.IsAlreadyExists(err) {
 		return v1.ResultFailed, err
 	}
 
 	return v1.ResultSuccess, nil
+}
+
+func (r *Reconciler) waitForRoute(ctx context.Context, cr *v1.Observability) (v1.ObservabilityStageStatus, error) {
+	route := model.GetPrometheusRoute(cr)
+	selector := client.ObjectKey{
+		Namespace: route.Namespace,
+		Name:      route.Name,
+	}
+
+	err := r.client.Get(ctx, selector, route)
+	if err != nil {
+		if errors.IsNotFound(err) {
+			return v1.ResultInProgress, nil
+		}
+		return v1.ResultFailed, err
+	}
+
+	if utils.IsRouteReads(route) {
+		return v1.ResultSuccess, nil
+	}
+
+	return v1.ResultInProgress, nil
 }
 
 func (r *Reconciler) getOpenshiftMonitoringCredentials(ctx context.Context) (string, string, error) {
@@ -333,6 +361,12 @@ func (r *Reconciler) reconcilePrometheus(ctx context.Context, cr *v1.Observabili
 			},
 			ExternalLabels: map[string]string{
 				"cluster_id": "TODO", //TODO dynamic value here instead
+			},
+			PodMonitorSelector: &v12.LabelSelector{
+				MatchLabels: model.GetResourceLabels(),
+			},
+			ServiceMonitorSelector: &v12.LabelSelector{
+				MatchLabels: model.GetResourceLabels(),
 			},
 			RemoteWrite: model.GetPrometheusRemoteWriteConfig(cr),
 		}
