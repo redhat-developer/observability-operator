@@ -349,8 +349,12 @@ func (r *Reconciler) reconcileSecret(ctx context.Context, cr *v1.Observability) 
 
 func (r *Reconciler) reconcilePrometheus(ctx context.Context, cr *v1.Observability) (v1.ObservabilityStageStatus, error) {
 	prometheus := model.GetPrometheus(cr)
+	clusterId, err := utils.GetClusterId(ctx, r.client)
+	if err != nil {
+		return v1.ResultFailed, err
+	}
 
-	_, err := controllerutil.CreateOrUpdate(ctx, r.client, prometheus, func() error {
+	_, err = controllerutil.CreateOrUpdate(ctx, r.client, prometheus, func() error {
 		prometheus.Spec = prometheusv1.PrometheusSpec{
 			ServiceAccountName: "kafka-prometheus",
 			AdditionalScrapeConfigs: &core.SecretKeySelector{
@@ -360,7 +364,7 @@ func (r *Reconciler) reconcilePrometheus(ctx context.Context, cr *v1.Observabili
 				Key: "additional-scrape-config.yaml",
 			},
 			ExternalLabels: map[string]string{
-				"cluster_id": "TODO", //TODO dynamic value here instead
+				"cluster_id": clusterId,
 			},
 			PodMonitorSelector: &v12.LabelSelector{
 				MatchLabels: model.GetResourceLabels(),

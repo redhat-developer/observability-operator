@@ -34,6 +34,7 @@ import (
 
 	apiv1 "github.com/jeremyary/observability-operator/api/v1"
 	"github.com/jeremyary/observability-operator/controllers"
+	configv1 "github.com/openshift/api/config/v1"
 	projectv1 "github.com/openshift/api/project/v1"
 	routev1 "github.com/openshift/api/route/v1"
 	// +kubebuilder:scaffold:imports
@@ -60,6 +61,8 @@ func init() {
 	utilruntime.Must(coreosv1.AddToScheme(scheme))
 
 	utilruntime.Must(grafana.AddToScheme(scheme))
+
+	utilruntime.Must(configv1.AddToScheme(scheme))
 
 	// +kubebuilder:scaffold:scheme
 }

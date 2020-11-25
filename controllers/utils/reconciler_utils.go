@@ -6,6 +6,7 @@ import (
 	"encoding/base64"
 	"fmt"
 	observabilityv1 "github.com/jeremyary/observability-operator/api/v1"
+	v13 "github.com/openshift/api/config/v1"
 	v12 "github.com/openshift/api/project/v1"
 	routev1 "github.com/openshift/api/route/v1"
 	v1 "k8s.io/api/core/v1"
@@ -77,6 +78,20 @@ func ReconcileNamespace(ctx context.Context, client k8sclient.Client, namespace 
 	}
 
 	return observabilityv1.ResultSuccess, nil
+}
+
+func GetClusterId(ctx context.Context, client k8sclient.Client) (string, error) {
+	v := &v13.ClusterVersion{}
+	selector := k8sclient.ObjectKey{
+		Name: "version",
+	}
+
+	err := client.Get(ctx, selector, v)
+	if err != nil {
+		return "", err
+	}
+
+	return string(v.Spec.ClusterID), nil
 }
 
 func PtrToInt32(i int32) *int32 {
