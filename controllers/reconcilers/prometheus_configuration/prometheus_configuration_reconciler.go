@@ -368,6 +368,9 @@ func (r *Reconciler) reconcilePrometheus(ctx context.Context, cr *v1.Observabili
 			ServiceMonitorSelector: &v12.LabelSelector{
 				MatchLabels: model.GetResourceLabels(),
 			},
+			RuleSelector: &v12.LabelSelector{
+				MatchLabels: model.GetResourceLabels(),
+			},
 			RemoteWrite: model.GetPrometheusRemoteWriteConfig(cr),
 		}
 		return nil
