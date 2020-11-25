@@ -5,5 +5,9 @@ metadata:
 spec:
   observatorium:
     gateway: "https://observatorium-observatorium.apps-crc.testing"
-    token: ""
     tenant: "test"
+    authType: "dex"
+    dexConfig:
+      url: "http://dex-dex.apps.pbraun-observatorium.observability.rhmw.io"
+      credentialSecretNamespace: "kafka-observability"
+      credentialSecretName: "observatorium-dex-credentials"

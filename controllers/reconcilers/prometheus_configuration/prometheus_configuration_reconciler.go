@@ -9,6 +9,7 @@ import (
 	v1 "github.com/jeremyary/observability-operator/api/v1"
 	"github.com/jeremyary/observability-operator/controllers/model"
 	"github.com/jeremyary/observability-operator/controllers/reconcilers"
+	"github.com/jeremyary/observability-operator/controllers/token"
 	"github.com/jeremyary/observability-operator/controllers/utils"
 	routev1 "github.com/openshift/api/route/v1"
 	v13 "k8s.io/api/apps/v1"
@@ -150,6 +151,12 @@ func (r *Reconciler) Reconcile(ctx context.Context, cr *v1.Observability) (v1.Ob
 
 	// additional scrape config secret
 	status, err = r.reconcileSecret(ctx, cr)
+	if status != v1.ResultSuccess {
+		return status, err
+	}
+
+	// try to obtain the cluster id
+	status, err = r.fetchClusterId(ctx, cr)
 	if status != v1.ResultSuccess {
 		return status, err
 	}
@@ -347,9 +354,25 @@ func (r *Reconciler) reconcileSecret(ctx context.Context, cr *v1.Observability) 
 	return v1.ResultSuccess, nil
 }
 
+func (r *Reconciler) fetchClusterId(ctx context.Context, cr *v1.Observability) (v1.ObservabilityStageStatus, error) {
+	if cr.Status.ClusterID != "" {
+		return v1.ResultSuccess, nil
+	}
+
+	clusterId, err := utils.GetClusterId(ctx, r.client)
+	if err != nil {
+		return v1.ResultFailed, err
+	}
+	cr.Status.ClusterID = clusterId
+
+	return v1.ResultSuccess, nil
+}
+
 func (r *Reconciler) reconcilePrometheus(ctx context.Context, cr *v1.Observability) (v1.ObservabilityStageStatus, error) {
 	prometheus := model.GetPrometheus(cr)
-	clusterId, err := utils.GetClusterId(ctx, r.client)
+
+	tokenFetcher := token.GetTokenFetcher(cr)
+	token, err := tokenFetcher.Fetch(cr)
 	if err != nil {
 		return v1.ResultFailed, err
 	}
@@ -364,7 +387,7 @@ func (r *Reconciler) reconcilePrometheus(ctx context.Context, cr *v1.Observabili
 				Key: "additional-scrape-config.yaml",
 			},
 			ExternalLabels: map[string]string{
-				"cluster_id": clusterId,
+				"cluster_id": cr.Status.ClusterID,
 			},
 			PodMonitorSelector: &v12.LabelSelector{
 				MatchLabels: model.GetResourceLabels(),
@@ -375,7 +398,7 @@ func (r *Reconciler) reconcilePrometheus(ctx context.Context, cr *v1.Observabili
 			RuleSelector: &v12.LabelSelector{
 				MatchLabels: model.GetResourceLabels(),
 			},
-			RemoteWrite: model.GetPrometheusRemoteWriteConfig(cr),
+			RemoteWrite: model.GetPrometheusRemoteWriteConfig(cr, token),
 		}
 		return nil
 	})

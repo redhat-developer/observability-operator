@@ -27,6 +27,8 @@ type ObservabilityStageName string
 
 type ObservabilityStageStatus string
 
+type ObservabilityAuthType string
+
 const (
 	GrafanaInstallation     ObservabilityStageName = "Grafana"
 	GrafanaConfiguration    ObservabilityStageName = "GrafanaConfiguration"
@@ -42,10 +44,21 @@ const (
 	ResultInProgress ObservabilityStageStatus = "in progress"
 )
 
+const (
+	AuthTypeDex ObservabilityAuthType = "dex"
+)
+
+type DexConfig struct {
+	Url                       string `json:"url"`
+	CredentialSecretNamespace string `json:"credentialSecretNamespace"`
+	CredentialSecretName      string `json:"credentialSecretName"`
+}
+
 type ObservatoriumConfig struct {
-	Gateway string `json:"gateway"`
-	Token   string `json:"token"`
-	Tenant  string `json:"tenant"`
+	Gateway  string                `json:"gateway"`
+	Tenant   string                `json:"tenant"`
+	AuthType ObservabilityAuthType `json:"authType,omitempty"`
+	AuthDex  *DexConfig            `json:"dexConfig,omitempty"`
 }
 
 // ObservabilitySpec defines the desired state of Observability
@@ -58,6 +71,7 @@ type ObservabilityStatus struct {
 	Stage       ObservabilityStageName   `json:"stage"`
 	StageStatus ObservabilityStageStatus `json:"stageStatus"`
 	LastMessage string                   `json:"lastMessage,omitempty"`
+	ClusterID   string                   `json:"clusterId,omitempty"`
 }
 
 // +kubebuilder:object:root=true

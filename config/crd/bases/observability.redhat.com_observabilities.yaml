@@ -38,21 +38,35 @@ spec:
           properties:
             observatorium:
               properties:
+                authType:
+                  type: string
+                dexConfig:
+                  properties:
+                    credentialSecretName:
+                      type: string
+                    credentialSecretNamespace:
+                      type: string
+                    url:
+                      type: string
+                  required:
+                  - credentialSecretName
+                  - credentialSecretNamespace
+                  - url
+                  type: object
                 gateway:
                   type: string
                 tenant:
                   type: string
-                token:
-                  type: string
               required:
               - gateway
               - tenant
-              - token
               type: object
           type: object
         status:
           description: ObservabilityStatus defines the observed state of Observability
           properties:
+            clusterId:
+              type: string
             lastMessage:
               type: string
             stage:
