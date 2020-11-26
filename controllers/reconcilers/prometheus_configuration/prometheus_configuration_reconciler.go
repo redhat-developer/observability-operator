@@ -119,7 +119,7 @@ func (r *Reconciler) waitForPrometheusToBeRemoved(ctx context.Context, cr *v1.Ob
 	return v1.ResultSuccess, nil
 }
 
-func (r *Reconciler) Reconcile(ctx context.Context, cr *v1.Observability) (v1.ObservabilityStageStatus, error) {
+func (r *Reconciler) Reconcile(ctx context.Context, cr *v1.Observability, s *v1.ObservabilityStatus) (v1.ObservabilityStageStatus, error) {
 	// prometheus service account
 	status, err := r.reconcileServiceAccount(ctx, cr)
 	if status != v1.ResultSuccess {
@@ -156,13 +156,13 @@ func (r *Reconciler) Reconcile(ctx context.Context, cr *v1.Observability) (v1.Ob
 	}
 
 	// try to obtain the cluster id
-	status, err = r.fetchClusterId(ctx, cr)
+	status, err = r.fetchClusterId(ctx, cr, s)
 	if status != v1.ResultSuccess {
 		return status, err
 	}
 
 	// prometheus instance CR
-	status, err = r.reconcilePrometheus(ctx, cr)
+	status, err = r.reconcilePrometheus(ctx, cr, s)
 	if status != v1.ResultSuccess {
 		return status, err
 	}
@@ -354,7 +354,7 @@ func (r *Reconciler) reconcileSecret(ctx context.Context, cr *v1.Observability) 
 	return v1.ResultSuccess, nil
 }
 
-func (r *Reconciler) fetchClusterId(ctx context.Context, cr *v1.Observability) (v1.ObservabilityStageStatus, error) {
+func (r *Reconciler) fetchClusterId(ctx context.Context, cr *v1.Observability, nextStatus *v1.ObservabilityStatus) (v1.ObservabilityStageStatus, error) {
 	if cr.Status.ClusterID != "" {
 		return v1.ResultSuccess, nil
 	}
@@ -363,21 +363,27 @@ func (r *Reconciler) fetchClusterId(ctx context.Context, cr *v1.Observability) (
 	if err != nil {
 		return v1.ResultFailed, err
 	}
-	cr.Status.ClusterID = clusterId
+	nextStatus.ClusterID = clusterId
 
 	return v1.ResultSuccess, nil
 }
 
-func (r *Reconciler) reconcilePrometheus(ctx context.Context, cr *v1.Observability) (v1.ObservabilityStageStatus, error) {
+func (r *Reconciler) reconcilePrometheus(ctx context.Context, cr *v1.Observability, nextStatus *v1.ObservabilityStatus) (v1.ObservabilityStageStatus, error) {
 	prometheus := model.GetPrometheus(cr)
 
-	tokenFetcher := token.GetTokenFetcher(cr)
-	token, err := tokenFetcher.Fetch(cr)
-	if err != nil {
-		return v1.ResultFailed, err
-	}
+	_, err := controllerutil.CreateOrUpdate(ctx, r.client, prometheus, func() error {
+		var oldToken string
+		if len(prometheus.Spec.RemoteWrite) > 0 {
+			oldToken = prometheus.Spec.RemoteWrite[0].BearerToken
+		}
 
-	_, err = controllerutil.CreateOrUpdate(ctx, r.client, prometheus, func() error {
+		tokenFetcher := token.GetTokenFetcher(cr, ctx, r.client)
+		token, expires, err := tokenFetcher.Fetch(cr, oldToken)
+		if err != nil {
+			return err
+		}
+		nextStatus.TokenExpires = expires
+
 		prometheus.Spec = prometheusv1.PrometheusSpec{
 			ServiceAccountName: "kafka-prometheus",
 			AdditionalScrapeConfigs: &core.SecretKeySelector{

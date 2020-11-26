@@ -73,6 +73,9 @@ spec:
               type: string
             stageStatus:
               type: string
+            tokenExpires:
+              format: int64
+              type: integer
           required:
           - stage
           - stageStatus

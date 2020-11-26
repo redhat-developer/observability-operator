@@ -63,9 +63,6 @@ func (r *ObservabilityReconciler) Reconcile(req ctrl.Request) (ctrl.Result, erro
 		return ctrl.Result{}, err
 	}
 
-	var lastStage apiv1.ObservabilityStageName
-	var lastStatus apiv1.ObservabilityStageStatus
-	var lastMessage = ""
 	var finished = true
 
 	var stages []apiv1.ObservabilityStageName
@@ -75,8 +72,10 @@ func (r *ObservabilityReconciler) Reconcile(req ctrl.Request) (ctrl.Result, erro
 		stages = r.getCleanupStages()
 	}
 
+	nextStatus := obs.Status.DeepCopy()
+
 	for _, stage := range stages {
-		lastStage = stage
+		nextStatus.Stage = stage
 
 		reconciler := r.getReconcilerForStage(stage)
 		if reconciler != nil {
@@ -84,17 +83,17 @@ func (r *ObservabilityReconciler) Reconcile(req ctrl.Request) (ctrl.Result, erro
 			var err error
 
 			if obs.DeletionTimestamp == nil {
-				status, err = reconciler.Reconcile(ctx, obs)
+				status, err = reconciler.Reconcile(ctx, obs, nextStatus)
 			} else {
 				status, err = reconciler.Cleanup(ctx, obs)
 			}
 
 			if err != nil {
 				r.Log.Error(err, "reconciler error")
-				lastMessage = err.Error()
+				nextStatus.LastMessage = err.Error()
 			}
 
-			lastStatus = status
+			nextStatus.StageStatus = status
 
 			// If a stage is not complete, do not continue with the next
 			if status != apiv1.ResultSuccess {
@@ -112,7 +111,7 @@ func (r *ObservabilityReconciler) Reconcile(req ctrl.Request) (ctrl.Result, erro
 		return ctrl.Result{}, err
 	}
 
-	return r.updateStatus(obs, lastStage, lastStatus, lastMessage)
+	return r.updateStatus(obs, nextStatus)
 }
 
 func (r *ObservabilityReconciler) SetupWithManager(mgr ctrl.Manager) error {
@@ -142,25 +141,14 @@ func (r *ObservabilityReconciler) getCleanupStages() []apiv1.ObservabilityStageN
 	}
 }
 
-func (r *ObservabilityReconciler) updateStatus(cr *apiv1.Observability, stage apiv1.ObservabilityStageName, status apiv1.ObservabilityStageStatus, lastMessage string) (ctrl.Result, error) {
-	currentStatus := cr.Status.DeepCopy()
-
-	cr.Status.Stage = stage
-	cr.Status.StageStatus = status
-	cr.Status.LastMessage = lastMessage
-
-	if !reflect.DeepEqual(currentStatus, &cr.Status) {
+func (r *ObservabilityReconciler) updateStatus(cr *apiv1.Observability, nextStatus *apiv1.ObservabilityStatus) (ctrl.Result, error) {
+	if !reflect.DeepEqual(&cr.Status, nextStatus) {
+		nextStatus.DeepCopyInto(&cr.Status)
 		err := r.Client.Status().Update(context.Background(), cr)
 		if err != nil {
 			return ctrl.Result{
 				Requeue:      true,
 				RequeueAfter: RequeueDelayError,
-			}, err
-		} else {
-			// No need to requeue, status was updated so will be requeued
-			// automatically
-			return ctrl.Result{
-				Requeue: false,
 			}, err
 		}
 	}

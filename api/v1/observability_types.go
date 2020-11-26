@@ -68,10 +68,11 @@ type ObservabilitySpec struct {
 
 // ObservabilityStatus defines the observed state of Observability
 type ObservabilityStatus struct {
-	Stage       ObservabilityStageName   `json:"stage"`
-	StageStatus ObservabilityStageStatus `json:"stageStatus"`
-	LastMessage string                   `json:"lastMessage,omitempty"`
-	ClusterID   string                   `json:"clusterId,omitempty"`
+	Stage        ObservabilityStageName   `json:"stage"`
+	StageStatus  ObservabilityStageStatus `json:"stageStatus"`
+	LastMessage  string                   `json:"lastMessage,omitempty"`
+	TokenExpires int64                    `json:"tokenExpires,omitempty"`
+	ClusterID    string                   `json:"clusterId,omitempty"`
 }
 
 // +kubebuilder:object:root=true
