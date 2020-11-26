@@ -2,6 +2,7 @@ package grafana_configuration
 
 import (
 	"context"
+	"fmt"
 	"github.com/go-logr/logr"
 	"github.com/integr8ly/grafana-operator/v3/pkg/apis/integreatly/v1alpha1"
 	v1 "github.com/jeremyary/observability-operator/api/v1"
@@ -52,6 +53,11 @@ func (r *Reconciler) Reconcile(ctx context.Context, cr *v1.Observability, s *v1.
 		return status, err
 	}
 
+	status, err = r.reconcileGrafanaDatasource(ctx, cr)
+	if status != v1.ResultSuccess {
+		return status, err
+	}
+
 	return v1.ResultSuccess, nil
 }
 
@@ -66,6 +72,12 @@ func (r *Reconciler) Cleanup(ctx context.Context, cr *v1.Observability) (v1.Obse
 	status, err := r.waitForGrafanaToBeRemoved(ctx, cr)
 	if status != v1.ResultSuccess {
 		return status, err
+	}
+
+	datasource := model.GetGrafanaDatasource(cr)
+	err = r.client.Delete(ctx, datasource)
+	if err != nil && !errors.IsNotFound(err) {
+		return v1.ResultFailed, err
 	}
 
 	// Proxy Secret
@@ -285,6 +297,37 @@ func (r *Reconciler) reconcileGrafanaCr(ctx context.Context, cr *v1.Observabilit
 			},
 			Client: &v1alpha1.GrafanaClient{
 				PreferService: true,
+			},
+		}
+		return nil
+	})
+
+	if err != nil {
+		return v1.ResultFailed, err
+	}
+
+	return v1.ResultSuccess, nil
+}
+
+func (r *Reconciler) reconcileGrafanaDatasource(ctx context.Context, cr *v1.Observability) (v1.ObservabilityStageStatus, error) {
+	datasource := model.GetGrafanaDatasource(cr)
+	url := fmt.Sprintf("http://prometheus-operated.%s:9090", cr.Namespace)
+
+	_, err := controllerutil.CreateOrUpdate(ctx, r.client, datasource, func() error {
+		datasource.Spec.Name = "kafka-prometheus.yaml"
+		datasource.Spec.Datasources = []v1alpha1.GrafanaDataSourceFields{
+			{
+				Name:      "Prometheus",
+				Type:      "prometheus",
+				Access:    "proxy",
+				Url:       url,
+				IsDefault: true,
+				Version:   1,
+				Editable:  true,
+				JsonData: v1alpha1.GrafanaDataSourceJsonData{
+					TlsSkipVerify: true,
+					TimeInterval:  "10s",
+				},
 			},
 		}
 		return nil

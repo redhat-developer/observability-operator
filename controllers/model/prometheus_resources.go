@@ -132,7 +132,7 @@ func GetPrometheusAdditionalScrapeConfig(cr *v1.Observability) *v13.Secret {
 	}
 }
 
-func GetPrometheusRemoteWriteConfig(cr *v1.Observability, token string) []prometheusv1.RemoteWriteSpec {
+func GetPrometheusRemoteWriteConfig(cr *v1.Observability, tokenSecret string) []prometheusv1.RemoteWriteSpec {
 	if cr.Spec.Observatorium == nil {
 		return nil
 	}
@@ -147,9 +147,17 @@ func GetPrometheusRemoteWriteConfig(cr *v1.Observability, token string) []promet
 					Action:       "keep",
 				},
 			},
-			BearerToken: token,
+			BearerTokenFile: fmt.Sprintf("/etc/prometheus/secrets/%s/token", tokenSecret),
 			TLSConfig: &prometheusv1.TLSConfig{
 				InsecureSkipVerify: true,
+				CA: prometheusv1.SecretOrConfigMap{
+					Secret:    nil,
+					ConfigMap: nil,
+				},
+				Cert: prometheusv1.SecretOrConfigMap{
+					Secret:    nil,
+					ConfigMap: nil,
+				},
 			},
 		},
 	}

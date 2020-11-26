@@ -8,6 +8,6 @@ spec:
     tenant: "test"
     authType: "dex"
     dexConfig:
-      url: "http://dex-dex.apps.pbraun-observatorium.observability.rhmw.io"
+      url: "http://dex-dex.apps-crc.testing"
       credentialSecretNamespace: "kafka-observability"
       credentialSecretName: "observatorium-dex-credentials"

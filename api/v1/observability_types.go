@@ -36,6 +36,7 @@ const (
 	PrometheusConfiguration ObservabilityStageName = "PrometheusConfiguration"
 	PrometheusRules         ObservabilityStageName = "PrometheusRules"
 	CsvRemoval              ObservabilityStageName = "CsvRemoval"
+	TokenRequest            ObservabilityStageName = "TokenRequest"
 )
 
 const (

@@ -64,7 +64,7 @@ func (r *DexTokenFetcher) Fetch(cr *v1.Observability, oldToken string) (string, 
 		return oldToken, 0, nil
 	}
 
-	if cr.Status.TokenExpires > 0 {
+	if cr.Status.TokenExpires > 0 && oldToken != "" {
 		// Refresh token a little bit in advance
 		now := time.Now().Add(time.Minute * 5)
 		expiry := time.Unix(cr.Status.TokenExpires, 0)

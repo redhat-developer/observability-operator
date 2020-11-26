@@ -9,7 +9,6 @@ import (
 	v1 "github.com/jeremyary/observability-operator/api/v1"
 	"github.com/jeremyary/observability-operator/controllers/model"
 	"github.com/jeremyary/observability-operator/controllers/reconcilers"
-	"github.com/jeremyary/observability-operator/controllers/token"
 	"github.com/jeremyary/observability-operator/controllers/utils"
 	routev1 "github.com/openshift/api/route/v1"
 	v13 "k8s.io/api/apps/v1"
@@ -370,20 +369,9 @@ func (r *Reconciler) fetchClusterId(ctx context.Context, cr *v1.Observability, n
 
 func (r *Reconciler) reconcilePrometheus(ctx context.Context, cr *v1.Observability, nextStatus *v1.ObservabilityStatus) (v1.ObservabilityStageStatus, error) {
 	prometheus := model.GetPrometheus(cr)
+	tokenSecret := model.GetTokenSecret(cr)
 
 	_, err := controllerutil.CreateOrUpdate(ctx, r.client, prometheus, func() error {
-		var oldToken string
-		if len(prometheus.Spec.RemoteWrite) > 0 {
-			oldToken = prometheus.Spec.RemoteWrite[0].BearerToken
-		}
-
-		tokenFetcher := token.GetTokenFetcher(cr, ctx, r.client)
-		token, expires, err := tokenFetcher.Fetch(cr, oldToken)
-		if err != nil {
-			return err
-		}
-		nextStatus.TokenExpires = expires
-
 		prometheus.Spec = prometheusv1.PrometheusSpec{
 			ServiceAccountName: "kafka-prometheus",
 			AdditionalScrapeConfigs: &core.SecretKeySelector{
@@ -404,7 +392,8 @@ func (r *Reconciler) reconcilePrometheus(ctx context.Context, cr *v1.Observabili
 			RuleSelector: &v12.LabelSelector{
 				MatchLabels: model.GetResourceLabels(),
 			},
-			RemoteWrite: model.GetPrometheusRemoteWriteConfig(cr, token),
+			RemoteWrite: model.GetPrometheusRemoteWriteConfig(cr, tokenSecret.Name),
+			Secrets:     []string{tokenSecret.Name},
 		}
 		return nil
 	})

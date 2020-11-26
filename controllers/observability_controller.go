@@ -10,6 +10,7 @@ import (
 	"github.com/jeremyary/observability-operator/controllers/reconcilers/prometheus_configuration"
 	"github.com/jeremyary/observability-operator/controllers/reconcilers/prometheus_installation"
 	"github.com/jeremyary/observability-operator/controllers/reconcilers/prometheus_rules"
+	"github.com/jeremyary/observability-operator/controllers/reconcilers/token"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"reflect"
@@ -122,6 +123,7 @@ func (r *ObservabilityReconciler) SetupWithManager(mgr ctrl.Manager) error {
 
 func (r *ObservabilityReconciler) getInstallationStages() []apiv1.ObservabilityStageName {
 	return []apiv1.ObservabilityStageName{
+		apiv1.TokenRequest,
 		apiv1.PrometheusInstallation,
 		apiv1.PrometheusConfiguration,
 		apiv1.PrometheusRules,
@@ -137,6 +139,7 @@ func (r *ObservabilityReconciler) getCleanupStages() []apiv1.ObservabilityStageN
 		apiv1.GrafanaConfiguration,
 		apiv1.PrometheusInstallation,
 		apiv1.GrafanaInstallation,
+		apiv1.TokenRequest,
 		apiv1.CsvRemoval,
 	}
 }
@@ -178,6 +181,9 @@ func (r *ObservabilityReconciler) getReconcilerForStage(stage apiv1.Observabilit
 
 	case apiv1.CsvRemoval:
 		return csv.NewReconciler(r.Client, r.Log)
+
+	case apiv1.TokenRequest:
+		return token.NewReconciler(r.Client, r.Log)
 
 	default:
 		return nil
