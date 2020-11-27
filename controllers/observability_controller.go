@@ -10,6 +10,7 @@ import (
 	"github.com/jeremyary/observability-operator/controllers/reconcilers/prometheus_configuration"
 	"github.com/jeremyary/observability-operator/controllers/reconcilers/prometheus_installation"
 	"github.com/jeremyary/observability-operator/controllers/reconcilers/prometheus_rules"
+	"github.com/jeremyary/observability-operator/controllers/reconcilers/promtail_installation"
 	"github.com/jeremyary/observability-operator/controllers/reconcilers/token"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -129,6 +130,7 @@ func (r *ObservabilityReconciler) getInstallationStages() []apiv1.ObservabilityS
 		apiv1.PrometheusRules,
 		apiv1.GrafanaInstallation,
 		apiv1.GrafanaConfiguration,
+		apiv1.PromtailInstallation,
 	}
 }
 
@@ -139,6 +141,7 @@ func (r *ObservabilityReconciler) getCleanupStages() []apiv1.ObservabilityStageN
 		apiv1.GrafanaConfiguration,
 		apiv1.PrometheusInstallation,
 		apiv1.GrafanaInstallation,
+		apiv1.PromtailInstallation,
 		apiv1.TokenRequest,
 		apiv1.CsvRemoval,
 	}
@@ -184,6 +187,9 @@ func (r *ObservabilityReconciler) getReconcilerForStage(stage apiv1.Observabilit
 
 	case apiv1.TokenRequest:
 		return token.NewReconciler(r.Client, r.Log)
+
+	case apiv1.PromtailInstallation:
+		return promtail_installation.NewReconciler(r.Client, r.Log)
 
 	default:
 		return nil

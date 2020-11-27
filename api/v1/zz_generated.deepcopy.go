@@ -21,6 +21,7 @@ limitations under the License.
 package v1
 
 import (
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 )
 
@@ -104,6 +105,11 @@ func (in *ObservabilitySpec) DeepCopyInto(out *ObservabilitySpec) {
 	if in.Observatorium != nil {
 		in, out := &in.Observatorium, &out.Observatorium
 		*out = new(ObservatoriumConfig)
+		(*in).DeepCopyInto(*out)
+	}
+	if in.KafkaNamespaceSelector != nil {
+		in, out := &in.KafkaNamespaceSelector, &out.KafkaNamespaceSelector
+		*out = new(metav1.LabelSelector)
 		(*in).DeepCopyInto(*out)
 	}
 }

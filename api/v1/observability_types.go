@@ -37,6 +37,7 @@ const (
 	PrometheusRules         ObservabilityStageName = "PrometheusRules"
 	CsvRemoval              ObservabilityStageName = "CsvRemoval"
 	TokenRequest            ObservabilityStageName = "TokenRequest"
+	PromtailInstallation    ObservabilityStageName = "PromtailInstallation"
 )
 
 const (
@@ -56,15 +57,25 @@ type DexConfig struct {
 }
 
 type ObservatoriumConfig struct {
-	Gateway  string                `json:"gateway"`
-	Tenant   string                `json:"tenant"`
+	// Observatorium Gateway API URL
+	Gateway string `json:"gateway"`
+	// Observatorium tenant name
+	Tenant string `json:"tenant"`
+
+	// Auth type. Currently only dex is supported
 	AuthType ObservabilityAuthType `json:"authType,omitempty"`
-	AuthDex  *DexConfig            `json:"dexConfig,omitempty"`
+
+	// Dex configuration
+	AuthDex *DexConfig `json:"dexConfig,omitempty"`
 }
 
 // ObservabilitySpec defines the desired state of Observability
 type ObservabilitySpec struct {
+	// Observatorium config
 	Observatorium *ObservatoriumConfig `json:"observatorium,omitempty"`
+
+	// Selector for all namespaces that should be scraped
+	KafkaNamespaceSelector *metav1.LabelSelector `json:"kafkaNamespaceSelector,omitempty"`
 }
 
 // ObservabilityStatus defines the observed state of Observability

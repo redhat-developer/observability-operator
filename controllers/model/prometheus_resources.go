@@ -79,10 +79,10 @@ func GetFederationConfig(user, pass string) ([]byte, error) {
   metrics_path: /federate
   relabel_configs:
     - action: keep
-      source_labels: ['__meta_kubernetes_service_name']
+      source_labels: [ '__meta_kubernetes_service_name' ]
       regex: prometheus-k8s
     - action: keep
-      source_labels: ['__meta_kubernetes_service_port_name']
+      source_labels: [ '__meta_kubernetes_service_port_name' ]
       regex: web
   params:
     match[]:
@@ -150,14 +150,6 @@ func GetPrometheusRemoteWriteConfig(cr *v1.Observability, tokenSecret string) []
 			BearerTokenFile: fmt.Sprintf("/etc/prometheus/secrets/%s/token", tokenSecret),
 			TLSConfig: &prometheusv1.TLSConfig{
 				InsecureSkipVerify: true,
-				CA: prometheusv1.SecretOrConfigMap{
-					Secret:    nil,
-					ConfigMap: nil,
-				},
-				Cert: prometheusv1.SecretOrConfigMap{
-					Secret:    nil,
-					ConfigMap: nil,
-				},
 			},
 		},
 	}

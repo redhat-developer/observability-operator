@@ -3,6 +3,9 @@ kind: Observability
 metadata:
   name: observability-sample
 spec:
+  kafkaNamespaceSelector:
+    matchLabels:
+      app: strimzi
   observatorium:
     gateway: "https://observatorium-observatorium.apps-crc.testing"
     tenant: "test"
