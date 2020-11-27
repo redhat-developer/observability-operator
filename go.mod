@@ -4,6 +4,7 @@ go 1.13
 
 require (
 	github.com/coreos/prometheus-operator v0.40.0
+	github.com/ghodss/yaml v1.0.0
 	github.com/go-logr/logr v0.2.1
 	github.com/go-logr/zapr v0.2.0 // indirect
 	github.com/integr8ly/grafana-operator/v3 v3.6.0

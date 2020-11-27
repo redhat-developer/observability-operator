@@ -164,6 +164,22 @@ func (r *Reconciler) reconcilePromtailDaemonSet(ctx context.Context, cr *v1.Obse
 					Labels: model.GetResourceLabels(),
 				},
 				Spec: v12.PodSpec{
+					Affinity: &v12.Affinity{
+						NodeAffinity: &v12.NodeAffinity{
+							RequiredDuringSchedulingIgnoredDuringExecution: &v12.NodeSelector{
+								NodeSelectorTerms: []v12.NodeSelectorTerm{
+									{
+										MatchExpressions: []v12.NodeSelectorRequirement{
+											{
+												Key:      "node-role.kubernetes.io/infra",
+												Operator: "DoesNotExist",
+											},
+										},
+									},
+								},
+							},
+						},
+					},
 					ServiceAccountName: sa.Name,
 					Volumes: []v12.Volume{
 						{

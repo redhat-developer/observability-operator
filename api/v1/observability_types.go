@@ -56,6 +56,11 @@ type DexConfig struct {
 	CredentialSecretName      string `json:"credentialSecretName"`
 }
 
+type DashboardSource struct {
+	Url  string `json:"url"`
+	Name string `json:"name"`
+}
+
 type ObservatoriumConfig struct {
 	// Observatorium Gateway API URL
 	Gateway string `json:"gateway"`
@@ -76,15 +81,22 @@ type ObservabilitySpec struct {
 
 	// Selector for all namespaces that should be scraped
 	KafkaNamespaceSelector *metav1.LabelSelector `json:"kafkaNamespaceSelector,omitempty"`
+
+	// Dashboards to create from external sources
+	GrafanaDashboards []*DashboardSource `json:"grafanaDashboards,omitempty"`
+
+	// How often to refetch the dashboards?
+	GrafanaDashboardsResyncPeriod string `json:"grafanaDashboardsResyncPeriod,omitempty"`
 }
 
 // ObservabilityStatus defines the observed state of Observability
 type ObservabilityStatus struct {
-	Stage        ObservabilityStageName   `json:"stage"`
-	StageStatus  ObservabilityStageStatus `json:"stageStatus"`
-	LastMessage  string                   `json:"lastMessage,omitempty"`
-	TokenExpires int64                    `json:"tokenExpires,omitempty"`
-	ClusterID    string                   `json:"clusterId,omitempty"`
+	Stage                ObservabilityStageName   `json:"stage"`
+	StageStatus          ObservabilityStageStatus `json:"stageStatus"`
+	LastMessage          string                   `json:"lastMessage,omitempty"`
+	TokenExpires         int64                    `json:"tokenExpires,omitempty"`
+	ClusterID            string                   `json:"clusterId,omitempty"`
+	DashboardsLastSynced int64                    `json:"dashboardsLastSynced,omitempty"`
 }
 
 // +kubebuilder:object:root=true

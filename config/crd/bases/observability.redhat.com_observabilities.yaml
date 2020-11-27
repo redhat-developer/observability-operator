@@ -36,6 +36,22 @@ spec:
         spec:
           description: ObservabilitySpec defines the desired state of Observability
           properties:
+            grafanaDashboards:
+              description: Dashboards to create from external sources
+              items:
+                properties:
+                  name:
+                    type: string
+                  url:
+                    type: string
+                required:
+                - name
+                - url
+                type: object
+              type: array
+            grafanaDashboardsResyncPeriod:
+              description: How often to refetch the dashboards?
+              type: string
             kafkaNamespaceSelector:
               description: Selector for all namespaces that should be scraped
               properties:
@@ -115,6 +131,9 @@ spec:
           properties:
             clusterId:
               type: string
+            dashboardsLastSynced:
+              format: int64
+              type: integer
             lastMessage:
               type: string
             stage:

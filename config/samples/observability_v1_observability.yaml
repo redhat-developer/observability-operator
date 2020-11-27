@@ -3,6 +3,12 @@ kind: Observability
 metadata:
   name: observability-sample
 spec:
+  grafanaDashboardsResyncPeriod: "5m"
+  grafanaDashboards:
+    - url: "https://raw.githubusercontent.com/RHCloudServices/kafka-monitoring-stuff/master/install/resources/monitoring-cluster/dashboards/strimzi-kafka.yaml"
+      name: "strimzi-kafka"
+    - url: "https://raw.githubusercontent.com/RHCloudServices/kafka-monitoring-stuff/master/install/resources/monitoring-cluster/dashboards/strimzi-kafka-exporter.yaml"
+      name: "strimzi-kafka-exporter"
   kafkaNamespaceSelector:
     matchLabels:
       app: strimzi
