@@ -459,7 +459,12 @@ func (r *Reconciler) createDashbaordFromSource(cr *v1.Observability, name string
 	return dashboard, nil
 }
 
+// Delete dashboards that are no longer in the CR requested list
 func (r *Reconciler) deleteUnrequestedDashboards(ctx context.Context, cr *v1.Observability) (v1.ObservabilityStageStatus, error) {
+	if cr.Spec.Grafana == nil {
+		return v1.ResultSuccess, nil
+	}
+
 	// List existing dashboards
 	existingDashboards := &v1alpha1.GrafanaDashboardList{}
 	opts := &client.ListOptions{
@@ -471,7 +476,7 @@ func (r *Reconciler) deleteUnrequestedDashboards(ctx context.Context, cr *v1.Obs
 	}
 
 	isRequested := func(name string) bool {
-		for _, db := range cr.Spec.GrafanaDashboards {
+		for _, db := range cr.Spec.Grafana.Dashboards {
 			if name == db.Name {
 				return true
 			}
@@ -494,10 +499,10 @@ func (r *Reconciler) deleteUnrequestedDashboards(ctx context.Context, cr *v1.Obs
 }
 
 func (r *Reconciler) reconcileGrafanaDashboards(ctx context.Context, cr *v1.Observability, nextStatus *v1.ObservabilityStatus) (v1.ObservabilityStageStatus, error) {
+	// First check if the next sync is due
 	if cr.Status.DashboardsLastSynced != 0 {
-		// Refresh the dashboards every
 		lastSync := time.Unix(cr.Status.DashboardsLastSynced, 0)
-		period, err := time.ParseDuration(cr.Spec.GrafanaDashboardsResyncPeriod)
+		period, err := time.ParseDuration(cr.Spec.Grafana.ResyncPeriod)
 		if err != nil {
 			return v1.ResultFailed, err
 		}
@@ -508,8 +513,10 @@ func (r *Reconciler) reconcileGrafanaDashboards(ctx context.Context, cr *v1.Obse
 		}
 	}
 
+	// Create a list of requested dashboards from the external sources provided
+	// in the CR
 	var requestedDashboards []*v1alpha1.GrafanaDashboard
-	for _, d := range cr.Spec.GrafanaDashboards {
+	for _, d := range cr.Spec.Grafana.Dashboards {
 		sourceType, source, err := r.fetchDashboard(d.Url)
 		if err != nil {
 			return v1.ResultFailed, err

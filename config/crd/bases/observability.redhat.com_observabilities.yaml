@@ -36,22 +36,41 @@ spec:
         spec:
           description: ObservabilitySpec defines the desired state of Observability
           properties:
-            grafanaDashboards:
-              description: Dashboards to create from external sources
-              items:
-                properties:
-                  name:
-                    type: string
-                  url:
-                    type: string
-                required:
-                - name
-                - url
-                type: object
-              type: array
-            grafanaDashboardsResyncPeriod:
-              description: How often to refetch the dashboards?
-              type: string
+            alertmanager:
+              description: Alertmanager config
+              properties:
+                deadMansSnitchSecretName:
+                  type: string
+                deadMansSnitchSecretNamespace:
+                  type: string
+                pagerDutySecretName:
+                  type: string
+                pagerDutySecretNamespace:
+                  type: string
+              required:
+              - deadMansSnitchSecretName
+              - pagerDutySecretName
+              type: object
+            grafana:
+              description: Grafana config
+              properties:
+                dashboards:
+                  description: Dashboards to create from external sources
+                  items:
+                    properties:
+                      name:
+                        type: string
+                      url:
+                        type: string
+                    required:
+                    - name
+                    - url
+                    type: object
+                  type: array
+                resyncPeriod:
+                  description: How often to refetch the dashboards?
+                  type: string
+              type: object
             kafkaNamespaceSelector:
               description: Selector for all namespaces that should be scraped
               properties:
