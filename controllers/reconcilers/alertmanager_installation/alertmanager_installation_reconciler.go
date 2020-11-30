@@ -7,6 +7,7 @@ import (
 	v1 "github.com/jeremyary/observability-operator/api/v1"
 	"github.com/jeremyary/observability-operator/controllers/model"
 	"github.com/jeremyary/observability-operator/controllers/reconcilers"
+	"github.com/jeremyary/observability-operator/controllers/utils"
 	v14 "k8s.io/api/apps/v1"
 	v12 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -99,6 +100,57 @@ func (r *Reconciler) reconcileAlertmanager(ctx context.Context, cr *v1.Observabi
 	_, err := controllerutil.CreateOrUpdate(ctx, r.client, alertmanager, func() error {
 		alertmanager.Spec.ConfigSecret = configSecret.Name
 		alertmanager.Spec.ListenLocal = true
+		return nil
+	})
+	if err != nil {
+		return v1.ResultFailed, err
+	}
+
+	return v1.ResultSuccess, err
+
+}
+
+func (r *Reconciler) reconcileAlertmanagerServiceAccount(ctx context.Context, cr *v1.Observability) (v1.ObservabilityStageStatus, error) {
+	sa := model.GetAlertmanagerServiceAccount(cr)
+
+	_, err := controllerutil.CreateOrUpdate(ctx, r.client, sa, func() error {
+		return nil
+	})
+	if err != nil {
+		return v1.ResultFailed, err
+	}
+
+	return v1.ResultSuccess, err
+}
+
+func (r *Reconciler) reconeileAlertmanagerService(ctx context.Context, cr *v1.Observability) (v1.ObservabilityStageStatus, error) {
+
+}
+
+
+func (r *Reconciler) reconcileAlertmanagerRoute(ctx context.Context, cr *v1.Observability) (v1.ObservabilityStageStatus, error) {
+	route := model.GetAlertmanagerRoute(cr)
+
+	_, err := controllerutil.CreateOrUpdate(ctx, r.client, route, func() error {
+		return nil
+	})
+	if err != nil {
+		return v1.ResultFailed, err
+	}
+
+	return v1.ResultSuccess, err
+}
+
+func (r *Reconciler) reconcileAlertmanagerProxySecret(ctx context.Context, cr *v1.Observability) (v1.ObservabilityStageStatus, error) {
+	secret := model.GetAlertmanagerProxySecret(cr)
+
+	_, err := controllerutil.CreateOrUpdate(ctx, r.client, secret, func() error {
+		if secret.Data == nil {
+			secret.Type = v12.SecretTypeOpaque
+			secret.StringData = map[string]string{
+				"session_secret": utils.GenerateRandomString(64),
+			}
+		}
 		return nil
 	})
 	if err != nil {
