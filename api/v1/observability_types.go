@@ -27,13 +27,18 @@ type ObservabilityStageName string
 
 type ObservabilityStageStatus string
 
+type ObservabilityAuthType string
+
 const (
-	GrafanaInstallation     ObservabilityStageName = "Grafana"
-	GrafanaConfiguration    ObservabilityStageName = "GrafanaConfiguration"
-	PrometheusInstallation  ObservabilityStageName = "Prometheus"
-	PrometheusConfiguration ObservabilityStageName = "PrometheusConfiguration"
-	PrometheusRules         ObservabilityStageName = "PrometheusRules"
-	CsvRemoval              ObservabilityStageName = "CsvRemoval"
+	GrafanaInstallation      ObservabilityStageName = "Grafana"
+	GrafanaConfiguration     ObservabilityStageName = "GrafanaConfiguration"
+	PrometheusInstallation   ObservabilityStageName = "Prometheus"
+	PrometheusConfiguration  ObservabilityStageName = "PrometheusConfiguration"
+	PrometheusRules          ObservabilityStageName = "PrometheusRules"
+	CsvRemoval               ObservabilityStageName = "CsvRemoval"
+	TokenRequest             ObservabilityStageName = "TokenRequest"
+	PromtailInstallation     ObservabilityStageName = "PromtailInstallation"
+	AlertmanagerInstallation ObservabilityStageName = "AlertmanagerInstallation"
 )
 
 const (
@@ -42,22 +47,72 @@ const (
 	ResultInProgress ObservabilityStageStatus = "in progress"
 )
 
+const (
+	AuthTypeDex ObservabilityAuthType = "dex"
+)
+
+type DexConfig struct {
+	Url                       string `json:"url"`
+	CredentialSecretNamespace string `json:"credentialSecretNamespace"`
+	CredentialSecretName      string `json:"credentialSecretName"`
+}
+
+type DashboardSource struct {
+	Url  string `json:"url"`
+	Name string `json:"name"`
+}
+
+type GrafanaConfig struct {
+	// Dashboards to create from external sources
+	Dashboards []*DashboardSource `json:"dashboards,omitempty"`
+
+	// How often to refetch the dashboards?
+	ResyncPeriod string `json:"resyncPeriod,omitempty"`
+}
+
 type ObservatoriumConfig struct {
+	// Observatorium Gateway API URL
 	Gateway string `json:"gateway"`
-	Token   string `json:"token"`
-	Tenant  string `json:"tenant"`
+	// Observatorium tenant name
+	Tenant string `json:"tenant"`
+
+	// Auth type. Currently only dex is supported
+	AuthType ObservabilityAuthType `json:"authType,omitempty"`
+
+	// Dex configuration
+	AuthDex *DexConfig `json:"dexConfig,omitempty"`
+}
+
+type AlertmanagerConfig struct {
+	PagerDutySecretName           string `json:"pagerDutySecretName"`
+	PagerDutySecretNamespace      string `json:"pagerDutySecretNamespace,omitempty"`
+	DeadMansSnitchSecretName      string `json:"deadMansSnitchSecretName"`
+	DeadMansSnitchSecretNamespace string `json:"deadMansSnitchSecretNamespace,omitempty"`
 }
 
 // ObservabilitySpec defines the desired state of Observability
 type ObservabilitySpec struct {
+	// Observatorium config
 	Observatorium *ObservatoriumConfig `json:"observatorium,omitempty"`
+
+	// Grafana config
+	Grafana *GrafanaConfig `json:"grafana,omitempty"`
+
+	// Alertmanager config
+	Alertmanager *AlertmanagerConfig `json:"alertmanager,omitempty"`
+
+	// Selector for all namespaces that should be scraped
+	KafkaNamespaceSelector *metav1.LabelSelector `json:"kafkaNamespaceSelector,omitempty"`
 }
 
 // ObservabilityStatus defines the observed state of Observability
 type ObservabilityStatus struct {
-	Stage       ObservabilityStageName   `json:"stage"`
-	StageStatus ObservabilityStageStatus `json:"stageStatus"`
-	LastMessage string                   `json:"lastMessage,omitempty"`
+	Stage                ObservabilityStageName   `json:"stage"`
+	StageStatus          ObservabilityStageStatus `json:"stageStatus"`
+	LastMessage          string                   `json:"lastMessage,omitempty"`
+	TokenExpires         int64                    `json:"tokenExpires,omitempty"`
+	ClusterID            string                   `json:"clusterId,omitempty"`
+	DashboardsLastSynced int64                    `json:"dashboardsLastSynced,omitempty"`
 }
 
 // +kubebuilder:object:root=true

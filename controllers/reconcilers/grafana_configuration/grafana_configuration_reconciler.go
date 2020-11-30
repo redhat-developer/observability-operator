@@ -2,6 +2,8 @@ package grafana_configuration
 
 import (
 	"context"
+	"fmt"
+	"github.com/ghodss/yaml"
 	"github.com/go-logr/logr"
 	"github.com/integr8ly/grafana-operator/v3/pkg/apis/integreatly/v1alpha1"
 	v1 "github.com/jeremyary/observability-operator/api/v1"
@@ -9,14 +11,28 @@ import (
 	"github.com/jeremyary/observability-operator/controllers/reconcilers"
 	"github.com/jeremyary/observability-operator/controllers/utils"
 	"github.com/operator-framework/operator-registry/pkg/lib/bundle"
+	"io/ioutil"
 	v14 "k8s.io/api/apps/v1"
 	core "k8s.io/api/core/v1"
 	v12 "k8s.io/api/rbac/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	v13 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
+	"net/http"
+	url2 "net/url"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+	"strings"
+	"time"
+)
+
+type SourceType int
+
+const (
+	SourceTypeJson    SourceType = 1
+	SourceTypeJsonnet SourceType = 2
+	SourceTypeYaml    SourceType = 3
+	SourceTypeUnknown SourceType = 4
 )
 
 type Reconciler struct {
@@ -31,7 +47,7 @@ func NewReconciler(client client.Client, logger logr.Logger) reconcilers.Observa
 	}
 }
 
-func (r *Reconciler) Reconcile(ctx context.Context, cr *v1.Observability) (v1.ObservabilityStageStatus, error) {
+func (r *Reconciler) Reconcile(ctx context.Context, cr *v1.Observability, s *v1.ObservabilityStatus) (v1.ObservabilityStageStatus, error) {
 	status, err := r.reconileProxySecret(ctx, cr)
 	if status != v1.ResultSuccess {
 		return status, err
@@ -52,6 +68,21 @@ func (r *Reconciler) Reconcile(ctx context.Context, cr *v1.Observability) (v1.Ob
 		return status, err
 	}
 
+	status, err = r.reconcileGrafanaDatasource(ctx, cr)
+	if status != v1.ResultSuccess {
+		return status, err
+	}
+
+	status, err = r.deleteUnrequestedDashboards(ctx, cr)
+	if status != v1.ResultSuccess {
+		return status, err
+	}
+
+	status, err = r.reconcileGrafanaDashboards(ctx, cr, s)
+	if status != v1.ResultSuccess {
+		return status, err
+	}
+
 	return v1.ResultSuccess, nil
 }
 
@@ -66,6 +97,12 @@ func (r *Reconciler) Cleanup(ctx context.Context, cr *v1.Observability) (v1.Obse
 	status, err := r.waitForGrafanaToBeRemoved(ctx, cr)
 	if status != v1.ResultSuccess {
 		return status, err
+	}
+
+	datasource := model.GetGrafanaDatasource(cr)
+	err = r.client.Delete(ctx, datasource)
+	if err != nil && !errors.IsNotFound(err) {
+		return v1.ResultFailed, err
 	}
 
 	// Proxy Secret
@@ -86,6 +123,23 @@ func (r *Reconciler) Cleanup(ctx context.Context, cr *v1.Observability) (v1.Obse
 	err = r.client.Delete(ctx, clusterRole)
 	if err != nil && !errors.IsNotFound(err) {
 		return v1.ResultFailed, err
+	}
+
+	// Delete dashboards
+	dashboards := &v1alpha1.GrafanaDashboardList{}
+	opts := &client.ListOptions{
+		Namespace: cr.Namespace,
+	}
+	err = r.client.List(ctx, dashboards, opts)
+	if err != nil {
+		return v1.ResultFailed, err
+	}
+
+	for _, dashboard := range dashboards.Items {
+		err = r.client.Delete(ctx, &dashboard)
+		if err != nil && !errors.IsNotFound(err) {
+			return v1.ResultFailed, err
+		}
 	}
 
 	return v1.ResultSuccess, nil
@@ -294,5 +348,210 @@ func (r *Reconciler) reconcileGrafanaCr(ctx context.Context, cr *v1.Observabilit
 		return v1.ResultFailed, err
 	}
 
+	return v1.ResultSuccess, nil
+}
+
+func (r *Reconciler) reconcileGrafanaDatasource(ctx context.Context, cr *v1.Observability) (v1.ObservabilityStageStatus, error) {
+	datasource := model.GetGrafanaDatasource(cr)
+	url := fmt.Sprintf("http://prometheus-operated.%s:9090", cr.Namespace)
+
+	_, err := controllerutil.CreateOrUpdate(ctx, r.client, datasource, func() error {
+		datasource.Spec.Name = "kafka-prometheus.yaml"
+		datasource.Spec.Datasources = []v1alpha1.GrafanaDataSourceFields{
+			{
+				Name:      "Prometheus",
+				Type:      "prometheus",
+				Access:    "proxy",
+				Url:       url,
+				IsDefault: true,
+				Version:   1,
+				Editable:  true,
+				JsonData: v1alpha1.GrafanaDataSourceJsonData{
+					TlsSkipVerify: true,
+					TimeInterval:  "10s",
+				},
+			},
+		}
+		return nil
+	})
+
+	if err != nil {
+		return v1.ResultFailed, err
+	}
+
+	return v1.ResultSuccess, nil
+}
+
+func (r *Reconciler) fetchDashboard(path string) (SourceType, []byte, error) {
+	url, err := url2.ParseRequestURI(path)
+	if err != nil {
+		return SourceTypeUnknown, nil, err
+	}
+
+	resp, err := http.Get(url.String())
+	if err != nil {
+		return SourceTypeUnknown, nil, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != 200 {
+		return SourceTypeUnknown, nil, fmt.Errorf("unexpected status code: %v", resp.StatusCode)
+	}
+
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return SourceTypeUnknown, nil, err
+	}
+
+	sourceType := r.getFileType(url.Path)
+	return sourceType, body, nil
+}
+
+// Try to determine the type (json or grafonnet) or a remote file by looking
+// at the filename extension
+func (r *Reconciler) getFileType(path string) SourceType {
+	fragments := strings.Split(path, ".")
+	if len(fragments) == 0 {
+		return SourceTypeUnknown
+	}
+
+	extension := strings.TrimSpace(fragments[len(fragments)-1])
+	switch strings.ToLower(extension) {
+	case "json":
+		return SourceTypeJson
+	case "grafonnet":
+		return SourceTypeJsonnet
+	case "jsonnet":
+		return SourceTypeJsonnet
+	case "yaml":
+		return SourceTypeYaml
+	default:
+		return SourceTypeUnknown
+	}
+}
+
+func (r *Reconciler) parseDashboardFromYaml(cr *v1.Observability, name string, source []byte) (*v1alpha1.GrafanaDashboard, error) {
+	dashboard := &v1alpha1.GrafanaDashboard{}
+	err := yaml.Unmarshal(source, dashboard)
+	if err != nil {
+		return nil, err
+	}
+	dashboard.Namespace = cr.Namespace
+	dashboard.Name = name
+	return dashboard, nil
+}
+
+func (r *Reconciler) createDashbaordFromSource(cr *v1.Observability, name string, t SourceType, source []byte) (*v1alpha1.GrafanaDashboard, error) {
+	dashboard := &v1alpha1.GrafanaDashboard{}
+	dashboard.Name = name
+	dashboard.Namespace = cr.Namespace
+	dashboard.Spec.Name = fmt.Sprintf("%s.json", name)
+
+	switch t {
+	case SourceTypeJson:
+		dashboard.Spec.Json = string(source)
+	case SourceTypeJsonnet:
+		dashboard.Spec.Jsonnet = string(source)
+	default:
+		return nil, fmt.Errorf("unknown dashboard type: %v", name)
+	}
+
+	return dashboard, nil
+}
+
+// Delete dashboards that are no longer in the CR requested list
+func (r *Reconciler) deleteUnrequestedDashboards(ctx context.Context, cr *v1.Observability) (v1.ObservabilityStageStatus, error) {
+	if cr.Spec.Grafana == nil {
+		return v1.ResultSuccess, nil
+	}
+
+	// List existing dashboards
+	existingDashboards := &v1alpha1.GrafanaDashboardList{}
+	opts := &client.ListOptions{
+		Namespace: cr.Namespace,
+	}
+	err := r.client.List(ctx, existingDashboards, opts)
+	if err != nil {
+		return v1.ResultFailed, err
+	}
+
+	isRequested := func(name string) bool {
+		for _, db := range cr.Spec.Grafana.Dashboards {
+			if name == db.Name {
+				return true
+			}
+		}
+		return false
+	}
+
+	// Check which dashboards are no longer requested and
+	// delete them
+	for _, dashboard := range existingDashboards.Items {
+		if isRequested(dashboard.Name) == false {
+			err = r.client.Delete(ctx, &dashboard)
+			if err != nil {
+				return v1.ResultFailed, err
+			}
+		}
+	}
+
+	return v1.ResultSuccess, nil
+}
+
+func (r *Reconciler) reconcileGrafanaDashboards(ctx context.Context, cr *v1.Observability, nextStatus *v1.ObservabilityStatus) (v1.ObservabilityStageStatus, error) {
+	// First check if the next sync is due
+	if cr.Status.DashboardsLastSynced != 0 {
+		lastSync := time.Unix(cr.Status.DashboardsLastSynced, 0)
+		period, err := time.ParseDuration(cr.Spec.Grafana.ResyncPeriod)
+		if err != nil {
+			return v1.ResultFailed, err
+		}
+
+		nextSync := lastSync.Add(period)
+		if time.Now().Before(nextSync) {
+			return v1.ResultSuccess, nil
+		}
+	}
+
+	// Create a list of requested dashboards from the external sources provided
+	// in the CR
+	var requestedDashboards []*v1alpha1.GrafanaDashboard
+	for _, d := range cr.Spec.Grafana.Dashboards {
+		sourceType, source, err := r.fetchDashboard(d.Url)
+		if err != nil {
+			return v1.ResultFailed, err
+		}
+
+		switch sourceType {
+		case SourceTypeUnknown:
+			break
+		case SourceTypeYaml:
+			dashboard, err := r.parseDashboardFromYaml(cr, d.Name, source)
+			if err != nil {
+				return v1.ResultFailed, err
+			}
+			requestedDashboards = append(requestedDashboards, dashboard)
+		case SourceTypeJsonnet:
+		case SourceTypeJson:
+			dashboard, err := r.createDashbaordFromSource(cr, d.Name, sourceType, source)
+			if err != nil {
+				return v1.ResultFailed, err
+			}
+			requestedDashboards = append(requestedDashboards, dashboard)
+		default:
+		}
+	}
+
+	// Sync requested dashboards
+	for _, dashboard := range requestedDashboards {
+		_, err := controllerutil.CreateOrUpdate(ctx, r.client, dashboard, func() error {
+			return nil
+		})
+		if err != nil {
+			return v1.ResultFailed, err
+		}
+	}
+
+	nextStatus.DashboardsLastSynced = time.Now().Unix()
 	return v1.ResultSuccess, nil
 }

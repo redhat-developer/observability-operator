@@ -79,10 +79,10 @@ func GetFederationConfig(user, pass string) ([]byte, error) {
   metrics_path: /federate
   relabel_configs:
     - action: keep
-      source_labels: ['__meta_kubernetes_service_name']
+      source_labels: [ '__meta_kubernetes_service_name' ]
       regex: prometheus-k8s
     - action: keep
-      source_labels: ['__meta_kubernetes_service_port_name']
+      source_labels: [ '__meta_kubernetes_service_port_name' ]
       regex: web
   params:
     match[]:
@@ -132,7 +132,7 @@ func GetPrometheusAdditionalScrapeConfig(cr *v1.Observability) *v13.Secret {
 	}
 }
 
-func GetPrometheusRemoteWriteConfig(cr *v1.Observability) []prometheusv1.RemoteWriteSpec {
+func GetPrometheusRemoteWriteConfig(cr *v1.Observability, tokenSecret string) []prometheusv1.RemoteWriteSpec {
 	if cr.Spec.Observatorium == nil {
 		return nil
 	}
@@ -147,7 +147,7 @@ func GetPrometheusRemoteWriteConfig(cr *v1.Observability) []prometheusv1.RemoteW
 					Action:       "keep",
 				},
 			},
-			BearerToken: cr.Spec.Observatorium.Token,
+			BearerTokenFile: fmt.Sprintf("/etc/prometheus/secrets/%s/token", tokenSecret),
 			TLSConfig: &prometheusv1.TLSConfig{
 				InsecureSkipVerify: true,
 			},

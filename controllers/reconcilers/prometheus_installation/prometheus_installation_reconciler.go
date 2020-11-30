@@ -66,7 +66,7 @@ func (r *Reconciler) Cleanup(ctx context.Context, cr *v1.Observability) (v1.Obse
 	return v1.ResultSuccess, nil
 }
 
-func (r *Reconciler) Reconcile(ctx context.Context, cr *v1.Observability) (v1.ObservabilityStageStatus, error) {
+func (r *Reconciler) Reconcile(ctx context.Context, cr *v1.Observability, s *v1.ObservabilityStatus) (v1.ObservabilityStageStatus, error) {
 	// Prometheus subscription
 	status, err := r.reconcileSubscription(ctx, cr)
 	if status != v1.ResultSuccess {
