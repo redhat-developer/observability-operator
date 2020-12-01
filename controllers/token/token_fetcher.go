@@ -106,6 +106,9 @@ func (r *DexTokenFetcher) Fetch(cr *v1.Observability, oldToken string) (string, 
 	if err != nil {
 		return oldToken, cr.Status.TokenExpires, err
 	}
+	if resp.StatusCode != http.StatusOK {
+		return oldToken, cr.Status.TokenExpires, fmt.Errorf("unexpected response from token endpoint: %v", resp.Status)
+	}
 
 	dexResponse := struct {
 		AccessToken string `json:"id_token"`

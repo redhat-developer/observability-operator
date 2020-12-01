@@ -15,6 +15,7 @@ import (
 	core "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/meta"
 	v12 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -37,13 +38,13 @@ func (r *Reconciler) Cleanup(ctx context.Context, cr *v1.Observability) (v1.Obse
 	// Delete pod monitors
 	o := model.GetStrimziPodMonitor(cr)
 	err := r.client.Delete(ctx, o)
-	if err != nil && !errors.IsNotFound(err) {
+	if err != nil && !errors.IsNotFound(err) && !meta.IsNoMatchError(err) {
 		return v1.ResultFailed, err
 	}
 
 	o = model.GetKafkaPodMonitor(cr)
 	err = r.client.Delete(ctx, o)
-	if err != nil && !errors.IsNotFound(err) {
+	if err != nil && !errors.IsNotFound(err) && !meta.IsNoMatchError(err) {
 		return v1.ResultFailed, err
 	}
 
@@ -64,7 +65,7 @@ func (r *Reconciler) Cleanup(ctx context.Context, cr *v1.Observability) (v1.Obse
 	// Delete Prometheus CR
 	prom := model.GetPrometheus(cr)
 	err = r.client.Delete(ctx, prom)
-	if err != nil && !errors.IsNotFound(err) {
+	if err != nil && !errors.IsNotFound(err) && !meta.IsNoMatchError(err) {
 		return v1.ResultFailed, err
 	}
 

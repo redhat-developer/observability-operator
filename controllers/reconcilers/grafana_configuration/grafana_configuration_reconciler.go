@@ -16,6 +16,7 @@ import (
 	core "k8s.io/api/core/v1"
 	v12 "k8s.io/api/rbac/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/meta"
 	v13 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"net/http"
@@ -90,7 +91,7 @@ func (r *Reconciler) Cleanup(ctx context.Context, cr *v1.Observability) (v1.Obse
 	// Grafana CR
 	grafana := model.GetGrafanaCr(cr)
 	err := r.client.Delete(ctx, grafana)
-	if err != nil && !errors.IsNotFound(err) {
+	if err != nil && !errors.IsNotFound(err) && !meta.IsNoMatchError(err) {
 		return v1.ResultFailed, err
 	}
 
@@ -101,7 +102,7 @@ func (r *Reconciler) Cleanup(ctx context.Context, cr *v1.Observability) (v1.Obse
 
 	datasource := model.GetGrafanaDatasource(cr)
 	err = r.client.Delete(ctx, datasource)
-	if err != nil && !errors.IsNotFound(err) {
+	if err != nil && !errors.IsNotFound(err) && !meta.IsNoMatchError(err) {
 		return v1.ResultFailed, err
 	}
 
@@ -131,13 +132,13 @@ func (r *Reconciler) Cleanup(ctx context.Context, cr *v1.Observability) (v1.Obse
 		Namespace: cr.Namespace,
 	}
 	err = r.client.List(ctx, dashboards, opts)
-	if err != nil {
+	if err != nil && !meta.IsNoMatchError(err) {
 		return v1.ResultFailed, err
 	}
 
 	for _, dashboard := range dashboards.Items {
 		err = r.client.Delete(ctx, &dashboard)
-		if err != nil && !errors.IsNotFound(err) {
+		if err != nil && !errors.IsNotFound(err) && !meta.IsNoMatchError(err) {
 			return v1.ResultFailed, err
 		}
 	}

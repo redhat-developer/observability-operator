@@ -7,6 +7,7 @@ import (
 	v1 "github.com/jeremyary/observability-operator/api/v1"
 	routev1 "github.com/openshift/api/route/v1"
 	v13 "k8s.io/api/core/v1"
+	v14 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	t "text/template"
 )
@@ -15,7 +16,7 @@ func GetAlertmanagerProxySecret(cr *v1.Observability) *v13.Secret {
 	return &v13.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "alertmanager-proxy",
-			Namespace: cr.Name,
+			Namespace: cr.Namespace,
 		},
 	}
 }
@@ -40,6 +41,22 @@ func GetAlertmanagerServiceAccount(cr *v1.Observability) *v13.ServiceAccount {
 			Annotations: map[string]string{
 				"serviceaccounts.openshift.io/oauth-redirectreference.primary": redirect,
 			},
+		},
+	}
+}
+
+func GetAlertmanagerClusterRole() *v14.ClusterRole {
+	return &v14.ClusterRole{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "kafka-alertmanager",
+		},
+	}
+}
+
+func GetAlertmanagerClusterRoleBinding() *v14.ClusterRoleBinding {
+	return &v14.ClusterRoleBinding{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "kafka-alertmanager",
 		},
 	}
 }
@@ -73,7 +90,7 @@ func GetAlertmanagerService(cr *v1.Observability) *v13.Service {
 	}
 }
 
-func GetAlertmanagerConfig(cr *v1.Observability, secret string, url string) (string, error) {
+func GetAlertmanagerConfig(secret string, url string) (string, error) {
 	const config = `
 global:
   resolve_timeout: 5m

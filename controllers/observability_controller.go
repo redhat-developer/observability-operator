@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"context"
+	"fmt"
 	"github.com/go-logr/logr"
 	"github.com/jeremyary/observability-operator/controllers/reconcilers"
 	"github.com/jeremyary/observability-operator/controllers/reconcilers/alertmanager_installation"
@@ -92,7 +93,7 @@ func (r *ObservabilityReconciler) Reconcile(req ctrl.Request) (ctrl.Result, erro
 			}
 
 			if err != nil {
-				r.Log.Error(err, "reconciler error")
+				r.Log.Error(err, fmt.Sprintf("reconciler error in stage %v", stage))
 				nextStatus.LastMessage = err.Error()
 			}
 
@@ -128,7 +129,7 @@ func (r *ObservabilityReconciler) getInstallationStages() []apiv1.ObservabilityS
 		apiv1.TokenRequest,
 		apiv1.PrometheusInstallation,
 		apiv1.PrometheusConfiguration,
-		apiv1.PrometheusRules,
+		// apiv1.PrometheusRules,
 		apiv1.GrafanaInstallation,
 		apiv1.GrafanaConfiguration,
 		apiv1.PromtailInstallation,
@@ -138,7 +139,7 @@ func (r *ObservabilityReconciler) getInstallationStages() []apiv1.ObservabilityS
 
 func (r *ObservabilityReconciler) getCleanupStages() []apiv1.ObservabilityStageName {
 	return []apiv1.ObservabilityStageName{
-		apiv1.PrometheusRules,
+		// apiv1.PrometheusRules,
 		apiv1.PrometheusConfiguration,
 		apiv1.GrafanaConfiguration,
 		apiv1.PrometheusInstallation,
