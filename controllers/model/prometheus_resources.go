@@ -32,8 +32,41 @@ func GetPrometheusSubscription(cr *v1.Observability) *v1alpha1.Subscription {
 	}
 }
 
+func GetPrometheusProxySecret(cr *v1.Observability) *v13.Secret {
+	return &v13.Secret{
+		ObjectMeta: v12.ObjectMeta{
+			Name:      "prometheus-proxy",
+			Namespace: cr.Namespace,
+		},
+	}
+}
+
+func GetPrometheusTLSSecret(cr *v1.Observability) *v13.Secret {
+	return &v13.Secret{
+		ObjectMeta: v12.ObjectMeta{
+			Name:      "prometheus-k8s-tls",
+			Namespace: cr.Namespace,
+		},
+	}
+}
+
 func GetPrometheusServiceAccount(cr *v1.Observability) *v13.ServiceAccount {
+	route := GetPrometheusRoute(cr)
+	redirect := fmt.Sprintf("{\"kind\":\"OAuthRedirectReference\",\"apiVersion\":\"v1\",\"reference\":{\"kind\":\"Route\",\"name\":\"%s\"}}", route.Name)
+
 	return &v13.ServiceAccount{
+		ObjectMeta: v12.ObjectMeta{
+			Name:      "kafka-prometheus",
+			Namespace: cr.Namespace,
+			Annotations: map[string]string{
+				"serviceaccounts.openshift.io/oauth-redirectreference.primary": redirect,
+			},
+		},
+	}
+}
+
+func GetPrometheusService(cr *v1.Observability) *v13.Service {
+	return &v13.Service{
 		ObjectMeta: v12.ObjectMeta{
 			Name:      "kafka-prometheus",
 			Namespace: cr.Namespace,

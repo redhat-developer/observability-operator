@@ -71,17 +71,17 @@ func (r *Reconciler) Reconcile(ctx context.Context, cr *v1.Observability, s *v1.
 		return status, err
 	}
 
-	status, err = r.reconcileAlertmanager(ctx, cr)
-	if status != v1.ResultSuccess {
-		return status, err
-	}
-
 	status, err = r.reconcileAlertmanagerRoute(ctx, cr)
 	if status != v1.ResultSuccess {
 		return status, err
 	}
 
 	status, err = r.waitForRoute(ctx, cr)
+	if status != v1.ResultSuccess {
+		return status, err
+	}
+
+	status, err = r.reconcileAlertmanager(ctx, cr)
 	if status != v1.ResultSuccess {
 		return status, err
 	}
@@ -108,6 +108,12 @@ func (r *Reconciler) Cleanup(ctx context.Context, cr *v1.Observability) (v1.Obse
 	}
 
 	secret = model.GetAlertmanagerProxySecret(cr)
+	err = r.client.Delete(ctx, secret)
+	if err != nil && !errors.IsNotFound(err) {
+		return v1.ResultFailed, err
+	}
+
+	secret = model.GetAlertmanagerTLSSecret(cr)
 	err = r.client.Delete(ctx, secret)
 	if err != nil && !errors.IsNotFound(err) {
 		return v1.ResultFailed, err
@@ -371,6 +377,7 @@ func (r *Reconciler) reconcileAlertmanagerRoute(ctx context.Context, cr *v1.Obse
 			Kind: "Service",
 			Name: service.Name,
 		}
+		route.Spec.WildcardPolicy = v13.WildcardPolicyNone
 		return nil
 	})
 	if err != nil && !errors.IsAlreadyExists(err) {
@@ -397,7 +404,6 @@ func (r *Reconciler) reconcileAlertmanagerProxySecret(ctx context.Context, cr *v
 	}
 
 	return v1.ResultSuccess, err
-
 }
 
 func (r *Reconciler) reconcileAlertmanagerSecret(ctx context.Context, cr *v1.Observability, pagerDutySecret []byte, deadMansSnitchUrl []byte) (v1.ObservabilityStageStatus, error) {

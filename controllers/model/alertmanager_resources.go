@@ -21,6 +21,15 @@ func GetAlertmanagerProxySecret(cr *v1.Observability) *v13.Secret {
 	}
 }
 
+func GetAlertmanagerTLSSecret(cr *v1.Observability) *v13.Secret {
+	return &v13.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "alertmanager-k8s-tls",
+			Namespace: cr.Namespace,
+		},
+	}
+}
+
 func GetAlertmanagerRoute(cr *v1.Observability) *routev1.Route {
 	return &routev1.Route{
 		ObjectMeta: metav1.ObjectMeta{

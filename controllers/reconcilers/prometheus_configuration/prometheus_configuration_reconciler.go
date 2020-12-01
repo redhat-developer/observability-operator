@@ -95,6 +95,26 @@ func (r *Reconciler) Cleanup(ctx context.Context, cr *v1.Observability) (v1.Obse
 		return v1.ResultFailed, err
 	}
 
+	// Service
+	service := model.GetPrometheusService(cr)
+	err = r.client.Delete(ctx, service)
+	if err != nil && !errors.IsNotFound(err) {
+		return v1.ResultFailed, err
+	}
+
+	// Proxy secret account
+	s = model.GetPrometheusProxySecret(cr)
+	err = r.client.Delete(ctx, s)
+	if err != nil && !errors.IsNotFound(err) {
+		return v1.ResultFailed, err
+	}
+
+	secret := model.GetPrometheusTLSSecret(cr)
+	err = r.client.Delete(ctx, secret)
+	if err != nil && !errors.IsNotFound(err) {
+		return v1.ResultFailed, err
+	}
+
 	return v1.ResultSuccess, nil
 }
 
@@ -120,8 +140,15 @@ func (r *Reconciler) waitForPrometheusToBeRemoved(ctx context.Context, cr *v1.Ob
 }
 
 func (r *Reconciler) Reconcile(ctx context.Context, cr *v1.Observability, s *v1.ObservabilityStatus) (v1.ObservabilityStageStatus, error) {
+	// prometheus proxy secret
 	// prometheus service account
-	status, err := r.reconcileServiceAccount(ctx, cr)
+	status, err := r.reconcilePrometheusProxySecret(ctx, cr)
+	if status != v1.ResultSuccess {
+		return status, err
+	}
+
+	// prometheus service account
+	status, err = r.reconcileServiceAccount(ctx, cr)
 	if status != v1.ResultSuccess {
 		return status, err
 	}
@@ -134,6 +161,12 @@ func (r *Reconciler) Reconcile(ctx context.Context, cr *v1.Observability, s *v1.
 
 	// prometheus cluster role binding
 	status, err = r.reconcileClusterRoleBinding(ctx, cr)
+	if status != v1.ResultSuccess {
+		return status, err
+	}
+
+	// prometheus service
+	status, err = r.reconcileService(ctx, cr)
 	if status != v1.ResultSuccess {
 		return status, err
 	}
@@ -194,6 +227,57 @@ func (r *Reconciler) reconcileServiceAccount(ctx context.Context, cr *v1.Observa
 	return v1.ResultSuccess, nil
 }
 
+func (r *Reconciler) reconcilePrometheusProxySecret(ctx context.Context, cr *v1.Observability) (v1.ObservabilityStageStatus, error) {
+	secret := model.GetPrometheusProxySecret(cr)
+
+	_, err := controllerutil.CreateOrUpdate(ctx, r.client, secret, func() error {
+		if secret.Data == nil {
+			secret.StringData = map[string]string{
+				"session_secret": utils.GenerateRandomString(64),
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		return v1.ResultFailed, err
+	}
+
+	return v1.ResultSuccess, err
+}
+
+func (r *Reconciler) reconcileService(ctx context.Context, cr *v1.Observability) (v1.ObservabilityStageStatus, error) {
+	service := model.GetPrometheusService(cr)
+	prom := model.GetPrometheus(cr)
+
+	_, err := controllerutil.CreateOrUpdate(ctx, r.client, service, func() error {
+		service.Annotations = map[string]string{
+			"service.alpha.openshift.io/serving-cert-secret-name": "prometheus-k8s-tls",
+		}
+		service.Spec.Selector = map[string]string{
+			"prometheus": prom.Name,
+		}
+		service.Spec.Ports = []core.ServicePort{
+			{
+				Name:       "web",
+				Port:       9091,
+				TargetPort: intstr.FromString("proxy"),
+			},
+			{
+				Name:       "upstream",
+				Port:       9090,
+				TargetPort: intstr.FromString("web"),
+			},
+		}
+		return nil
+	})
+
+	if err != nil {
+		return v1.ResultFailed, err
+	}
+
+	return v1.ResultSuccess, nil
+}
+
 func (r *Reconciler) reconcileClusterRole(ctx context.Context) (v1.ObservabilityStageStatus, error) {
 	clusterRole := model.GetPrometheusClusterRole()
 
@@ -208,6 +292,11 @@ func (r *Reconciler) reconcileClusterRole(ctx context.Context) (v1.Observability
 				Verbs:     []string{"create"},
 				APIGroups: []string{"authorization.k8s.io"},
 				Resources: []string{"subjectaccessreviews"},
+			},
+			{
+				Verbs:     []string{"create"},
+				APIGroups: []string{"authentication.k8s.io"},
+				Resources: []string{"tokenreviews"},
 			},
 		}
 		return nil
@@ -249,17 +338,21 @@ func (r *Reconciler) reconcileClusterRoleBinding(ctx context.Context, cr *v1.Obs
 
 func (r *Reconciler) reconcileRoute(ctx context.Context, cr *v1.Observability) (v1.ObservabilityStageStatus, error) {
 	route := model.GetPrometheusRoute(cr)
+	service := model.GetPrometheusService(cr)
 
 	_, err := controllerutil.CreateOrUpdate(ctx, r.client, route, func() error {
 		route.Spec = routev1.RouteSpec{
 			To: routev1.RouteTargetReference{
 				Kind: "Service",
-				Name: "prometheus-operated",
+				Name: service.Name,
 			},
 			Port: &routev1.RoutePort{
 				TargetPort: intstr.FromString("web"),
 			},
 			WildcardPolicy: routev1.WildcardPolicyNone,
+			TLS: &routev1.TLSConfig{
+				Termination: "reencrypt",
+			},
 		}
 		return nil
 	})
@@ -371,10 +464,14 @@ func (r *Reconciler) fetchClusterId(ctx context.Context, cr *v1.Observability, n
 func (r *Reconciler) reconcilePrometheus(ctx context.Context, cr *v1.Observability, nextStatus *v1.ObservabilityStatus) (v1.ObservabilityStageStatus, error) {
 	prometheus := model.GetPrometheus(cr)
 	tokenSecret := model.GetTokenSecret(cr)
+	proxySecret := model.GetPrometheusProxySecret(cr)
+	sa := model.GetPrometheusServiceAccount(cr)
+	alertmanager := model.GetAlertmanagerCr(cr)
+	alertmanagerService := model.GetAlertmanagerService(cr)
 
 	_, err := controllerutil.CreateOrUpdate(ctx, r.client, prometheus, func() error {
 		prometheus.Spec = prometheusv1.PrometheusSpec{
-			ServiceAccountName: "kafka-prometheus",
+			ServiceAccountName: sa.Name,
 			AdditionalScrapeConfigs: &core.SecretKeySelector{
 				LocalObjectReference: core.LocalObjectReference{
 					Name: "additional-scrape-configs",
@@ -394,7 +491,76 @@ func (r *Reconciler) reconcilePrometheus(ctx context.Context, cr *v1.Observabili
 				MatchLabels: model.GetResourceLabels(),
 			},
 			RemoteWrite: model.GetPrometheusRemoteWriteConfig(cr, tokenSecret.Name),
-			Secrets:     []string{tokenSecret.Name},
+			Alerting: &prometheusv1.AlertingSpec{
+				Alertmanagers: []prometheusv1.AlertmanagerEndpoints{
+					{
+						Namespace: cr.Namespace,
+						Name:      alertmanager.Name,
+						Port:      intstr.FromString("web"),
+						Scheme:    "https",
+						TLSConfig: &prometheusv1.TLSConfig{
+							CAFile:     "/var/run/secrets/kubernetes.io/serviceaccount/service-ca.crt",
+							ServerName: fmt.Sprintf("%v.%v.svc", alertmanagerService.Name, cr.Namespace),
+						},
+						BearerTokenFile: "/var/run/secrets/kubernetes.io/serviceaccount/token",
+					},
+				},
+			},
+			Secrets: []string{
+				tokenSecret.Name,
+				proxySecret.Name,
+				"prometheus-k8s-tls",
+			},
+			Containers: []core.Container{
+				{
+					Name:  "oauth-proxy",
+					Image: "quay.io/openshift/origin-oauth-proxy:4.2",
+					Args: []string{
+						"-provider=openshift",
+						"-https-address=:9091",
+						"-http-address=",
+						"-email-domain=*",
+						"-upstream=http://localhost:9090",
+						fmt.Sprintf("-openshift-service-account=%v", sa.Name),
+						"-openshift-sar={\"resource\": \"namespaces\", \"verb\": \"get\"}",
+						"-openshift-delegate-urls={\"/\": {\"resource\": \"namespaces\", \"verb\": \"get\"}}",
+						"-tls-cert=/etc/tls/private/tls.crt",
+						"-tls-key=/etc/tls/private/tls.key",
+						"-client-secret-file=/var/run/secrets/kubernetes.io/serviceaccount/token",
+						"-cookie-secret-file=/etc/proxy/secrets/session_secret",
+						"-openshift-ca=/etc/pki/tls/cert.pem",
+						"-openshift-ca=/var/run/secrets/kubernetes.io/serviceaccount/ca.crt",
+						"-skip-auth-regex=^/metrics",
+					},
+					Env: []core.EnvVar{
+						{
+							Name: "HTTP_PROXY",
+						},
+						{
+							Name: "HTTPS_PROXY",
+						},
+						{
+							Name: "NO_PROXY",
+						},
+					},
+					Ports: []core.ContainerPort{
+						{
+							Name:          "proxy",
+							ContainerPort: 9091,
+						},
+					},
+					VolumeMounts: []core.VolumeMount{
+						{
+							Name:      "secret-prometheus-k8s-tls",
+							MountPath: "/etc/tls/private",
+						},
+						{
+							Name:      fmt.Sprintf("secret-%v", proxySecret.Name),
+							MountPath: "/etc/proxy/secrets",
+						},
+					},
+				},
+			},
 		}
 		return nil
 	})
