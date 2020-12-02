@@ -9,10 +9,8 @@ spec:
   grafana:
     resyncPeriod: "5m"
     dashboards:
-      - url: "https://raw.githubusercontent.com/RHCloudServices/kafka-monitoring-stuff/master/install/resources/monitoring-cluster/dashboards/strimzi-kafka.yaml"
-        name: "strimzi-kafka"
-      - url: "https://raw.githubusercontent.com/RHCloudServices/kafka-monitoring-stuff/master/install/resources/monitoring-cluster/dashboards/strimzi-kafka-exporter.yaml"
-        name: "strimzi-kafka-exporter"
+      - url: "https://raw.githubusercontent.com/RHCloudServices/kafka-monitoring-stuff/master/install/resources/monitoring-cluster/dashboards/strimzi-operators.yaml"
+        name: "strimzi-operators"
   kafkaNamespaceSelector:
     matchLabels:
       app: strimzi

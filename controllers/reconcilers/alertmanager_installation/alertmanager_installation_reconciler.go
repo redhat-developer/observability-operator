@@ -201,9 +201,26 @@ func (r *Reconciler) reconcileAlertmanager(ctx context.Context, cr *v1.Observabi
 	proxySecret := model.GetAlertmanagerProxySecret(cr)
 	sa := model.GetAlertmanagerServiceAccount(cr)
 
-	_, err := controllerutil.CreateOrUpdate(ctx, r.client, alertmanager, func() error {
+	route := model.GetAlertmanagerRoute(cr)
+	selector := client.ObjectKey{
+		Namespace: route.Namespace,
+		Name:      route.Name,
+	}
+
+	err := r.client.Get(ctx, selector, route)
+	if err != nil && !errors.IsNotFound(err) {
+		return v1.ResultFailed, err
+	}
+
+	host := ""
+	if utils.IsRouteReads(route) {
+		host = route.Spec.Host
+	}
+
+	_, err = controllerutil.CreateOrUpdate(ctx, r.client, alertmanager, func() error {
 		alertmanager.Spec.ConfigSecret = configSecret.Name
 		alertmanager.Spec.ListenLocal = true
+		alertmanager.Spec.ExternalURL = fmt.Sprintf("https://%v", host)
 		alertmanager.Spec.ServiceAccountName = sa.Name
 		alertmanager.Spec.Secrets = []string{
 			proxySecret.Name,

@@ -217,6 +217,16 @@ func GetKafkaPodMonitor(cr *v1.Observability) *prometheusv1.PodMonitor {
 	}
 }
 
+func GetKafkaDeadmansSwitch(cr *v1.Observability) *prometheusv1.PrometheusRule {
+	return &prometheusv1.PrometheusRule{
+		ObjectMeta: v12.ObjectMeta{
+			Name:      "kafka-deadmansswitch",
+			Namespace: cr.Namespace,
+			Labels:    GetResourceLabels(),
+		},
+	}
+}
+
 func GetKafkaPrometheusRules(cr *v1.Observability) *prometheusv1.PrometheusRule {
 	return &prometheusv1.PrometheusRule{
 		ObjectMeta: v12.ObjectMeta{

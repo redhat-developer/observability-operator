@@ -298,6 +298,15 @@ func (r *Reconciler) reconcileClusterRole(ctx context.Context) (v1.Observability
 				APIGroups: []string{"authentication.k8s.io"},
 				Resources: []string{"tokenreviews"},
 			},
+			{
+				Verbs:     []string{"get"},
+				APIGroups: []string{""},
+				Resources: []string{"configmaps", "namespaces"},
+			},
+			{
+				Verbs:           []string{"get"},
+				NonResourceURLs: []string{"/metrics"},
+			},
 		}
 		return nil
 	})
@@ -469,9 +478,26 @@ func (r *Reconciler) reconcilePrometheus(ctx context.Context, cr *v1.Observabili
 	alertmanager := model.GetAlertmanagerCr(cr)
 	alertmanagerService := model.GetAlertmanagerService(cr)
 
-	_, err := controllerutil.CreateOrUpdate(ctx, r.client, prometheus, func() error {
+	route := model.GetPrometheusRoute(cr)
+	selector := client.ObjectKey{
+		Namespace: route.Namespace,
+		Name:      route.Name,
+	}
+
+	err := r.client.Get(ctx, selector, route)
+	if err != nil && !errors.IsNotFound(err) {
+		return v1.ResultFailed, err
+	}
+
+	host := ""
+	if utils.IsRouteReads(route) {
+		host = route.Spec.Host
+	}
+
+	_, err = controllerutil.CreateOrUpdate(ctx, r.client, prometheus, func() error {
 		prometheus.Spec = prometheusv1.PrometheusSpec{
 			ServiceAccountName: sa.Name,
+			ExternalURL:        fmt.Sprintf("https://%v", host),
 			AdditionalScrapeConfigs: &core.SecretKeySelector{
 				LocalObjectReference: core.LocalObjectReference{
 					Name: "additional-scrape-configs",
