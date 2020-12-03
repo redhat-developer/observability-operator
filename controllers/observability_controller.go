@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"context"
+	"fmt"
 	"github.com/go-logr/logr"
 	"github.com/jeremyary/observability-operator/controllers/reconcilers"
 	"github.com/jeremyary/observability-operator/controllers/reconcilers/alertmanager_installation"
@@ -92,7 +93,7 @@ func (r *ObservabilityReconciler) Reconcile(req ctrl.Request) (ctrl.Result, erro
 			}
 
 			if err != nil {
-				r.Log.Error(err, "reconciler error")
+				r.Log.Error(err, fmt.Sprintf("reconciler error in stage %v", stage))
 				nextStatus.LastMessage = err.Error()
 			}
 

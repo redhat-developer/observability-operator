@@ -3,24 +3,24 @@ kind: Observability
 metadata:
   name: observability-sample
 spec:
-  alertmanager:
-    pagerDutySecretName: "pagerduty"
-    deadMansSnitchSecretName: "deadmanssnitch"
+  clusterId: "dummy-observability-operator"
+  # alertmanager:
+  # pagerDutySecretName: "pagerduty"
+  # deadMansSnitchSecretName: "deadmanssnitch"
   grafana:
-    resyncPeriod: "5m"
-    dashboards:
-      - url: "https://raw.githubusercontent.com/RHCloudServices/kafka-monitoring-stuff/master/install/resources/monitoring-cluster/dashboards/strimzi-kafka.yaml"
-        name: "strimzi-kafka"
-      - url: "https://raw.githubusercontent.com/RHCloudServices/kafka-monitoring-stuff/master/install/resources/monitoring-cluster/dashboards/strimzi-kafka-exporter.yaml"
-        name: "strimzi-kafka-exporter"
+    managed: false
+    # resyncPeriod: "5m"
+    # dashboards:
+    #  - url: "https://raw.githubusercontent.com/RHCloudServices/kafka-monitoring-stuff/master/install/resources/monitoring-cluster/dashboards/strimzi-operators.yaml"
+    #    name: "strimzi-operators"
   kafkaNamespaceSelector:
     matchLabels:
       app: strimzi
   observatorium:
-    gateway: "https://observatorium-observatorium.apps-crc.testing"
+    gateway: "https://observatorium-observatorium.apps.pbraun-observatorium.observability.rhmw.io"
     tenant: "test"
     authType: "dex"
     dexConfig:
-      url: "http://dex-dex.apps-crc.testing"
+      url: "http://dex-dex.apps.pbraun-observatorium.observability.rhmw.io"
       credentialSecretNamespace: "kafka-observability"
       credentialSecretName: "observatorium-dex-credentials"

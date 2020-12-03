@@ -68,6 +68,9 @@ type GrafanaConfig struct {
 
 	// How often to refetch the dashboards?
 	ResyncPeriod string `json:"resyncPeriod,omitempty"`
+
+	// If false, the operator will install default dashboards and ignore list
+	Managed bool `json:"managed"`
 }
 
 type ObservatoriumConfig struct {
@@ -103,6 +106,9 @@ type ObservabilitySpec struct {
 
 	// Selector for all namespaces that should be scraped
 	KafkaNamespaceSelector *metav1.LabelSelector `json:"kafkaNamespaceSelector,omitempty"`
+
+	// Cluster ID. If not provided, the operator tries to obtain it.
+	ClusterID string `json:"clusterId,omitempty"`
 }
 
 // ObservabilityStatus defines the observed state of Observability

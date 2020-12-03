@@ -51,6 +51,10 @@ spec:
               - deadMansSnitchSecretName
               - pagerDutySecretName
               type: object
+            clusterId:
+              description: Cluster ID. If not provided, the operator tries to obtain
+                it.
+              type: string
             grafana:
               description: Grafana config
               properties:
@@ -67,9 +71,15 @@ spec:
                     - url
                     type: object
                   type: array
+                managed:
+                  description: If false, the operator will install default dashboards
+                    and ignore list
+                  type: boolean
                 resyncPeriod:
                   description: How often to refetch the dashboards?
                   type: string
+              required:
+              - managed
               type: object
             kafkaNamespaceSelector:
               description: Selector for all namespaces that should be scraped

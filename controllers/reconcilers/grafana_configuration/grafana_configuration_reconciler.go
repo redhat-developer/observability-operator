@@ -16,6 +16,7 @@ import (
 	core "k8s.io/api/core/v1"
 	v12 "k8s.io/api/rbac/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/meta"
 	v13 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"net/http"
@@ -73,14 +74,21 @@ func (r *Reconciler) Reconcile(ctx context.Context, cr *v1.Observability, s *v1.
 		return status, err
 	}
 
-	status, err = r.deleteUnrequestedDashboards(ctx, cr)
-	if status != v1.ResultSuccess {
-		return status, err
-	}
+	if cr.Spec.Grafana != nil && cr.Spec.Grafana.Managed == true {
+		status, err = r.deleteUnrequestedDashboards(ctx, cr)
+		if status != v1.ResultSuccess {
+			return status, err
+		}
 
-	status, err = r.reconcileGrafanaDashboards(ctx, cr, s)
-	if status != v1.ResultSuccess {
-		return status, err
+		status, err = r.reconcileGrafanaDashboards(ctx, cr, s)
+		if status != v1.ResultSuccess {
+			return status, err
+		}
+	} else {
+		status, err = r.reconcileDefaultDashboards(ctx, cr)
+		if status != v1.ResultSuccess {
+			return status, err
+		}
 	}
 
 	return v1.ResultSuccess, nil
@@ -90,7 +98,7 @@ func (r *Reconciler) Cleanup(ctx context.Context, cr *v1.Observability) (v1.Obse
 	// Grafana CR
 	grafana := model.GetGrafanaCr(cr)
 	err := r.client.Delete(ctx, grafana)
-	if err != nil && !errors.IsNotFound(err) {
+	if err != nil && !errors.IsNotFound(err) && !meta.IsNoMatchError(err) {
 		return v1.ResultFailed, err
 	}
 
@@ -101,7 +109,7 @@ func (r *Reconciler) Cleanup(ctx context.Context, cr *v1.Observability) (v1.Obse
 
 	datasource := model.GetGrafanaDatasource(cr)
 	err = r.client.Delete(ctx, datasource)
-	if err != nil && !errors.IsNotFound(err) {
+	if err != nil && !errors.IsNotFound(err) && !meta.IsNoMatchError(err) {
 		return v1.ResultFailed, err
 	}
 
@@ -131,13 +139,13 @@ func (r *Reconciler) Cleanup(ctx context.Context, cr *v1.Observability) (v1.Obse
 		Namespace: cr.Namespace,
 	}
 	err = r.client.List(ctx, dashboards, opts)
-	if err != nil {
+	if err != nil && !meta.IsNoMatchError(err) {
 		return v1.ResultFailed, err
 	}
 
 	for _, dashboard := range dashboards.Items {
 		err = r.client.Delete(ctx, &dashboard)
-		if err != nil && !errors.IsNotFound(err) {
+		if err != nil && !errors.IsNotFound(err) && !meta.IsNoMatchError(err) {
 			return v1.ResultFailed, err
 		}
 	}
@@ -158,6 +166,79 @@ func (r *Reconciler) waitForGrafanaToBeRemoved(ctx context.Context, cr *v1.Obser
 	for _, ss := range list.Items {
 		if ss.Name == "grafana-deployment" {
 			return v1.ResultInProgress, nil
+		}
+	}
+
+	return v1.ResultSuccess, nil
+}
+
+func (r *Reconciler) reconcileDefaultDashboards(ctx context.Context, cr *v1.Observability) (v1.ObservabilityStageStatus, error) {
+	var dashboards []*v1alpha1.GrafanaDashboard
+
+	// Strimzi Kafka Exporter
+	strimziKafkaExporter := &v1alpha1.GrafanaDashboard{}
+	strimziKafkaExporter.Namespace = cr.Namespace
+	strimziKafkaExporter.Name = "strimzi-kafka-exporter"
+	strimziKafkaExporter.Spec.Json = model.GetDashboardStrimziKafkaExporter()
+	strimziKafkaExporter.Spec.Datasources = []v1alpha1.GrafanaDashboardDatasource{
+		{
+			InputName:      "DS_PROMETHEUS",
+			DatasourceName: "Prometheus",
+		},
+	}
+	strimziKafkaExporter.Labels = getDashboardLabels()
+	dashboards = append(dashboards, strimziKafkaExporter)
+
+	// Strimzi Kafka SLIs
+	strimziKafkaSLIs := &v1alpha1.GrafanaDashboard{}
+	strimziKafkaSLIs.Namespace = cr.Namespace
+	strimziKafkaSLIs.Name = "strimzi-kafka-slis"
+	strimziKafkaSLIs.Spec.Json = model.GetDashboardStrimziKafkaSLIs()
+	strimziKafkaSLIs.Labels = getDashboardLabels()
+	strimziKafkaSLIs.Spec.Datasources = []v1alpha1.GrafanaDashboardDatasource{
+		{
+			InputName:      "DS_PROMETHEUS",
+			DatasourceName: "Prometheus",
+		},
+	}
+	dashboards = append(dashboards, strimziKafkaSLIs)
+
+	// Strimzi Kafka
+	strimziKafka := &v1alpha1.GrafanaDashboard{}
+	strimziKafka.Namespace = cr.Namespace
+	strimziKafka.Name = "strimzi-kafka"
+	strimziKafka.Spec.Json = model.GetDashboardStrimziKafka()
+	strimziKafka.Labels = getDashboardLabels()
+	dashboards = append(dashboards, strimziKafka)
+
+	// Strimzi Operators
+	strimziOperators := &v1alpha1.GrafanaDashboard{}
+	strimziOperators.Namespace = cr.Namespace
+	strimziOperators.Name = "strimzi-operators"
+	strimziOperators.Spec.Json = model.GetDashboardStrimziOperators()
+	strimziOperators.Labels = getDashboardLabels()
+	dashboards = append(dashboards, strimziOperators)
+
+	// Strimzi Operators
+	strimziZookeeper := &v1alpha1.GrafanaDashboard{}
+	strimziZookeeper.Namespace = cr.Namespace
+	strimziZookeeper.Name = "strimzi-zookeeper"
+	strimziZookeeper.Spec.Json = model.GetDashboardStrimziZookeeper()
+	strimziZookeeper.Labels = getDashboardLabels()
+	strimziZookeeper.Spec.Datasources = []v1alpha1.GrafanaDashboardDatasource{
+		{
+			InputName:      "DS_PROMETHEUS",
+			DatasourceName: "Prometheus",
+		},
+	}
+	dashboards = append(dashboards, strimziZookeeper)
+
+	for _, dashboard := range dashboards {
+		_, err := controllerutil.CreateOrUpdate(ctx, r.client, dashboard, func() error {
+			return nil
+		})
+		if err != nil {
+			return v1.ResultFailed, err
 		}
 	}
 
@@ -554,4 +635,8 @@ func (r *Reconciler) reconcileGrafanaDashboards(ctx context.Context, cr *v1.Obse
 
 	nextStatus.DashboardsLastSynced = time.Now().Unix()
 	return v1.ResultSuccess, nil
+}
+
+func getDashboardLabels() map[string]string {
+	return map[string]string{"app": "strimzi"}
 }
