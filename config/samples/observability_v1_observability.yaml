@@ -3,6 +3,7 @@ kind: Observability
 metadata:
   name: observability-sample
 spec:
+  clusterId: "dummy"
   alertmanager:
     pagerDutySecretName: "pagerduty"
     deadMansSnitchSecretName: "deadmanssnitch"

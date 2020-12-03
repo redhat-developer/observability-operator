@@ -51,6 +51,10 @@ spec:
               - deadMansSnitchSecretName
               - pagerDutySecretName
               type: object
+            clusterId:
+              description: Cluster ID. If not provided, the operator tries to obtain
+                it.
+              type: string
             grafana:
               description: Grafana config
               properties:

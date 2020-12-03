@@ -461,6 +461,11 @@ func (r *Reconciler) fetchClusterId(ctx context.Context, cr *v1.Observability, n
 		return v1.ResultSuccess, nil
 	}
 
+	if cr.Spec.ClusterID != "" {
+		nextStatus.ClusterID = cr.Spec.ClusterID
+		return v1.ResultSuccess, nil
+	}
+
 	clusterId, err := utils.GetClusterId(ctx, r.client)
 	if err != nil {
 		return v1.ResultFailed, err

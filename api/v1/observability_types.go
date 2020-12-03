@@ -103,6 +103,9 @@ type ObservabilitySpec struct {
 
 	// Selector for all namespaces that should be scraped
 	KafkaNamespaceSelector *metav1.LabelSelector `json:"kafkaNamespaceSelector,omitempty"`
+
+	// Cluster ID. If not provided, the operator tries to obtain it.
+	ClusterID string `json:"clusterId,omitempty"`
 }
 
 // ObservabilityStatus defines the observed state of Observability
