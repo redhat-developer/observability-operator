@@ -16,6 +16,126 @@ metadata:
   name: observability-operator
 rules:
   - apiGroups:
+      - "config.openshift.io"
+    resources:
+      - "clusterversions"
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - "security.openshift.io"
+    resources:
+      - "securitycontextconstraints"
+    resourceNames:
+      - "privileged"
+    verbs:
+      - "use"
+  - apiGroups:
+      - "integreatly.org"
+    resources:
+      - grafanas
+      - grafanadashboards
+      - grafanadatasources
+    verbs:
+      - get
+      - list
+      - create
+      - update
+      - delete
+      - watch
+  - apiGroups:
+      - "route.openshift.io"
+    resources:
+      - routes
+    verbs:
+      - get
+      - list
+      - create
+      - update
+      - delete
+      - watch
+  - nonResourceURLs:
+      - "/metrics"
+    verbs:
+      - get
+  - apiGroups:
+      - "authorization.k8s.io"
+    resources:
+      - subjectaccessreviews
+    verbs:
+      - create
+  - apiGroups:
+      - "authentication.k8s.io"
+    resources:
+      - tokenreviews
+    verbs:
+      - create
+  - apiGroups:
+      - "rbac.authorization.k8s.io"
+    resources:
+      - clusterroles
+      - clusterrolebindings
+    verbs:
+      - get
+      - list
+      - update
+      - create
+      - delete
+      - watch
+  - apiGroups:
+      - "apps"
+    resources:
+      - "deployments"
+      - "daemonsets"
+      - "statefulsets"
+    verbs:
+      - get
+      - list
+      - create
+      - update
+      - delete
+      - watch
+  - apiGroups:
+      - "operators.coreos.com"
+    resources:
+      - "subscriptions"
+      - "operatorgroups"
+      - "clusterserviceversions"
+    verbs:
+      - get
+      - list
+      - create
+      - update
+      - watch
+      - delete
+  - apiGroups:
+      - ""
+    resources:
+      - namespaces
+      - pods
+      - nodes
+      - nodes/proxy
+    verbs:
+      - list
+      - get
+      - watch
+  - apiGroups:
+      - ""
+    resources:
+      - secrets
+      - serviceaccounts
+      - configmaps
+      - endpoints
+      - services
+    verbs:
+      - list
+      - get
+      - create
+      - update
+      - delete
+      - watch
+  - apiGroups:
       - corev1
     resources:
       - configmaps
@@ -30,6 +150,9 @@ rules:
       - monitoring.coreos.com
     resources:
       - podmonitors
+      - prometheuses
+      - alertmanagers
+      - prometheusrules
     verbs:
       - create
       - delete
@@ -37,6 +160,7 @@ rules:
       - list
       - patch
       - update
+      - watch
   - apiGroups:
       - observability.redhat.com
     resources:
@@ -113,7 +237,7 @@ kind: Observability
 metadata:
   name: observability-sample
 spec:
-  clusterId: "dummy-observability-operator"
+  # clusterId: "dummy-observability-operator"
   # alertmanager:
   # pagerDutySecretName: "pagerduty"
   # deadMansSnitchSecretName: "deadmanssnitch"
