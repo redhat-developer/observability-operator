@@ -448,11 +448,11 @@ func (r *Reconciler) reconcileAlertmanagerSecret(ctx context.Context, cr *v1.Obs
 
 func (r *Reconciler) getPagerDutySecret(ctx context.Context, cr *v1.Observability) (v1.ObservabilityStageStatus, []byte, error) {
 	if cr.Spec.Alertmanager == nil {
-		return v1.ResultSuccess, nil, nil
+		return v1.ResultSuccess, []byte("dummy"), nil
 	}
 
 	if cr.Spec.Alertmanager.PagerDutySecretName == "" {
-		return v1.ResultSuccess, nil, nil
+		return v1.ResultSuccess, []byte("dummy"), nil
 	}
 
 	ns := cr.Namespace
@@ -482,11 +482,11 @@ func (r *Reconciler) getPagerDutySecret(ctx context.Context, cr *v1.Observabilit
 
 func (r *Reconciler) getDeadMansSnitchUrl(ctx context.Context, cr *v1.Observability) (v1.ObservabilityStageStatus, []byte, error) {
 	if cr.Spec.Alertmanager == nil {
-		return v1.ResultSuccess, nil, nil
+		return v1.ResultSuccess, []byte("http://dummy"), nil
 	}
 
 	if cr.Spec.Alertmanager.DeadMansSnitchSecretName == "" {
-		return v1.ResultSuccess, nil, nil
+		return v1.ResultSuccess, []byte("http://dummy"), nil
 	}
 
 	ns := cr.Namespace

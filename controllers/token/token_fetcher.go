@@ -2,6 +2,7 @@ package token
 
 import (
 	"context"
+	"crypto/tls"
 	"encoding/json"
 	"fmt"
 	_ "github.com/jeremyary/observability-operator/api/v1"
@@ -25,8 +26,9 @@ type NilTokenFetcher struct{}
 
 // Fetches auth tokens from dex
 type DexTokenFetcher struct {
-	Client  client.Client
-	Context context.Context
+	Client     client.Client
+	Context    context.Context
+	HttpClient *http.Client
 }
 
 // Returns a token fetcher for the given auth type
@@ -52,9 +54,15 @@ func (r *NilTokenFetcher) Fetch(*v1.Observability, string) (string, int64, error
 }
 
 func NewDexTokenFetcher(ctx context.Context, client client.Client) AuthTokenFetcher {
+	tr := &http.Transport{
+		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+	}
+	httpClient := &http.Client{Transport: tr}
+
 	return &DexTokenFetcher{
-		Client:  client,
-		Context: ctx,
+		Client:     client,
+		Context:    ctx,
+		HttpClient: httpClient,
 	}
 }
 
@@ -97,7 +105,7 @@ func (r *DexTokenFetcher) Fetch(cr *v1.Observability, oldToken string) (string, 
 		"scope":         {"openid email"},
 	}
 
-	resp, err := http.PostForm(tokenEndpoint, formData)
+	resp, err := r.HttpClient.PostForm(tokenEndpoint, formData)
 	if err != nil {
 		return oldToken, cr.Status.TokenExpires, err
 	}

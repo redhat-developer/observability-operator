@@ -68,6 +68,9 @@ type GrafanaConfig struct {
 
 	// How often to refetch the dashboards?
 	ResyncPeriod string `json:"resyncPeriod,omitempty"`
+
+	// If false, the operator will install default dashboards and ignore list
+	Managed bool `json:"managed"`
 }
 
 type ObservatoriumConfig struct {
