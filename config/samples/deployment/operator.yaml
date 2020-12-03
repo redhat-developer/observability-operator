@@ -1,0 +1,136 @@
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: kafka-observability
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: observability-operator
+  namespace: kafka-observability
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: observability-operator
+rules:
+  - apiGroups:
+      - corev1
+    resources:
+      - configmaps
+    verbs:
+      - create
+      - delete
+      - get
+      - list
+      - patch
+      - update
+  - apiGroups:
+      - monitoring.coreos.com
+    resources:
+      - podmonitors
+    verbs:
+      - create
+      - delete
+      - get
+      - list
+      - patch
+      - update
+  - apiGroups:
+      - observability.redhat.com
+    resources:
+      - observabilities
+    verbs:
+      - create
+      - delete
+      - get
+      - list
+      - patch
+      - update
+      - watch
+  - apiGroups:
+      - observability.redhat.com
+    resources:
+      - observabilities/status
+    verbs:
+      - get
+      - patch
+      - update
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: observability-operator
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: observability-operator
+subjects:
+  - kind: ServiceAccount
+    name: observability-operator
+    namespace: kafka-observability
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: observability-operator
+  namespace: kafka-observability
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      name: observability-operator
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        name: observability-operator
+    spec:
+      serviceAccountName: observability-operator
+      containers:
+        - name: grafana-operator
+          image: quay.io/integreatly/observability-operator:latest
+          ports:
+            - containerPort: 60000
+              name: metrics
+          imagePullPolicy: Always
+          env:
+            - name: WATCH_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: OPERATOR_NAME
+              value: "observability-operator"
+---
+apiVersion: observability.redhat.com/v1
+kind: Observability
+metadata:
+  name: observability-sample
+spec:
+  clusterId: "dummy-observability-operator"
+  # alertmanager:
+  # pagerDutySecretName: "pagerduty"
+  # deadMansSnitchSecretName: "deadmanssnitch"
+  grafana:
+    managed: false
+    # resyncPeriod: "5m"
+    # dashboards:
+    #  - url: "https://raw.githubusercontent.com/RHCloudServices/kafka-monitoring-stuff/master/install/resources/monitoring-cluster/dashboards/strimzi-operators.yaml"
+    #    name: "strimzi-operators"
+  kafkaNamespaceSelector:
+    matchLabels:
+      app: strimzi
+  observatorium:
+    gateway: "https://observatorium-observatorium.apps.pbraun-observatorium.observability.rhmw.io"
+    tenant: "test"
+    authType: "dex"
+    dexConfig:
+      url: "http://dex-dex.apps.pbraun-observatorium.observability.rhmw.io"
+      credentialSecretNamespace: "kafka-observability"
+      credentialSecretName: "observatorium-dex-credentials"
