@@ -1,0 +1,48 @@
+apiVersion: operators.coreos.com/v1alpha1
+kind: ClusterServiceVersion
+metadata:
+  annotations:
+    alm-examples: '[]'
+    capabilities: Basic Install
+    operators.operatorframework.io/builder: operator-sdk-v1.2.0
+    operators.operatorframework.io/project_layout: go.kubebuilder.io/v2
+  name: observability-operator.vX.Y.Z
+  namespace: placeholder
+spec:
+  apiservicedefinitions: {}
+  customresourcedefinitions:
+    owned:
+    - description: Observability is the Schema for the observabilities API
+      displayName: Observability
+      kind: Observability
+      name: observabilities.observability.redhat.com
+      version: v1
+  description: Managed Services On-Cluster Observability Stack
+  displayName: observability-operator
+  icon:
+  - base64data: ""
+    mediatype: ""
+  install:
+    spec:
+      deployments: null
+    strategy: ""
+  installModes:
+  - supported: false
+    type: OwnNamespace
+  - supported: false
+    type: SingleNamespace
+  - supported: false
+    type: MultiNamespace
+  - supported: true
+    type: AllNamespaces
+  keywords:
+  - monitoring
+  - metrics
+  - logs
+  links:
+  - name: Observability Operator
+    url: https://observability-operator.domain
+  maturity: alpha
+  provider:
+    name: Red Hat
+  version: 0.0.0
