@@ -149,10 +149,15 @@ rules:
   - apiGroups:
       - monitoring.coreos.com
     resources:
-      - podmonitors
-      - prometheuses
       - alertmanagers
+      - prometheuses
+      - prometheuses/finalizers
+      - alertmanagers/finalizers
+      - servicemonitors
+      - podmonitors
       - prometheusrules
+      - thanosrulers
+      - thanosrulers/finalizers
     verbs:
       - create
       - delete
