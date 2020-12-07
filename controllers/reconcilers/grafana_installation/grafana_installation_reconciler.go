@@ -6,6 +6,7 @@ import (
 	v1 "github.com/jeremyary/observability-operator/api/v1"
 	"github.com/jeremyary/observability-operator/controllers/model"
 	"github.com/jeremyary/observability-operator/controllers/reconcilers"
+	"github.com/jeremyary/observability-operator/controllers/utils"
 	coreosv1 "github.com/operator-framework/api/pkg/operators/v1"
 	"github.com/operator-framework/api/pkg/operators/v1alpha1"
 	v12 "k8s.io/api/apps/v1"
@@ -103,9 +104,18 @@ func (r *Reconciler) reconcileSubscription(ctx context.Context, cr *v1.Observabi
 }
 
 func (r *Reconciler) reconcileOperatorgroup(ctx context.Context, cr *v1.Observability) (v1.ObservabilityStageStatus, error) {
+	exists, err := utils.HasOperatorGroupForNamespace(ctx, r.client, cr.Namespace)
+	if err != nil {
+		return v1.ResultFailed, err
+	}
+
+	if exists {
+		return v1.ResultSuccess, nil
+	}
+
 	operatorgroup := model.GetGrafanaOperatorGroup(cr)
 
-	_, err := controllerutil.CreateOrUpdate(ctx, r.client, operatorgroup, func() error {
+	_, err = controllerutil.CreateOrUpdate(ctx, r.client, operatorgroup, func() error {
 		operatorgroup.Spec = coreosv1.OperatorGroupSpec{
 			TargetNamespaces: []string{cr.Namespace},
 		}

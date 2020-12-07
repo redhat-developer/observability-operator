@@ -207,6 +207,16 @@ func GetStrimziPodMonitor(cr *v1.Observability) *prometheusv1.PodMonitor {
 	}
 }
 
+func GetCanaryPodMonitor(cr *v1.Observability) *prometheusv1.PodMonitor {
+	return &prometheusv1.PodMonitor{
+		ObjectMeta: v12.ObjectMeta{
+			Name:      "canary-metrics",
+			Namespace: cr.Namespace,
+			Labels:    GetResourceLabels(),
+		},
+	}
+}
+
 func GetKafkaPodMonitor(cr *v1.Observability) *prometheusv1.PodMonitor {
 	return &prometheusv1.PodMonitor{
 		ObjectMeta: v12.ObjectMeta{

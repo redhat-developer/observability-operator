@@ -6,6 +6,7 @@ import (
 	"encoding/base64"
 	v13 "github.com/openshift/api/config/v1"
 	routev1 "github.com/openshift/api/route/v1"
+	v12 "github.com/operator-framework/api/pkg/operators/v1"
 	v1 "k8s.io/api/core/v1"
 	k8sclient "sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -23,6 +24,30 @@ func GetClusterId(ctx context.Context, client k8sclient.Client) (string, error) 
 	}
 
 	return string(v.Spec.ClusterID), nil
+}
+
+// We need to figure out if a sync set needs to be created
+// When installing via subscription this is not required because OLM will create one
+// When installing by deployment we need to create one ourselves
+func HasOperatorGroupForNamespace(ctx context.Context, client k8sclient.Client, ns string) (bool, error) {
+	list := &v12.OperatorGroupList{}
+	opts := &k8sclient.ListOptions{
+		Namespace: ns,
+	}
+	err := client.List(ctx, list, opts)
+	if err != nil {
+		return false, err
+	}
+
+	for _, group := range list.Items {
+		for _, namespace := range group.Spec.TargetNamespaces {
+			if namespace == ns {
+				return true, nil
+			}
+		}
+	}
+
+	return false, nil
 }
 
 func IsRouteReads(route *routev1.Route) bool {
