@@ -107,6 +107,9 @@ type ObservabilitySpec struct {
 	// Selector for all namespaces that should be scraped
 	KafkaNamespaceSelector *metav1.LabelSelector `json:"kafkaNamespaceSelector,omitempty"`
 
+	// Selector for all canary pods that should be scraped
+	CanaryPodSelector *metav1.LabelSelector `json:"canaryPodSelector,omitempty"`
+
 	// Cluster ID. If not provided, the operator tries to obtain it.
 	ClusterID string `json:"clusterId,omitempty"`
 }

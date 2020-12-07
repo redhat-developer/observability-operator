@@ -3,7 +3,7 @@ kind: Observability
 metadata:
   name: observability-sample
 spec:
-  clusterId: "dummy-observability-operator"
+  # clusterId: "dummy-observability-operator"
   # alertmanager:
   # pagerDutySecretName: "pagerduty"
   # deadMansSnitchSecretName: "deadmanssnitch"
@@ -16,11 +16,14 @@ spec:
   kafkaNamespaceSelector:
     matchLabels:
       app: strimzi
+  canaryPodSelector:
+    matchLabels:
+      mas-managed: "true"
   observatorium:
     gateway: "https://observatorium-observatorium.apps.pbraun-observatorium.observability.rhmw.io"
     tenant: "test"
     authType: "dex"
     dexConfig:
       url: "http://dex-dex.apps.pbraun-observatorium.observability.rhmw.io"
-      credentialSecretNamespace: "kafka-observability"
+      credentialSecretNamespace: "test-5"
       credentialSecretName: "observatorium-dex-credentials"

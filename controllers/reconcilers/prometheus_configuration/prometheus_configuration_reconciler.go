@@ -603,7 +603,7 @@ func (r *Reconciler) reconcilePrometheus(ctx context.Context, cr *v1.Observabili
 	return v1.ResultSuccess, nil
 }
 
-func (r *Reconciler) reconcileStrimziPodMonitor(ctx context.Context, cr *v1.Observability) (v1.ObservabilityStageStatus, error) {
+func (r *Reconciler) reconcileCanaryPodMonitor(ctx context.Context, cr *v1.Observability) (v1.ObservabilityStageStatus, error) {
 	podMonitor := model.GetStrimziPodMonitor(cr)
 
 	_, err := controllerutil.CreateOrUpdate(ctx, r.client, podMonitor, func() error {
@@ -618,6 +618,39 @@ func (r *Reconciler) reconcileStrimziPodMonitor(ctx context.Context, cr *v1.Obse
 				{
 					Path: "/metrics",
 					Port: "http",
+				},
+			},
+		}
+		return nil
+	})
+
+	if err != nil {
+		return v1.ResultFailed, err
+	}
+
+	return v1.ResultSuccess, nil
+}
+
+func (r *Reconciler) reconcileStrimziPodMonitor(ctx context.Context, cr *v1.Observability) (v1.ObservabilityStageStatus, error) {
+	podMonitor := model.GetCanaryPodMonitor(cr)
+
+	// Without a selector no canary pod monitor will be created
+	if cr.Spec.CanaryPodSelector == nil {
+		return v1.ResultSuccess, nil
+	}
+
+	_, err := controllerutil.CreateOrUpdate(ctx, r.client, podMonitor, func() error {
+		podMonitor.Spec = prometheusv1.PodMonitorSpec{
+			Selector: v12.LabelSelector{
+				MatchLabels: cr.Spec.CanaryPodSelector.MatchLabels,
+			},
+			NamespaceSelector: prometheusv1.NamespaceSelector{
+				Any: true,
+			},
+			PodMetricsEndpoints: []prometheusv1.PodMetricsEndpoint{
+				{
+					Path: "/metrics",
+					Port: "metrics",
 				},
 			},
 		}
