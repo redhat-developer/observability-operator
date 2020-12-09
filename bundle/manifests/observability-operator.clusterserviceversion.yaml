@@ -64,7 +64,9 @@ spec:
           - /metrics
           verbs:
           - get
-        - resources:
+        - apiGroups:
+          - ""
+          resources:
           - configmaps
           - endpoints
           - nodes/proxy
@@ -78,7 +80,9 @@ spec:
           - list
           - update
           - watch
-        - resources:
+        - apiGroups:
+          - ""
+          resources:
           - namespaces
           - nodes
           - nodes/proxy
@@ -313,13 +317,13 @@ spec:
         serviceAccountName: default
     strategy: deployment
   installModes:
-  - supported: false
+  - supported: true
     type: OwnNamespace
-  - supported: false
+  - supported: true
     type: SingleNamespace
   - supported: false
     type: MultiNamespace
-  - supported: true
+  - supported: false
     type: AllNamespaces
   keywords:
   - monitoring

@@ -10,7 +10,9 @@ rules:
   - /metrics
   verbs:
   - get
-- resources:
+- apiGroups:
+  - ""
+  resources:
   - configmaps
   - endpoints
   - nodes/proxy
@@ -24,7 +26,9 @@ rules:
   - list
   - update
   - watch
-- resources:
+- apiGroups:
+  - ""
+  resources:
   - namespaces
   - nodes
   - nodes/proxy

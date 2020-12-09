@@ -48,6 +48,12 @@ func (r *Reconciler) Cleanup(ctx context.Context, cr *v1.Observability) (v1.Obse
 		return v1.ResultFailed, err
 	}
 
+	o = model.GetCanaryPodMonitor(cr)
+	err = r.client.Delete(ctx, o)
+	if err != nil && !errors.IsNotFound(err) && !meta.IsNoMatchError(err) {
+		return v1.ResultFailed, err
+	}
+
 	// Delete additional scrape config
 	s := model.GetPrometheusAdditionalScrapeConfig(cr)
 	err = r.client.Delete(ctx, s)
@@ -202,6 +208,12 @@ func (r *Reconciler) Reconcile(ctx context.Context, cr *v1.Observability, s *v1.
 
 	// strimzi PodMonitor
 	status, err = r.reconcileStrimziPodMonitor(ctx, cr)
+	if status != v1.ResultSuccess {
+		return status, err
+	}
+
+	// strimzi PodMonitor
+	status, err = r.reconcileCanaryPodMonitor(ctx, cr)
 	if status != v1.ResultSuccess {
 		return status, err
 	}
@@ -604,34 +616,6 @@ func (r *Reconciler) reconcilePrometheus(ctx context.Context, cr *v1.Observabili
 }
 
 func (r *Reconciler) reconcileCanaryPodMonitor(ctx context.Context, cr *v1.Observability) (v1.ObservabilityStageStatus, error) {
-	podMonitor := model.GetStrimziPodMonitor(cr)
-
-	_, err := controllerutil.CreateOrUpdate(ctx, r.client, podMonitor, func() error {
-		podMonitor.Spec = prometheusv1.PodMonitorSpec{
-			Selector: v12.LabelSelector{
-				MatchLabels: map[string]string{"strimzi.io/kind": "cluster-operator"},
-			},
-			NamespaceSelector: prometheusv1.NamespaceSelector{
-				Any: true,
-			},
-			PodMetricsEndpoints: []prometheusv1.PodMetricsEndpoint{
-				{
-					Path: "/metrics",
-					Port: "http",
-				},
-			},
-		}
-		return nil
-	})
-
-	if err != nil {
-		return v1.ResultFailed, err
-	}
-
-	return v1.ResultSuccess, nil
-}
-
-func (r *Reconciler) reconcileStrimziPodMonitor(ctx context.Context, cr *v1.Observability) (v1.ObservabilityStageStatus, error) {
 	podMonitor := model.GetCanaryPodMonitor(cr)
 
 	// Without a selector no canary pod monitor will be created
@@ -651,6 +635,34 @@ func (r *Reconciler) reconcileStrimziPodMonitor(ctx context.Context, cr *v1.Obse
 				{
 					Path: "/metrics",
 					Port: "metrics",
+				},
+			},
+		}
+		return nil
+	})
+
+	if err != nil {
+		return v1.ResultFailed, err
+	}
+
+	return v1.ResultSuccess, nil
+}
+
+func (r *Reconciler) reconcileStrimziPodMonitor(ctx context.Context, cr *v1.Observability) (v1.ObservabilityStageStatus, error) {
+	podMonitor := model.GetStrimziPodMonitor(cr)
+
+	_, err := controllerutil.CreateOrUpdate(ctx, r.client, podMonitor, func() error {
+		podMonitor.Spec = prometheusv1.PodMonitorSpec{
+			Selector: v12.LabelSelector{
+				MatchLabels: map[string]string{"strimzi.io/kind": "cluster-operator"},
+			},
+			NamespaceSelector: prometheusv1.NamespaceSelector{
+				Any: true,
+			},
+			PodMetricsEndpoints: []prometheusv1.PodMetricsEndpoint{
+				{
+					Path: "/metrics",
+					Port: "http",
 				},
 			},
 		}

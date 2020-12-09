@@ -51,8 +51,8 @@ type ObservabilityReconciler struct {
 // +kubebuilder:rbac:groups=rbac.authorization.k8s.io,resources=clusterroles;clusterrolebindings,verbs=get;list;create;update;delete;watch
 // +kubebuilder:rbac:groups=apps,resources=deployments;daemonsets;statefulsets,verbs=get;list;create;update;delete;watch
 // +kubebuilder:rbac:groups=operators.coreos.com,resources=subscriptions;operatorgroups;clusterserviceversions,verbs=get;list;create;update;delete;watch
-// +kubebuilder:rbac:groups=,resources=namespaces;pods;nodes;nodes/proxy,verbs=get;list;watch
-// +kubebuilder:rbac:groups=,resources=secrets;serviceaccounts;configmaps;endpoints;services;nodes/proxy,verbs=get;list;create;update;delete;watch
+// +kubebuilder:rbac:groups="",resources=namespaces;pods;nodes;nodes/proxy,verbs=get;list;watch
+// +kubebuilder:rbac:groups="",resources=secrets;serviceaccounts;configmaps;endpoints;services;nodes/proxy,verbs=get;list;create;update;delete;watch
 
 func (r *ObservabilityReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	ctx := context.Background()
