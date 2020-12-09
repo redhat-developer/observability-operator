@@ -6,6 +6,66 @@ metadata:
   creationTimestamp: null
   name: manager-role
 rules:
+- nonResourceURLs:
+  - /metrics
+  verbs:
+  - get
+- resources:
+  - configmaps
+  - endpoints
+  - nodes/proxy
+  - secrets
+  - serviceaccounts
+  - services
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - update
+  - watch
+- resources:
+  - namespaces
+  - nodes
+  - nodes/proxy
+  - pods
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - apps
+  resources:
+  - daemonsets
+  - deployments
+  - statefulsets
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - update
+  - watch
+- apiGroups:
+  - authentication.k8s.io
+  resources:
+  - tokenreviews
+  verbs:
+  - create
+- apiGroups:
+  - authorization.k8s.io
+  resources:
+  - subjectaccessreviews
+  verbs:
+  - create
+- apiGroups:
+  - config.openshift.io
+  resources:
+  - clusterversions
+  verbs:
+  - get
+  - list
+  - watch
 - apiGroups:
   - corev1
   resources:
@@ -18,9 +78,30 @@ rules:
   - patch
   - update
 - apiGroups:
+  - integreatly.org
+  resources:
+  - grafanadashboards
+  - grafanadatasources
+  - grafanas
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - update
+  - watch
+- apiGroups:
   - monitoring.coreos.com
   resources:
+  - alertmanagers
+  - alertmanagers/finalizers
   - podmonitors
+  - prometheuses
+  - prometheuses/finalizers
+  - prometheusrules
+  - servicemonitors
+  - thanosrulers
+  - thanosrulers/finalizers
   verbs:
   - create
   - delete
@@ -28,6 +109,7 @@ rules:
   - list
   - patch
   - update
+  - watch
 - apiGroups:
   - observability.redhat.com
   resources:
@@ -48,3 +130,47 @@ rules:
   - get
   - patch
   - update
+- apiGroups:
+  - operators.coreos.com
+  resources:
+  - clusterserviceversions
+  - operatorgroups
+  - subscriptions
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - update
+  - watch
+- apiGroups:
+  - rbac.authorization.k8s.io
+  resources:
+  - clusterrolebindings
+  - clusterroles
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - update
+  - watch
+- apiGroups:
+  - route.openshift.io
+  resources:
+  - routes
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - update
+  - watch
+- apiGroups:
+  - security.openshift.io
+  resourceNames:
+  - privileged
+  resources:
+  - securitycontextconstraints
+  verbs:
+  - use

@@ -40,7 +40,19 @@ type ObservabilityReconciler struct {
 // +kubebuilder:rbac:groups=observability.redhat.com,resources=observabilities,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=observability.redhat.com,resources=observabilities/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups=corev1,resources=configmaps,verbs=get;list;create;update;patch;delete
-// +kubebuilder:rbac:groups=monitoring.coreos.com,resources=podmonitors,verbs=get;list;create;update;patch;delete
+// +kubebuilder:rbac:groups=monitoring.coreos.com,resources=podmonitors;alertmanagers;prometheuses;prometheuses/finalizers;alertmanagers/finalizers;servicemonitors;prometheusrules;thanosrulers;thanosrulers/finalizers,verbs=get;list;create;update;patch;delete;watch
+// +kubebuilder:rbac:groups=config.openshift.io,resources=clusterversions,verbs=get;list;watch
+// +kubebuilder:rbac:groups=security.openshift.io,resources=securitycontextconstraints,resourceNames=privileged,verbs=use
+// +kubebuilder:rbac:groups=integreatly.org,resources=grafanas;grafanadashboards;grafanadatasources,verbs=get;list;create;update;delete;watch
+// +kubebuilder:rbac:groups=route.openshift.io,resources=routes,verbs=get;list;create;update;delete;watch
+// +kubebuilder:rbac:urls=/metrics,verbs=get
+// +kubebuilder:rbac:groups=authorization.k8s.io,resources=subjectaccessreviews,verbs=create
+// +kubebuilder:rbac:groups=authentication.k8s.io,resources=tokenreviews,verbs=create
+// +kubebuilder:rbac:groups=rbac.authorization.k8s.io,resources=clusterroles;clusterrolebindings,verbs=get;list;create;update;delete;watch
+// +kubebuilder:rbac:groups=apps,resources=deployments;daemonsets;statefulsets,verbs=get;list;create;update;delete;watch
+// +kubebuilder:rbac:groups=operators.coreos.com,resources=subscriptions;operatorgroups;clusterserviceversions,verbs=get;list;create;update;delete;watch
+// +kubebuilder:rbac:groups=,resources=namespaces;pods;nodes;nodes/proxy,verbs=get;list;watch
+// +kubebuilder:rbac:groups=,resources=secrets;serviceaccounts;configmaps;endpoints;services;nodes/proxy,verbs=get;list;create;update;delete;watch
 
 func (r *ObservabilityReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	ctx := context.Background()
