@@ -176,7 +176,7 @@ func GetPrometheusRemoteWriteConfig(cr *v1.Observability, tokenSecret string) []
 			WriteRelabelConfigs: []prometheusv1.RelabelConfig{
 				{
 					SourceLabels: []string{"__name__"},
-					Regex:        "(kafka_controller.*$|console_url$|csv_succeeded$|csv_abnormal$|cluster_version$|ALERTS$|strimzi_.*$|subscription_sync_total)",
+					Regex:        "(kafka_controller.*$|console_url$|csv_succeeded$|csv_abnormal$|cluster_version$|ALERTS$|strimzi_.*$|subscription_sync_total|node.*$|kube.*$|container.*$)",
 					Action:       "keep",
 				},
 			},
