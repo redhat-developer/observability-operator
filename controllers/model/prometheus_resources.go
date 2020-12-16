@@ -126,6 +126,8 @@ func GetFederationConfig(user, pass string) ([]byte, error) {
       - 'kubelet_volume_stats_used_bytes{endpoint="https-metrics",namespace!~"openshift-.*$",namespace!~"kube-.*$",namespace!="default"}'
       - 'kubelet_volume_stats_available_bytes{endpoint="https-metrics",namespace!~"openshift-.*$",namespace!~"kube-.*$",namespace!="default"}'
       - 'kubelet_volume_stats_capacity_bytes{endpoint="https-metrics",namespace!~"openshift-.*$",namespace!~"kube-.*$",namespace!="default"}'
+      - 'kubelet_volume_stats_inodes{endpoint="https-metrics",namespace!~"openshift-.*$",namespace!~"kube-.*$",namespace!="default"}'
+      - 'kubelet_volume_stats_inodes_used{endpoint="https-metrics",namespace!~"openshift-.*$",namespace!~"kube-.*$",namespace!="default"}'
       - '{service="kube-state-metrics"}'
       - '{service="node-exporter"}'
       - '{__name__=~"node_namespace_pod_container:.*"}'
@@ -133,8 +135,11 @@ func GetFederationConfig(user, pass string) ([]byte, error) {
       - '{__name__=~"instance:.*"}'
       - '{__name__=~"container_memory_.*"}'
       - '{__name__=~"container_cpu_.*"}'
+      - '{__name__="container_last_seen"}'
       - '{__name__=~":node_memory_.*"}'
       - '{__name__=~"csv_.*"}'
+      - '{__name__=~"node_.*"}'
+      - '{__name__=~"container_network.*"}'
   scheme: https
   tls_config:
     insecure_skip_verify: true
