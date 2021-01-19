@@ -435,7 +435,7 @@ func (r *Reconciler) reconcileRule(ctx context.Context, cr *v1.Observability) (v
 								"summary":     "Kafka abnormal controller state",
 								"description": "There are {{ $value }} active controllers in the cluster",
 							},
-							Expr: intstr.Parse("sum(kafka_controller_kafkacontroller_active_controller_count) != 1"),
+							Expr: intstr.Parse("sum(kafka_controller_kafkacontroller_active_controller_count) by (strimzi_io_name) != 1"),
 							Labels: map[string]string{
 								"severity": "warning",
 							},
