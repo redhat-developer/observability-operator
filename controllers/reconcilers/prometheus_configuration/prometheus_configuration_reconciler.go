@@ -35,35 +35,9 @@ func NewReconciler(client client.Client, logger logr.Logger) reconcilers.Observa
 }
 
 func (r *Reconciler) Cleanup(ctx context.Context, cr *v1.Observability) (v1.ObservabilityStageStatus, error) {
-	// Delete pod monitors
-	o := model.GetStrimziPodMonitor(cr)
-	err := r.client.Delete(ctx, o)
-	if err != nil && !errors.IsNotFound(err) && !meta.IsNoMatchError(err) {
-		return v1.ResultFailed, err
-	}
-
-	o = model.GetKafkaPodMonitor(cr)
-	err = r.client.Delete(ctx, o)
-	if err != nil && !errors.IsNotFound(err) && !meta.IsNoMatchError(err) {
-		return v1.ResultFailed, err
-	}
-
-	o = model.GetCanaryPodMonitor(cr)
-	err = r.client.Delete(ctx, o)
-	if err != nil && !errors.IsNotFound(err) && !meta.IsNoMatchError(err) {
-		return v1.ResultFailed, err
-	}
-
-	// Delete additional scrape config
-	s := model.GetPrometheusAdditionalScrapeConfig(cr)
-	err = r.client.Delete(ctx, s)
-	if err != nil && !errors.IsNotFound(err) {
-		return v1.ResultFailed, err
-	}
-
 	// Delete route
 	route := model.GetPrometheusRoute(cr)
-	err = r.client.Delete(ctx, route)
+	err := r.client.Delete(ctx, route)
 	if err != nil && !errors.IsNotFound(err) {
 		return v1.ResultFailed, err
 	}
@@ -109,7 +83,7 @@ func (r *Reconciler) Cleanup(ctx context.Context, cr *v1.Observability) (v1.Obse
 	}
 
 	// Proxy secret account
-	s = model.GetPrometheusProxySecret(cr)
+	s := model.GetPrometheusProxySecret(cr)
 	err = r.client.Delete(ctx, s)
 	if err != nil && !errors.IsNotFound(err) {
 		return v1.ResultFailed, err
@@ -188,12 +162,6 @@ func (r *Reconciler) Reconcile(ctx context.Context, cr *v1.Observability, s *v1.
 		return status, err
 	}
 
-	// additional scrape config secret
-	status, err = r.reconcileSecret(ctx, cr)
-	if status != v1.ResultSuccess {
-		return status, err
-	}
-
 	// try to obtain the cluster id
 	status, err = r.fetchClusterId(ctx, cr, s)
 	if status != v1.ResultSuccess {
@@ -202,24 +170,6 @@ func (r *Reconciler) Reconcile(ctx context.Context, cr *v1.Observability, s *v1.
 
 	// prometheus instance CR
 	status, err = r.reconcilePrometheus(ctx, cr, s)
-	if status != v1.ResultSuccess {
-		return status, err
-	}
-
-	// strimzi PodMonitor
-	status, err = r.reconcileStrimziPodMonitor(ctx, cr)
-	if status != v1.ResultSuccess {
-		return status, err
-	}
-
-	// strimzi PodMonitor
-	status, err = r.reconcileCanaryPodMonitor(ctx, cr)
-	if status != v1.ResultSuccess {
-		return status, err
-	}
-
-	// kafka PodMonitor
-	status, err = r.reconcileKafkaPodMonitor(ctx, cr)
 	if status != v1.ResultSuccess {
 		return status, err
 	}

@@ -74,23 +74,6 @@ func (r *Reconciler) Reconcile(ctx context.Context, cr *v1.Observability, s *v1.
 		return status, err
 	}
 
-	if cr.Spec.Grafana != nil && cr.Spec.Grafana.Managed == true {
-		status, err = r.deleteUnrequestedDashboards(ctx, cr)
-		if status != v1.ResultSuccess {
-			return status, err
-		}
-
-		status, err = r.reconcileGrafanaDashboards(ctx, cr, s)
-		if status != v1.ResultSuccess {
-			return status, err
-		}
-	} else {
-		status, err = r.reconcileDefaultDashboards(ctx, cr)
-		if status != v1.ResultSuccess {
-			return status, err
-		}
-	}
-
 	return v1.ResultSuccess, nil
 }
 
@@ -131,23 +114,6 @@ func (r *Reconciler) Cleanup(ctx context.Context, cr *v1.Observability) (v1.Obse
 	err = r.client.Delete(ctx, clusterRole)
 	if err != nil && !errors.IsNotFound(err) {
 		return v1.ResultFailed, err
-	}
-
-	// Delete dashboards
-	dashboards := &v1alpha1.GrafanaDashboardList{}
-	opts := &client.ListOptions{
-		Namespace: cr.Namespace,
-	}
-	err = r.client.List(ctx, dashboards, opts)
-	if err != nil && !meta.IsNoMatchError(err) {
-		return v1.ResultFailed, err
-	}
-
-	for _, dashboard := range dashboards.Items {
-		err = r.client.Delete(ctx, &dashboard)
-		if err != nil && !errors.IsNotFound(err) && !meta.IsNoMatchError(err) {
-			return v1.ResultFailed, err
-		}
 	}
 
 	return v1.ResultSuccess, nil

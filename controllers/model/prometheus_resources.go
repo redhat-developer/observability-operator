@@ -171,26 +171,29 @@ func GetPrometheusAdditionalScrapeConfig(cr *v1.Observability) *v13.Secret {
 }
 
 func GetPrometheusRemoteWriteConfig(cr *v1.Observability, tokenSecret string) []prometheusv1.RemoteWriteSpec {
-	if cr.Spec.Observatorium == nil {
-		return nil
-	}
+	/*
+		if cr.Spec.Observatorium == nil {
+			return nil
+		}
 
-	return []prometheusv1.RemoteWriteSpec{
-		{
-			URL: fmt.Sprintf("%s/api/metrics/v1/%s/api/v1/receive", cr.Spec.Observatorium.Gateway, cr.Spec.Observatorium.Tenant),
-			WriteRelabelConfigs: []prometheusv1.RelabelConfig{
-				{
-					SourceLabels: []string{"__name__"},
-					Regex:        "(kafka_controller.*$|console_url$|csv_succeeded$|csv_abnormal$|cluster_version$|ALERTS$|strimzi_.*$|subscription_sync_total|node.*$|kube.*$|container.*$)",
-					Action:       "keep",
+		return []prometheusv1.RemoteWriteSpec{
+			{
+				URL: fmt.Sprintf("%s/api/metrics/v1/%s/api/v1/receive", cr.Spec.Observatorium.Gateway, cr.Spec.Observatorium.Tenant),
+				WriteRelabelConfigs: []prometheusv1.RelabelConfig{
+					{
+						SourceLabels: []string{"__name__"},
+						Regex:        "(kafka_controller.*$|console_url$|csv_succeeded$|csv_abnormal$|cluster_version$|ALERTS$|strimzi_.*$|subscription_sync_total|node.*$|kube.*$|container.*$)",
+						Action:       "keep",
+					},
+				},
+				BearerTokenFile: fmt.Sprintf("/etc/prometheus/secrets/%s/token", tokenSecret),
+				TLSConfig: &prometheusv1.TLSConfig{
+					InsecureSkipVerify: true,
 				},
 			},
-			BearerTokenFile: fmt.Sprintf("/etc/prometheus/secrets/%s/token", tokenSecret),
-			TLSConfig: &prometheusv1.TLSConfig{
-				InsecureSkipVerify: true,
-			},
-		},
-	}
+		}
+	*/
+	return []prometheusv1.RemoteWriteSpec{}
 }
 
 func GetPrometheus(cr *v1.Observability) *prometheusv1.Prometheus {
