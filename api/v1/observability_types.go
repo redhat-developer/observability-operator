@@ -95,21 +95,6 @@ type AlertmanagerConfig struct {
 
 // ObservabilitySpec defines the desired state of Observability
 type ObservabilitySpec struct {
-	// Observatorium config
-	Observatorium *ObservatoriumConfig `json:"observatorium,omitempty"`
-
-	// Grafana config
-	Grafana *GrafanaConfig `json:"grafana,omitempty"`
-
-	// Alertmanager config
-	Alertmanager *AlertmanagerConfig `json:"alertmanager,omitempty"`
-
-	// Selector for all namespaces that should be scraped
-	KafkaNamespaceSelector *metav1.LabelSelector `json:"kafkaNamespaceSelector,omitempty"`
-
-	// Selector for all canary pods that should be scraped
-	CanaryPodSelector *metav1.LabelSelector `json:"canaryPodSelector,omitempty"`
-
 	// Cluster ID. If not provided, the operator tries to obtain it.
 	ClusterID string `json:"clusterId,omitempty"`
 }

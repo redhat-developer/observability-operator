@@ -24,7 +24,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"strings"
-	"time"
 )
 
 type SourceType int
@@ -74,23 +73,6 @@ func (r *Reconciler) Reconcile(ctx context.Context, cr *v1.Observability, s *v1.
 		return status, err
 	}
 
-	if cr.Spec.Grafana != nil && cr.Spec.Grafana.Managed == true {
-		status, err = r.deleteUnrequestedDashboards(ctx, cr)
-		if status != v1.ResultSuccess {
-			return status, err
-		}
-
-		status, err = r.reconcileGrafanaDashboards(ctx, cr, s)
-		if status != v1.ResultSuccess {
-			return status, err
-		}
-	} else {
-		status, err = r.reconcileDefaultDashboards(ctx, cr)
-		if status != v1.ResultSuccess {
-			return status, err
-		}
-	}
-
 	return v1.ResultSuccess, nil
 }
 
@@ -133,23 +115,6 @@ func (r *Reconciler) Cleanup(ctx context.Context, cr *v1.Observability) (v1.Obse
 		return v1.ResultFailed, err
 	}
 
-	// Delete dashboards
-	dashboards := &v1alpha1.GrafanaDashboardList{}
-	opts := &client.ListOptions{
-		Namespace: cr.Namespace,
-	}
-	err = r.client.List(ctx, dashboards, opts)
-	if err != nil && !meta.IsNoMatchError(err) {
-		return v1.ResultFailed, err
-	}
-
-	for _, dashboard := range dashboards.Items {
-		err = r.client.Delete(ctx, &dashboard)
-		if err != nil && !errors.IsNotFound(err) && !meta.IsNoMatchError(err) {
-			return v1.ResultFailed, err
-		}
-	}
-
 	return v1.ResultSuccess, nil
 }
 
@@ -166,79 +131,6 @@ func (r *Reconciler) waitForGrafanaToBeRemoved(ctx context.Context, cr *v1.Obser
 	for _, ss := range list.Items {
 		if ss.Name == "grafana-deployment" {
 			return v1.ResultInProgress, nil
-		}
-	}
-
-	return v1.ResultSuccess, nil
-}
-
-func (r *Reconciler) reconcileDefaultDashboards(ctx context.Context, cr *v1.Observability) (v1.ObservabilityStageStatus, error) {
-	var dashboards []*v1alpha1.GrafanaDashboard
-
-	// Strimzi Kafka Exporter
-	strimziKafkaExporter := &v1alpha1.GrafanaDashboard{}
-	strimziKafkaExporter.Namespace = cr.Namespace
-	strimziKafkaExporter.Name = "strimzi-kafka-exporter"
-	strimziKafkaExporter.Spec.Json = model.GetDashboardStrimziKafkaExporter()
-	strimziKafkaExporter.Spec.Datasources = []v1alpha1.GrafanaDashboardDatasource{
-		{
-			InputName:      "DS_PROMETHEUS",
-			DatasourceName: "Prometheus",
-		},
-	}
-	strimziKafkaExporter.Labels = getDashboardLabels()
-	dashboards = append(dashboards, strimziKafkaExporter)
-
-	// Strimzi Kafka SLIs
-	strimziKafkaSLIs := &v1alpha1.GrafanaDashboard{}
-	strimziKafkaSLIs.Namespace = cr.Namespace
-	strimziKafkaSLIs.Name = "strimzi-kafka-slis"
-	strimziKafkaSLIs.Spec.Json = model.GetDashboardStrimziKafkaSLIs()
-	strimziKafkaSLIs.Labels = getDashboardLabels()
-	strimziKafkaSLIs.Spec.Datasources = []v1alpha1.GrafanaDashboardDatasource{
-		{
-			InputName:      "DS_PROMETHEUS",
-			DatasourceName: "Prometheus",
-		},
-	}
-	dashboards = append(dashboards, strimziKafkaSLIs)
-
-	// Strimzi Kafka
-	strimziKafka := &v1alpha1.GrafanaDashboard{}
-	strimziKafka.Namespace = cr.Namespace
-	strimziKafka.Name = "strimzi-kafka"
-	strimziKafka.Spec.Json = model.GetDashboardStrimziKafka()
-	strimziKafka.Labels = getDashboardLabels()
-	dashboards = append(dashboards, strimziKafka)
-
-	// Strimzi Operators
-	strimziOperators := &v1alpha1.GrafanaDashboard{}
-	strimziOperators.Namespace = cr.Namespace
-	strimziOperators.Name = "strimzi-operators"
-	strimziOperators.Spec.Json = model.GetDashboardStrimziOperators()
-	strimziOperators.Labels = getDashboardLabels()
-	dashboards = append(dashboards, strimziOperators)
-
-	// Strimzi Operators
-	strimziZookeeper := &v1alpha1.GrafanaDashboard{}
-	strimziZookeeper.Namespace = cr.Namespace
-	strimziZookeeper.Name = "strimzi-zookeeper"
-	strimziZookeeper.Spec.Json = model.GetDashboardStrimziZookeeper()
-	strimziZookeeper.Labels = getDashboardLabels()
-	strimziZookeeper.Spec.Datasources = []v1alpha1.GrafanaDashboardDatasource{
-		{
-			InputName:      "DS_PROMETHEUS",
-			DatasourceName: "Prometheus",
-		},
-	}
-	dashboards = append(dashboards, strimziZookeeper)
-
-	for _, dashboard := range dashboards {
-		_, err := controllerutil.CreateOrUpdate(ctx, r.client, dashboard, func() error {
-			return nil
-		})
-		if err != nil {
-			return v1.ResultFailed, err
 		}
 	}
 
@@ -538,105 +430,4 @@ func (r *Reconciler) createDashbaordFromSource(cr *v1.Observability, name string
 	}
 
 	return dashboard, nil
-}
-
-// Delete dashboards that are no longer in the CR requested list
-func (r *Reconciler) deleteUnrequestedDashboards(ctx context.Context, cr *v1.Observability) (v1.ObservabilityStageStatus, error) {
-	if cr.Spec.Grafana == nil {
-		return v1.ResultSuccess, nil
-	}
-
-	// List existing dashboards
-	existingDashboards := &v1alpha1.GrafanaDashboardList{}
-	opts := &client.ListOptions{
-		Namespace: cr.Namespace,
-	}
-	err := r.client.List(ctx, existingDashboards, opts)
-	if err != nil {
-		return v1.ResultFailed, err
-	}
-
-	isRequested := func(name string) bool {
-		for _, db := range cr.Spec.Grafana.Dashboards {
-			if name == db.Name {
-				return true
-			}
-		}
-		return false
-	}
-
-	// Check which dashboards are no longer requested and
-	// delete them
-	for _, dashboard := range existingDashboards.Items {
-		if isRequested(dashboard.Name) == false {
-			err = r.client.Delete(ctx, &dashboard)
-			if err != nil {
-				return v1.ResultFailed, err
-			}
-		}
-	}
-
-	return v1.ResultSuccess, nil
-}
-
-func (r *Reconciler) reconcileGrafanaDashboards(ctx context.Context, cr *v1.Observability, nextStatus *v1.ObservabilityStatus) (v1.ObservabilityStageStatus, error) {
-	// First check if the next sync is due
-	if cr.Status.DashboardsLastSynced != 0 {
-		lastSync := time.Unix(cr.Status.DashboardsLastSynced, 0)
-		period, err := time.ParseDuration(cr.Spec.Grafana.ResyncPeriod)
-		if err != nil {
-			return v1.ResultFailed, err
-		}
-
-		nextSync := lastSync.Add(period)
-		if time.Now().Before(nextSync) {
-			return v1.ResultSuccess, nil
-		}
-	}
-
-	// Create a list of requested dashboards from the external sources provided
-	// in the CR
-	var requestedDashboards []*v1alpha1.GrafanaDashboard
-	for _, d := range cr.Spec.Grafana.Dashboards {
-		sourceType, source, err := r.fetchDashboard(d.Url)
-		if err != nil {
-			return v1.ResultFailed, err
-		}
-
-		switch sourceType {
-		case SourceTypeUnknown:
-			break
-		case SourceTypeYaml:
-			dashboard, err := r.parseDashboardFromYaml(cr, d.Name, source)
-			if err != nil {
-				return v1.ResultFailed, err
-			}
-			requestedDashboards = append(requestedDashboards, dashboard)
-		case SourceTypeJsonnet:
-		case SourceTypeJson:
-			dashboard, err := r.createDashbaordFromSource(cr, d.Name, sourceType, source)
-			if err != nil {
-				return v1.ResultFailed, err
-			}
-			requestedDashboards = append(requestedDashboards, dashboard)
-		default:
-		}
-	}
-
-	// Sync requested dashboards
-	for _, dashboard := range requestedDashboards {
-		_, err := controllerutil.CreateOrUpdate(ctx, r.client, dashboard, func() error {
-			return nil
-		})
-		if err != nil {
-			return v1.ResultFailed, err
-		}
-	}
-
-	nextStatus.DashboardsLastSynced = time.Now().Unix()
-	return v1.ResultSuccess, nil
-}
-
-func getDashboardLabels() map[string]string {
-	return map[string]string{"app": "strimzi"}
 }

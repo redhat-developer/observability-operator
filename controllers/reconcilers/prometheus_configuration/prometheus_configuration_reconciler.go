@@ -35,35 +35,9 @@ func NewReconciler(client client.Client, logger logr.Logger) reconcilers.Observa
 }
 
 func (r *Reconciler) Cleanup(ctx context.Context, cr *v1.Observability) (v1.ObservabilityStageStatus, error) {
-	// Delete pod monitors
-	o := model.GetStrimziPodMonitor(cr)
-	err := r.client.Delete(ctx, o)
-	if err != nil && !errors.IsNotFound(err) && !meta.IsNoMatchError(err) {
-		return v1.ResultFailed, err
-	}
-
-	o = model.GetKafkaPodMonitor(cr)
-	err = r.client.Delete(ctx, o)
-	if err != nil && !errors.IsNotFound(err) && !meta.IsNoMatchError(err) {
-		return v1.ResultFailed, err
-	}
-
-	o = model.GetCanaryPodMonitor(cr)
-	err = r.client.Delete(ctx, o)
-	if err != nil && !errors.IsNotFound(err) && !meta.IsNoMatchError(err) {
-		return v1.ResultFailed, err
-	}
-
-	// Delete additional scrape config
-	s := model.GetPrometheusAdditionalScrapeConfig(cr)
-	err = r.client.Delete(ctx, s)
-	if err != nil && !errors.IsNotFound(err) {
-		return v1.ResultFailed, err
-	}
-
 	// Delete route
 	route := model.GetPrometheusRoute(cr)
-	err = r.client.Delete(ctx, route)
+	err := r.client.Delete(ctx, route)
 	if err != nil && !errors.IsNotFound(err) {
 		return v1.ResultFailed, err
 	}
@@ -109,7 +83,7 @@ func (r *Reconciler) Cleanup(ctx context.Context, cr *v1.Observability) (v1.Obse
 	}
 
 	// Proxy secret account
-	s = model.GetPrometheusProxySecret(cr)
+	s := model.GetPrometheusProxySecret(cr)
 	err = r.client.Delete(ctx, s)
 	if err != nil && !errors.IsNotFound(err) {
 		return v1.ResultFailed, err
@@ -188,12 +162,6 @@ func (r *Reconciler) Reconcile(ctx context.Context, cr *v1.Observability, s *v1.
 		return status, err
 	}
 
-	// additional scrape config secret
-	status, err = r.reconcileSecret(ctx, cr)
-	if status != v1.ResultSuccess {
-		return status, err
-	}
-
 	// try to obtain the cluster id
 	status, err = r.fetchClusterId(ctx, cr, s)
 	if status != v1.ResultSuccess {
@@ -202,24 +170,6 @@ func (r *Reconciler) Reconcile(ctx context.Context, cr *v1.Observability, s *v1.
 
 	// prometheus instance CR
 	status, err = r.reconcilePrometheus(ctx, cr, s)
-	if status != v1.ResultSuccess {
-		return status, err
-	}
-
-	// strimzi PodMonitor
-	status, err = r.reconcileStrimziPodMonitor(ctx, cr)
-	if status != v1.ResultSuccess {
-		return status, err
-	}
-
-	// strimzi PodMonitor
-	status, err = r.reconcileCanaryPodMonitor(ctx, cr)
-	if status != v1.ResultSuccess {
-		return status, err
-	}
-
-	// kafka PodMonitor
-	status, err = r.reconcileKafkaPodMonitor(ctx, cr)
 	if status != v1.ResultSuccess {
 		return status, err
 	}
@@ -600,141 +550,6 @@ func (r *Reconciler) reconcilePrometheus(ctx context.Context, cr *v1.Observabili
 						{
 							Name:      fmt.Sprintf("secret-%v", proxySecret.Name),
 							MountPath: "/etc/proxy/secrets",
-						},
-					},
-				},
-			},
-		}
-		return nil
-	})
-
-	if err != nil {
-		return v1.ResultFailed, err
-	}
-
-	return v1.ResultSuccess, nil
-}
-
-func (r *Reconciler) reconcileCanaryPodMonitor(ctx context.Context, cr *v1.Observability) (v1.ObservabilityStageStatus, error) {
-	podMonitor := model.GetCanaryPodMonitor(cr)
-
-	// Without a selector no canary pod monitor will be created
-	if cr.Spec.CanaryPodSelector == nil {
-		return v1.ResultSuccess, nil
-	}
-
-	_, err := controllerutil.CreateOrUpdate(ctx, r.client, podMonitor, func() error {
-		podMonitor.Spec = prometheusv1.PodMonitorSpec{
-			Selector: v12.LabelSelector{
-				MatchLabels: cr.Spec.CanaryPodSelector.MatchLabels,
-			},
-			NamespaceSelector: prometheusv1.NamespaceSelector{
-				Any: true,
-			},
-			PodMetricsEndpoints: []prometheusv1.PodMetricsEndpoint{
-				{
-					Path: "/metrics",
-					Port: "metrics",
-				},
-			},
-		}
-		return nil
-	})
-
-	if err != nil {
-		return v1.ResultFailed, err
-	}
-
-	return v1.ResultSuccess, nil
-}
-
-func (r *Reconciler) reconcileStrimziPodMonitor(ctx context.Context, cr *v1.Observability) (v1.ObservabilityStageStatus, error) {
-	podMonitor := model.GetStrimziPodMonitor(cr)
-
-	_, err := controllerutil.CreateOrUpdate(ctx, r.client, podMonitor, func() error {
-		podMonitor.Spec = prometheusv1.PodMonitorSpec{
-			Selector: v12.LabelSelector{
-				MatchLabels: map[string]string{"strimzi.io/kind": "cluster-operator"},
-			},
-			NamespaceSelector: prometheusv1.NamespaceSelector{
-				Any: true,
-			},
-			PodMetricsEndpoints: []prometheusv1.PodMetricsEndpoint{
-				{
-					Path: "/metrics",
-					Port: "http",
-				},
-			},
-		}
-		return nil
-	})
-
-	if err != nil {
-		return v1.ResultFailed, err
-	}
-
-	return v1.ResultSuccess, nil
-}
-
-func (r *Reconciler) reconcileKafkaPodMonitor(ctx context.Context, cr *v1.Observability) (v1.ObservabilityStageStatus, error) {
-	podMonitor := model.GetKafkaPodMonitor(cr)
-
-	_, err := controllerutil.CreateOrUpdate(ctx, r.client, podMonitor, func() error {
-		podMonitor.Spec = prometheusv1.PodMonitorSpec{
-			Selector: v12.LabelSelector{
-				MatchExpressions: []v12.LabelSelectorRequirement{
-					{
-						Key:      "strimzi.io/kind",
-						Operator: v12.LabelSelectorOpIn,
-						Values:   []string{"Kafka", "KafkaConnect"},
-					},
-				},
-			},
-			NamespaceSelector: prometheusv1.NamespaceSelector{
-				Any: true,
-			},
-			PodMetricsEndpoints: []prometheusv1.PodMetricsEndpoint{
-				{
-					Path: "/metrics",
-					Port: "tcp-prometheus",
-					RelabelConfigs: []*prometheusv1.RelabelConfig{
-						{
-							Separator:   ";",
-							Regex:       "__meta_kubernetes_pod_label_(.+)",
-							Replacement: "$1",
-							Action:      "labelmap",
-						},
-						{
-							SourceLabels: []string{"__meta_kubernetes_namespace"},
-							Separator:    ";",
-							Regex:        "(.*)",
-							TargetLabel:  "namespace",
-							Replacement:  "$1",
-							Action:       "replace",
-						},
-						{
-							SourceLabels: []string{"__meta_kubernetes_pod_name"},
-							Separator:    ";",
-							Regex:        "(.*)",
-							TargetLabel:  "kubernetes_pod_name",
-							Replacement:  "$1",
-							Action:       "replace",
-						},
-						{
-							SourceLabels: []string{"__meta_kubernetes_pod_node_name"},
-							Separator:    ";",
-							Regex:        "(.*)",
-							TargetLabel:  "node_name",
-							Replacement:  "$1",
-							Action:       "replace",
-						},
-						{
-							SourceLabels: []string{"__meta_kubernetes_pod_host_ip"},
-							Separator:    ";",
-							Regex:        "(.*)",
-							TargetLabel:  "node_ip",
-							Replacement:  "$1",
-							Action:       "replace",
 						},
 					},
 				},

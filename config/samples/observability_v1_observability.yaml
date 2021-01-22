@@ -2,28 +2,4 @@ apiVersion: observability.redhat.com/v1
 kind: Observability
 metadata:
   name: observability-sample
-spec:
-  # clusterId: "dummy-observability-operator"
-  # alertmanager:
-  # pagerDutySecretName: "pagerduty"
-  # deadMansSnitchSecretName: "deadmanssnitch"
-  grafana:
-    managed: false
-    # resyncPeriod: "5m"
-    # dashboards:
-    #  - url: "https://raw.githubusercontent.com/RHCloudServices/kafka-monitoring-stuff/master/install/resources/monitoring-cluster/dashboards/strimzi-operators.yaml"
-    #    name: "strimzi-operators"
-  kafkaNamespaceSelector:
-    matchLabels:
-      app: strimzi
-  canaryPodSelector:
-    matchLabels:
-      mas-managed: "true"
-  observatorium:
-    gateway: "https://observatorium-observatorium.apps.pbraun-observatorium.observability.rhmw.io"
-    tenant: "test"
-    authType: "dex"
-    dexConfig:
-      url: "http://dex-dex.apps.pbraun-observatorium.observability.rhmw.io"
-      credentialSecretNamespace: "test-5"
-      credentialSecretName: "observatorium-dex-credentials"
+spec: {}
