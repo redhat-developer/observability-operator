@@ -56,7 +56,7 @@ func GetPromtailClusterRoleBinding(cr *v1.Observability) *v14.ClusterRoleBinding
 	}
 }
 
-func GetPromtailConfig(cr *v1.Observability, id string, namespaces []string) (string, error) {
+func GetPromtailConfig(c *v1.ObservatoriumConfig, id string, namespaces []string) (string, error) {
 	const config = `
 server:
   http_listen_port: 9080
@@ -108,8 +108,8 @@ scrape_configs:
 	var buffer bytes.Buffer
 
 	var url string
-	if cr.Spec.Observatorium != nil {
-		url = fmt.Sprintf("%s/api/logs/v1/%s/loki/api/v1/push", cr.Spec.Observatorium.Gateway, cr.Spec.Observatorium.Tenant)
+	if c != nil {
+		url = fmt.Sprintf("%s/api/logs/v1/%s/loki/api/v1/push", c.Gateway, c.Tenant)
 	}
 
 	// Namespaces must be ordered to avoid different config hashes

@@ -431,11 +431,9 @@ func (r *Reconciler) reconcileAlertmanagerSecret(ctx context.Context, cr *v1.Obs
 	}
 
 	_, err = controllerutil.CreateOrUpdate(ctx, r.client, secret, func() error {
-		if secret.Data == nil {
-			secret.Type = v12.SecretTypeOpaque
-			secret.StringData = map[string]string{
-				"alertmanager.yaml": config,
-			}
+		secret.Type = v12.SecretTypeOpaque
+		secret.StringData = map[string]string{
+			"alertmanager.yaml": config,
 		}
 		return nil
 	})
@@ -447,69 +445,9 @@ func (r *Reconciler) reconcileAlertmanagerSecret(ctx context.Context, cr *v1.Obs
 }
 
 func (r *Reconciler) getPagerDutySecret(ctx context.Context, cr *v1.Observability) (v1.ObservabilityStageStatus, []byte, error) {
-	if cr.Spec.Alertmanager == nil {
-		return v1.ResultSuccess, []byte("dummy"), nil
-	}
-
-	if cr.Spec.Alertmanager.PagerDutySecretName == "" {
-		return v1.ResultSuccess, []byte("dummy"), nil
-	}
-
-	ns := cr.Namespace
-	if cr.Spec.Alertmanager.PagerDutySecretNamespace != "" {
-		ns = cr.Spec.Alertmanager.PagerDutySecretNamespace
-	}
-
-	pagerdutySecret := &v12.Secret{}
-	selector := client.ObjectKey{
-		Namespace: ns,
-		Name:      cr.Spec.Alertmanager.PagerDutySecretName,
-	}
-	err := r.client.Get(ctx, selector, pagerdutySecret)
-	if err != nil {
-		return v1.ResultFailed, nil, err
-	}
-
-	var secret []byte
-	if len(pagerdutySecret.Data["PAGERDUTY_KEY"]) != 0 {
-		secret = pagerdutySecret.Data["PAGERDUTY_KEY"]
-	} else if len(pagerdutySecret.Data["serviceKey"]) != 0 {
-		secret = pagerdutySecret.Data["serviceKey"]
-	}
-
-	return v1.ResultSuccess, secret, nil
+	return v1.ResultSuccess, []byte("dummy"), nil
 }
 
 func (r *Reconciler) getDeadMansSnitchUrl(ctx context.Context, cr *v1.Observability) (v1.ObservabilityStageStatus, []byte, error) {
-	if cr.Spec.Alertmanager == nil {
-		return v1.ResultSuccess, []byte("http://dummy"), nil
-	}
-
-	if cr.Spec.Alertmanager.DeadMansSnitchSecretName == "" {
-		return v1.ResultSuccess, []byte("http://dummy"), nil
-	}
-
-	ns := cr.Namespace
-	if cr.Spec.Alertmanager.DeadMansSnitchSecretNamespace != "" {
-		ns = cr.Spec.Alertmanager.DeadMansSnitchSecretNamespace
-	}
-
-	dmsSecret := &v12.Secret{}
-	selector := client.ObjectKey{
-		Namespace: ns,
-		Name:      cr.Spec.Alertmanager.DeadMansSnitchSecretName,
-	}
-	err := r.client.Get(ctx, selector, dmsSecret)
-	if err != nil {
-		return v1.ResultFailed, nil, err
-	}
-
-	var url []byte
-	if len(dmsSecret.Data["SNITCH_URL"]) != 0 {
-		url = dmsSecret.Data["SNITCH_URL"]
-	} else if len(dmsSecret.Data["url"]) != 0 {
-		url = dmsSecret.Data["url"]
-	}
-
-	return v1.ResultSuccess, url, nil
+	return v1.ResultSuccess, []byte("http://dummy"), nil
 }

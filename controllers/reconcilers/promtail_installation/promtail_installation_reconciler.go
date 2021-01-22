@@ -2,19 +2,15 @@ package promtail_installation
 
 import (
 	"context"
-	"crypto/sha256"
-	"fmt"
 	"github.com/go-logr/logr"
 	v1 "github.com/jeremyary/observability-operator/api/v1"
 	"github.com/jeremyary/observability-operator/controllers/model"
 	"github.com/jeremyary/observability-operator/controllers/reconcilers"
-	"io"
 	v13 "k8s.io/api/apps/v1"
 	v12 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	v14 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/labels"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
@@ -66,12 +62,7 @@ func (r *Reconciler) Cleanup(ctx context.Context, cr *v1.Observability) (v1.Obse
 }
 
 func (r *Reconciler) Reconcile(ctx context.Context, cr *v1.Observability, s *v1.ObservabilityStatus) (v1.ObservabilityStageStatus, error) {
-	status, namespaces, err := r.getScrapeNamespaces(ctx, cr)
-	if status != v1.ResultSuccess {
-		return status, err
-	}
-
-	status, hash, err := r.reconcilePromtailConfig(ctx, cr, namespaces)
+	status, _, err := r.getScrapeNamespaces(ctx, cr)
 	if status != v1.ResultSuccess {
 		return status, err
 	}
@@ -91,7 +82,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, cr *v1.Observability, s *v1.
 		return status, err
 	}
 
-	status, err = r.reconcilePromtailDaemonSet(ctx, cr, hash)
+	status, err = r.reconcilePromtailDaemonSet(ctx, cr, "")
 	if status != v1.ResultSuccess {
 		return status, err
 	}
@@ -100,50 +91,8 @@ func (r *Reconciler) Reconcile(ctx context.Context, cr *v1.Observability, s *v1.
 }
 
 func (r *Reconciler) getScrapeNamespaces(ctx context.Context, cr *v1.Observability) (v1.ObservabilityStageStatus, []string, error) {
-	if cr.Spec.KafkaNamespaceSelector == nil {
-		return v1.ResultSuccess, nil, nil
-	}
-
-	selector := labels.SelectorFromSet(cr.Spec.KafkaNamespaceSelector.MatchLabels)
-
-	list := &v12.NamespaceList{}
-	opts := &client.ListOptions{
-		LabelSelector: selector,
-	}
-
-	err := r.client.List(ctx, list, opts)
-	if err != nil {
-		return v1.ResultFailed, nil, err
-	}
-
 	var namespaces []string
-	for _, namespace := range list.Items {
-		namespaces = append(namespaces, namespace.Name)
-	}
-
 	return v1.ResultSuccess, namespaces, nil
-}
-
-func (r *Reconciler) reconcilePromtailConfig(ctx context.Context, cr *v1.Observability, namespaces []string) (v1.ObservabilityStageStatus, string, error) {
-	configMap := model.GetPromtailConfigmap(cr)
-	config, err := model.GetPromtailConfig(cr, cr.Status.ClusterID, namespaces)
-
-	_, err = controllerutil.CreateOrUpdate(ctx, r.client, configMap, func() error {
-		if configMap.Data == nil {
-			configMap.Data = make(map[string]string)
-		}
-		configMap.Data["promtail.yaml"] = config
-		return nil
-	})
-
-	if err != nil {
-		return v1.ResultFailed, "", err
-	}
-
-	hash := sha256.New()
-	io.WriteString(hash, config)
-
-	return v1.ResultSuccess, fmt.Sprintf("%x", hash.Sum(nil)), nil
 }
 
 func (r *Reconciler) reconcilePromtailDaemonSet(ctx context.Context, cr *v1.Observability, hash string) (v1.ObservabilityStageStatus, error) {
