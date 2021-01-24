@@ -22,6 +22,11 @@ import (
 	prometheusv1 "github.com/coreos/prometheus-operator/pkg/apis/monitoring/v1"
 	"github.com/go-logr/logr"
 	grafana "github.com/integr8ly/grafana-operator/v3/pkg/apis/integreatly/v1alpha1"
+	apiv1 "github.com/jeremyary/observability-operator/api/v1"
+	"github.com/jeremyary/observability-operator/controllers"
+	configv1 "github.com/openshift/api/config/v1"
+	projectv1 "github.com/openshift/api/project/v1"
+	routev1 "github.com/openshift/api/route/v1"
 	coreosv1 "github.com/operator-framework/api/pkg/operators/v1"
 	coreosv1alpha1 "github.com/operator-framework/api/pkg/operators/v1alpha1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -31,12 +36,6 @@ import (
 	"os"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
-
-	apiv1 "github.com/jeremyary/observability-operator/api/v1"
-	"github.com/jeremyary/observability-operator/controllers"
-	configv1 "github.com/openshift/api/config/v1"
-	projectv1 "github.com/openshift/api/project/v1"
-	routev1 "github.com/openshift/api/route/v1"
 	// +kubebuilder:scaffold:imports
 )
 
@@ -90,18 +89,25 @@ func main() {
 		os.Exit(1)
 	}
 
-	if err = (&controllers.ObservabilityReconciler{
+	observabilityReconciler := &controllers.ObservabilityReconciler{
 		Client: mgr.GetClient(),
 		Log:    ctrl.Log.WithName("controllers").WithName("Observability"),
 		Scheme: mgr.GetScheme(),
-	}).SetupWithManager(mgr); err != nil {
+	}
+
+	if err = observabilityReconciler.SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Observability")
 		os.Exit(1)
 	}
 	// +kubebuilder:scaffold:builder
 
-	//TODO: injecting handler to auto-delete our CR when stopping locally running operator for early dev
+	if err = observabilityReconciler.InitializeOperand(mgr); err != nil {
+		setupLog.Error(err, "unable to create operand", "controller", "Observability")
+		os.Exit(1)
+	}
+
 	if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
+		// ENABLE TO AUTO-DELETE CR ON OPERATOR SIGINT/KILL FOR LOCAL DEV
 		// if err := injectStopHandler(mgr, o, setupLog); err != nil {
 		setupLog.Error(err, "problem running manager")
 		os.Exit(1)
