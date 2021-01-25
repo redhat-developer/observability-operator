@@ -6,6 +6,7 @@ import (
 	"github.com/go-logr/logr"
 	"github.com/jeremyary/observability-operator/controllers/reconcilers"
 	"github.com/jeremyary/observability-operator/controllers/reconcilers/alertmanager_installation"
+	"github.com/jeremyary/observability-operator/controllers/reconcilers/configuration"
 	"github.com/jeremyary/observability-operator/controllers/reconcilers/csv"
 	"github.com/jeremyary/observability-operator/controllers/reconcilers/grafana_configuration"
 	"github.com/jeremyary/observability-operator/controllers/reconcilers/grafana_installation"
@@ -196,6 +197,7 @@ func (r *ObservabilityReconciler) getInstallationStages() []apiv1.ObservabilityS
 		apiv1.GrafanaInstallation,
 		apiv1.GrafanaConfiguration,
 		apiv1.AlertmanagerInstallation,
+		apiv1.Configuration,
 	}
 }
 
@@ -207,6 +209,7 @@ func (r *ObservabilityReconciler) getCleanupStages() []apiv1.ObservabilityStageN
 		apiv1.PrometheusInstallation,
 		apiv1.GrafanaInstallation,
 		apiv1.AlertmanagerInstallation,
+		apiv1.Configuration,
 		apiv1.TokenRequest,
 		apiv1.CsvRemoval,
 	}
@@ -258,6 +261,9 @@ func (r *ObservabilityReconciler) getReconcilerForStage(stage apiv1.Observabilit
 
 	case apiv1.AlertmanagerInstallation:
 		return alertmanager_installation.NewReconciler(r.Client, r.Log)
+
+	case apiv1.Configuration:
+		return configuration.NewReconciler(r.Client, r.Log)
 
 	default:
 		return nil
