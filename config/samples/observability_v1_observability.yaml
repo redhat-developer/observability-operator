@@ -2,4 +2,7 @@ apiVersion: observability.redhat.com/v1
 kind: Observability
 metadata:
   name: observability-sample
-spec: {}
+spec:
+  configurationSelector:
+    matchLabels:
+      configures: "observability-operator"

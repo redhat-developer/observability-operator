@@ -11,14 +11,14 @@ import (
 )
 
 type Reconciler struct {
-	client client.Client
-	logger logr.Logger
+	client     client.Client
+	logger     logr.Logger
 }
 
 func NewReconciler(client client.Client, logger logr.Logger) reconcilers.ObservabilityReconciler {
 	return &Reconciler{
-		client: client,
-		logger: logger,
+		client:     client,
+		logger:     logger,
 	}
 }
 

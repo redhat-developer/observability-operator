@@ -39,6 +39,7 @@ const (
 	TokenRequest             ObservabilityStageName = "TokenRequest"
 	PromtailInstallation     ObservabilityStageName = "PromtailInstallation"
 	AlertmanagerInstallation ObservabilityStageName = "AlertmanagerInstallation"
+	Configuration            ObservabilityStageName = "configuration"
 )
 
 const (
@@ -96,7 +97,8 @@ type AlertmanagerConfig struct {
 // ObservabilitySpec defines the desired state of Observability
 type ObservabilitySpec struct {
 	// Cluster ID. If not provided, the operator tries to obtain it.
-	ClusterID string `json:"clusterId,omitempty"`
+	ClusterID             string                `json:"clusterId,omitempty"`
+	ConfigurationSelector *metav1.LabelSelector `json:"configurationSelector"`
 }
 
 // ObservabilityStatus defines the observed state of Observability
