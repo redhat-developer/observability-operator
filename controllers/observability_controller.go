@@ -14,12 +14,14 @@ import (
 	"github.com/jeremyary/observability-operator/controllers/reconcilers/prometheus_rules"
 	"github.com/jeremyary/observability-operator/controllers/reconcilers/promtail_installation"
 	"github.com/jeremyary/observability-operator/controllers/reconcilers/token"
+	"io/ioutil"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"reflect"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"strings"
 	"time"
 
 	apiv1 "github.com/jeremyary/observability-operator/api/v1"
@@ -138,6 +140,13 @@ func (r *ObservabilityReconciler) SetupWithManager(mgr ctrl.Manager) error {
 }
 
 func (r *ObservabilityReconciler) InitializeOperand(mgr ctrl.Manager) error {
+	namespacePath := "/var/run/secrets/kubernetes.io/serviceaccount/namespace"
+	namespace, err := ioutil.ReadFile(namespacePath)
+	if err != nil {
+		r.Log.Error(err, "failed to read namespace file, will not create default operand", "does file exist?", namespacePath)
+		return err
+	}
+
 	// controller/cache will not be ready during operator 'setup', use manager client & API Reader instead
 	mgrClient := mgr.GetClient()
 	apiReader := mgr.GetAPIReader()
@@ -145,7 +154,7 @@ func (r *ObservabilityReconciler) InitializeOperand(mgr ctrl.Manager) error {
 	instance := apiv1.Observability{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "observability-stack",
-			Namespace: "managed-application-services-observability",
+			Namespace: strings.TrimSpace(string(namespace)),
 		},
 		// TODO: flesh out with whatever we determine to default for pre-warm
 		Spec: apiv1.ObservabilitySpec{},

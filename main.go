@@ -103,7 +103,6 @@ func main() {
 
 	if err = observabilityReconciler.InitializeOperand(mgr); err != nil {
 		setupLog.Error(err, "unable to create operand", "controller", "Observability")
-		os.Exit(1)
 	}
 
 	if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
