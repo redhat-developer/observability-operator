@@ -2,10 +2,10 @@ kind: ConfigMap
 apiVersion: v1
 metadata:
   name: kafka-observability-configuration
-  namespace: kafka-observability
+  namespace: observability-operator-system
   labels:
     configures: observability-operator
 data:
   access_token: ''
   channel: development
-  repository: 'https://github.com/bf2fc6cc711aee1a0c2a/observability-resources-mk'
+  repository: 'https://api.github.com/repos/bf2fc6cc711aee1a0c2a/observability-resources-mk/contents'
