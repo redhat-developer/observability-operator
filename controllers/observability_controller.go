@@ -14,11 +14,14 @@ import (
 	"github.com/jeremyary/observability-operator/controllers/reconcilers/prometheus_rules"
 	"github.com/jeremyary/observability-operator/controllers/reconcilers/promtail_installation"
 	"github.com/jeremyary/observability-operator/controllers/reconcilers/token"
+	"io/ioutil"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"reflect"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"strings"
 	"time"
 
 	apiv1 "github.com/jeremyary/observability-operator/api/v1"
@@ -134,6 +137,54 @@ func (r *ObservabilityReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&apiv1.Observability{}).
 		Complete(r)
+}
+
+func (r *ObservabilityReconciler) InitializeOperand(mgr ctrl.Manager) error {
+	namespacePath := "/var/run/secrets/kubernetes.io/serviceaccount/namespace"
+	namespace, err := ioutil.ReadFile(namespacePath)
+	if err != nil {
+		r.Log.Error(err, "failed to read namespace file, will not create default operand", "does file exist?", namespacePath)
+		return err
+	}
+
+	// controller/cache will not be ready during operator 'setup', use manager client & API Reader instead
+	mgrClient := mgr.GetClient()
+	apiReader := mgr.GetAPIReader()
+
+	instance := apiv1.Observability{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "observability-stack",
+			Namespace: strings.TrimSpace(string(namespace)),
+		},
+		// TODO: flesh out with whatever we determine to default for pre-warm
+		Spec: apiv1.ObservabilitySpec{},
+	}
+	instances := apiv1.ObservabilityList{}
+	if err := apiReader.List(context.Background(), &instances); err != nil {
+		r.Log.Error(err, "failed to retrieve list of Observability instances")
+		return err
+	}
+
+	found := false
+	for _, existing := range instances.Items {
+		if existing.Namespace != instance.Namespace || existing.Name != instance.Name {
+			r.Log.Info("WARNING! Operand found outside expected name/namespace, multiple operands will now exist",
+				"name", existing.Name, "namespace", existing.Namespace)
+		} else {
+			found = true
+		}
+	}
+
+	if found {
+		r.Log.Info("Operand with target name/namespace detected, skipping auto-create")
+	} else {
+		r.Log.Info("Target operand not found, instantiating default operand")
+		if err := mgrClient.Create(context.Background(), &instance); err != nil {
+			r.Log.Error(err, "failed to create new base operand")
+			return err
+		}
+	}
+	return nil
 }
 
 func (r *ObservabilityReconciler) getInstallationStages() []apiv1.ObservabilityStageName {
