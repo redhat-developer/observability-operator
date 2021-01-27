@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"github.com/go-logr/logr"
 	"github.com/jeremyary/observability-operator/controllers/reconcilers"
@@ -19,6 +20,7 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"os"
 	"reflect"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -141,10 +143,19 @@ func (r *ObservabilityReconciler) SetupWithManager(mgr ctrl.Manager) error {
 }
 
 func (r *ObservabilityReconciler) InitializeOperand(mgr ctrl.Manager) error {
+	// Try to retrieve the namespace from the pod filesystem first
+	var namespace string
 	namespacePath := "/var/run/secrets/kubernetes.io/serviceaccount/namespace"
-	namespace, err := ioutil.ReadFile(namespacePath)
+	ns, err := ioutil.ReadFile(namespacePath)
 	if err != nil {
-		r.Log.Error(err, "failed to read namespace file, will not create default operand", "does file exist?", namespacePath)
+		// If that does not work (runnign locally?) try the env vars
+		namespace = os.Getenv("WATCH_NAMESPACE")
+	} else {
+		namespace = string(ns)
+	}
+
+	if namespace == "" {
+		err := errors.New("unable to create operand: cannot detect operator namespace")
 		return err
 	}
 
@@ -157,26 +168,23 @@ func (r *ObservabilityReconciler) InitializeOperand(mgr ctrl.Manager) error {
 			Name:      "observability-stack",
 			Namespace: strings.TrimSpace(string(namespace)),
 		},
-		// TODO: flesh out with whatever we determine to default for pre-warm
-		Spec: apiv1.ObservabilitySpec{},
+		Spec: apiv1.ObservabilitySpec{
+			ResyncPeriod: "30s",
+			ConfigurationSelector: &metav1.LabelSelector{
+				MatchLabels: map[string]string{
+					"configures": "observability-operator",
+				},
+			},
+		},
 	}
+
 	instances := apiv1.ObservabilityList{}
 	if err := apiReader.List(context.Background(), &instances); err != nil {
 		r.Log.Error(err, "failed to retrieve list of Observability instances")
 		return err
 	}
 
-	found := false
-	for _, existing := range instances.Items {
-		if existing.Namespace != instance.Namespace || existing.Name != instance.Name {
-			r.Log.Info("WARNING! Operand found outside expected name/namespace, multiple operands will now exist",
-				"name", existing.Name, "namespace", existing.Namespace)
-		} else {
-			found = true
-		}
-	}
-
-	if found {
+	if len(instances.Items) > 0 {
 		r.Log.Info("Operand with target name/namespace detected, skipping auto-create")
 	} else {
 		r.Log.Info("Target operand not found, instantiating default operand")

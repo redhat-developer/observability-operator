@@ -7,10 +7,13 @@ import (
 	"github.com/integr8ly/grafana-operator/v3/pkg/apis/integreatly/v1alpha1"
 	v1 "github.com/jeremyary/observability-operator/api/v1"
 	"io/ioutil"
+	"k8s.io/apimachinery/pkg/types"
 	"net/http"
 	url2 "net/url"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"strings"
+	"time"
 )
 
 type SourceType int
@@ -22,38 +25,56 @@ const (
 	SourceTypeUnknown SourceType = 4
 )
 
-func getUniqueDashboards(indexes []RepositoryIndex) []string {
-	var result []string
+type DashboardInfo struct {
+	Name        string
+	Url         string
+	AccessToken string
+}
+
+func getDashboardNameFromUrl(path string) string {
+	parts := strings.Split(path, string(types.Separator))
+	part := parts[len(parts)-1]
+	parts = strings.Split(part, ".")
+	return parts[0]
+}
+
+func getUniqueDashboards(indexes []RepositoryIndex) []DashboardInfo {
+	var result []DashboardInfo
 	for _, index := range indexes {
 		if index.Config == nil || index.Config.Grafana == nil {
 			continue
 		}
 		for _, dashboard := range index.Config.Grafana.Dashboards {
+			name := getDashboardNameFromUrl(dashboard)
 			for _, existing := range result {
-				if existing == dashboard {
+				if existing.Name == name {
 					continue
 				}
 			}
-			result = append(result, dashboard)
+			result = append(result, DashboardInfo{
+				Name:        name,
+				Url:         fmt.Sprintf("%s/%s", index.BaseUrl, dashboard),
+				AccessToken: index.AccessToken,
+			})
 		}
 	}
 	return result
 }
 
-func deleteUnrequestedDashboards(cr *v1.Observability, ctx context.Context, c client.Client, dashboards []string) error {
+func (r *Reconciler) deleteUnrequestedDashboards(cr *v1.Observability, ctx context.Context, dashboards []DashboardInfo) error {
 	// List existing dashboards
 	existingDashboards := &v1alpha1.GrafanaDashboardList{}
 	opts := &client.ListOptions{
 		Namespace: cr.Namespace,
 	}
-	err := c.List(ctx, existingDashboards, opts)
+	err := r.client.List(ctx, existingDashboards, opts)
 	if err != nil {
 		return err
 	}
 
 	isRequested := func(name string) bool {
 		for _, dashboard := range dashboards {
-			if name == dashboard {
+			if name == dashboard.Name {
 				return true
 			}
 		}
@@ -64,7 +85,7 @@ func deleteUnrequestedDashboards(cr *v1.Observability, ctx context.Context, c cl
 	// delete them
 	for _, dashboard := range existingDashboards.Items {
 		if isRequested(dashboard.Name) == false {
-			err = c.Delete(ctx, &dashboard)
+			err = r.client.Delete(ctx, &dashboard)
 			if err != nil {
 				return err
 			}
@@ -74,40 +95,51 @@ func deleteUnrequestedDashboards(cr *v1.Observability, ctx context.Context, c cl
 	return nil
 }
 
-func createRequestedDashboards(cr *v1.Observability, ctx context.Context, c client.Client, baseUrl string, dashboards []string) error {
+func (r *Reconciler) createRequestedDashboards(cr *v1.Observability, ctx context.Context, dashboards []DashboardInfo, nextStatus *v1.ObservabilityStatus) error {
 	// Create a list of requested dashboards from the external sources provided
 	// in the CR
 	var requestedDashboards []*v1alpha1.GrafanaDashboard
 	for _, d := range dashboards {
-		dashboardUrl := fmt.Sprintf("")
-		sourceType, source, err := r.fetchDashboard(d.Url)
+		sourceType, source, err := r.fetchDashboard(d.Url, d.AccessToken)
 		if err != nil {
-			return v1.ResultFailed, err
+			return err
 		}
 
 		switch sourceType {
 		case SourceTypeUnknown:
 			break
 		case SourceTypeYaml:
-			dashboard, err := r.parseDashboardFromYaml(cr, d.Name, source)
+			dashboard, err := parseDashboardFromYaml(cr, d.Name, source)
 			if err != nil {
-				return v1.ResultFailed, err
+				return err
 			}
 			requestedDashboards = append(requestedDashboards, dashboard)
 		case SourceTypeJsonnet:
 		case SourceTypeJson:
-			dashboard, err := r.createDashbaordFromSource(cr, d.Name, sourceType, source)
+			dashboard, err := createDashbaordFromSource(cr, d.Name, sourceType, source)
 			if err != nil {
-				return v1.ResultFailed, err
+				return err
 			}
 			requestedDashboards = append(requestedDashboards, dashboard)
 		default:
 		}
 	}
+
+	// Sync requested dashboards
+	for _, dashboard := range requestedDashboards {
+		_, err := controllerutil.CreateOrUpdate(ctx, r.client, dashboard, func() error {
+			return nil
+		})
+		if err != nil {
+			return err
+		}
+	}
+
+	nextStatus.LastSynced = time.Now().Unix()
+	return nil
 }
 
-
-func (r *Reconciler) parseDashboardFromYaml(cr *v1.Observability, name string, source []byte) (*v1alpha1.GrafanaDashboard, error) {
+func parseDashboardFromYaml(cr *v1.Observability, name string, source []byte) (*v1alpha1.GrafanaDashboard, error) {
 	dashboard := &v1alpha1.GrafanaDashboard{}
 	err := yaml.Unmarshal(source, dashboard)
 	if err != nil {
@@ -118,7 +150,7 @@ func (r *Reconciler) parseDashboardFromYaml(cr *v1.Observability, name string, s
 	return dashboard, nil
 }
 
-func (r *Reconciler) createDashbaordFromSource(cr *v1.Observability, name string, t SourceType, source []byte) (*v1alpha1.GrafanaDashboard, error) {
+func createDashbaordFromSource(cr *v1.Observability, name string, t SourceType, source []byte) (*v1alpha1.GrafanaDashboard, error) {
 	dashboard := &v1alpha1.GrafanaDashboard{}
 	dashboard.Name = name
 	dashboard.Namespace = cr.Namespace
@@ -138,7 +170,7 @@ func (r *Reconciler) createDashbaordFromSource(cr *v1.Observability, name string
 
 // Try to determine the type (json or grafonnet) or a remote file by looking
 // at the filename extension
-func (r *Reconciler) getFileType(path string) SourceType {
+func getFileType(path string) SourceType {
 	fragments := strings.Split(path, ".")
 	if len(fragments) == 0 {
 		return SourceTypeUnknown
@@ -159,13 +191,19 @@ func (r *Reconciler) getFileType(path string) SourceType {
 	}
 }
 
-func (r *Reconciler) fetchDashboard(path string) (SourceType, []byte, error) {
+func (r *Reconciler) fetchDashboard(path string, token string) (SourceType, []byte, error) {
 	url, err := url2.ParseRequestURI(path)
 	if err != nil {
 		return SourceTypeUnknown, nil, err
 	}
 
-	resp, err := http.Get(url.String())
+	req, err := http.NewRequest(http.MethodGet, url.String(), nil)
+	if err != nil {
+		return SourceTypeUnknown, nil, err
+	}
+	req.Header.Set("Authorization", fmt.Sprintf("token %s", token))
+
+	resp, err := r.httpClient.Do(req)
 	if err != nil {
 		return SourceTypeUnknown, nil, err
 	}
@@ -180,6 +218,6 @@ func (r *Reconciler) fetchDashboard(path string) (SourceType, []byte, error) {
 		return SourceTypeUnknown, nil, err
 	}
 
-	sourceType := r.getFileType(url.Path)
+	sourceType := getFileType(url.Path)
 	return sourceType, body, nil
 }

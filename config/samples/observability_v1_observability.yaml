@@ -3,6 +3,7 @@ kind: Observability
 metadata:
   name: observability-sample
 spec:
+  resyncPeriod: 30s
   configurationSelector:
     matchLabels:
       configures: "observability-operator"

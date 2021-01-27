@@ -14,6 +14,7 @@ import (
 	"net/http"
 	"net/url"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"time"
 )
 
 const (
@@ -37,7 +38,9 @@ type RepositoryConfig struct {
 }
 
 type RepositoryIndex struct {
-	Config *RepositoryConfig `json:"config"`
+	BaseUrl     string            `json:"-"`
+	AccessToken string            `json:"-"`
+	Config      *RepositoryConfig `json:"config"`
 }
 
 type Reconciler struct {
@@ -63,6 +66,20 @@ func (r *Reconciler) Reconcile(ctx context.Context, cr *v1.Observability, s *v1.
 	if cr.Spec.ConfigurationSelector == nil {
 		r.logger.Info("warning: configuration label selector present, dynamic configuration will be skipped")
 		return v1.ResultSuccess, nil
+	}
+
+	// First check if the next sync is due
+	if cr.Status.LastSynced != 0 {
+		lastSync := time.Unix(cr.Status.LastSynced, 0)
+		period, err := time.ParseDuration(cr.Spec.ResyncPeriod)
+		if err != nil {
+			return v1.ResultFailed, err
+		}
+
+		nextSync := lastSync.Add(period)
+		if time.Now().Before(nextSync) {
+			return v1.ResultSuccess, nil
+		}
 	}
 
 	list := &v12.ConfigMapList{}
@@ -108,13 +125,22 @@ func (r *Reconciler) Reconcile(ctx context.Context, cr *v1.Observability, s *v1.
 			r.logger.Error(err, "corrupt index file")
 			continue
 		}
-
+		index.BaseUrl = fmt.Sprintf("%s/%s", repoInfo.Repository, repoInfo.Channel)
+		index.AccessToken = repoInfo.AccessToken
 		indexes = append(indexes, index)
 	}
 
 	// Manage dashboards
 	dashboards := getUniqueDashboards(indexes)
-	deleteUnrequestedDashboards(cr, ctx, r.client, dashboards)
+	err = r.deleteUnrequestedDashboards(cr, ctx, dashboards)
+	if err != nil {
+		return v1.ResultFailed, err
+	}
+
+	err = r.createRequestedDashboards(cr, ctx, dashboards, s)
+	if err != nil {
+		return v1.ResultFailed, err
+	}
 
 	return v1.ResultSuccess, nil
 }
