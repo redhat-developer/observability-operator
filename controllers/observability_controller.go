@@ -201,7 +201,6 @@ func (r *ObservabilityReconciler) getInstallationStages() []apiv1.ObservabilityS
 		apiv1.TokenRequest,
 		apiv1.PrometheusInstallation,
 		apiv1.PrometheusConfiguration,
-		apiv1.PrometheusRules,
 		apiv1.GrafanaInstallation,
 		apiv1.GrafanaConfiguration,
 		apiv1.AlertmanagerInstallation,
@@ -211,7 +210,6 @@ func (r *ObservabilityReconciler) getInstallationStages() []apiv1.ObservabilityS
 
 func (r *ObservabilityReconciler) getCleanupStages() []apiv1.ObservabilityStageName {
 	return []apiv1.ObservabilityStageName{
-		apiv1.PrometheusRules,
 		apiv1.PrometheusConfiguration,
 		apiv1.GrafanaConfiguration,
 		apiv1.PrometheusInstallation,

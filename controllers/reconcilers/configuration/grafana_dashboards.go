@@ -13,7 +13,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"strings"
-	"time"
 )
 
 type SourceType int
@@ -31,7 +30,7 @@ type DashboardInfo struct {
 	AccessToken string
 }
 
-func getDashboardNameFromUrl(path string) string {
+func getNameFromUrl(path string) string {
 	parts := strings.Split(path, string(types.Separator))
 	part := parts[len(parts)-1]
 	parts = strings.Split(part, ".")
@@ -45,7 +44,7 @@ func getUniqueDashboards(indexes []RepositoryIndex) []DashboardInfo {
 			continue
 		}
 		for _, dashboard := range index.Config.Grafana.Dashboards {
-			name := getDashboardNameFromUrl(dashboard)
+			name := getNameFromUrl(dashboard)
 			for _, existing := range result {
 				if existing.Name == name {
 					continue
@@ -95,7 +94,7 @@ func (r *Reconciler) deleteUnrequestedDashboards(cr *v1.Observability, ctx conte
 	return nil
 }
 
-func (r *Reconciler) createRequestedDashboards(cr *v1.Observability, ctx context.Context, dashboards []DashboardInfo, nextStatus *v1.ObservabilityStatus) error {
+func (r *Reconciler) createRequestedDashboards(cr *v1.Observability, ctx context.Context, dashboards []DashboardInfo) error {
 	// Create a list of requested dashboards from the external sources provided
 	// in the CR
 	var requestedDashboards []*v1alpha1.GrafanaDashboard
@@ -135,7 +134,6 @@ func (r *Reconciler) createRequestedDashboards(cr *v1.Observability, ctx context
 		}
 	}
 
-	nextStatus.LastSynced = time.Now().Unix()
 	return nil
 }
 

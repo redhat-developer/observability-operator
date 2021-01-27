@@ -33,8 +33,13 @@ type GrafanaIndex struct {
 	Dashboards []string `json:"dashboards"`
 }
 
+type PrometheusIndex struct {
+	Rules []string `json:"rules"`
+}
+
 type RepositoryConfig struct {
-	Grafana *GrafanaIndex `json:"grafana"`
+	Grafana    *GrafanaIndex    `json:"grafana,omitempty"`
+	Prometheus *PrometheusIndex `json:"prometheus,omitempty"`
 }
 
 type RepositoryIndex struct {
@@ -137,11 +142,25 @@ func (r *Reconciler) Reconcile(ctx context.Context, cr *v1.Observability, s *v1.
 		return v1.ResultFailed, err
 	}
 
-	err = r.createRequestedDashboards(cr, ctx, dashboards, s)
+	err = r.createRequestedDashboards(cr, ctx, dashboards)
 	if err != nil {
 		return v1.ResultFailed, err
 	}
 
+	// Manage prometheus rules
+	rules := getUniqueRules(indexes)
+	err = r.deleteUnrequestedRules(cr, ctx, rules)
+	if err != nil {
+		return v1.ResultFailed, err
+	}
+
+	err = r.createRequestedRules(cr, ctx, rules)
+	if err != nil {
+		return v1.ResultFailed, err
+	}
+
+	// Next status: update timestamp
+	s.LastSynced = time.Now().Unix()
 	return v1.ResultSuccess, nil
 }
 
