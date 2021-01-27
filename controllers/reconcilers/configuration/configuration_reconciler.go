@@ -112,8 +112,9 @@ func (r *Reconciler) Reconcile(ctx context.Context, cr *v1.Observability, s *v1.
 		indexes = append(indexes, index)
 	}
 
-	// Create dashboards
-	// TODO
+	// Manage dashboards
+	dashboards := getUniqueDashboards(indexes)
+	deleteUnrequestedDashboards(cr, ctx, r.client, dashboards)
 
 	return v1.ResultSuccess, nil
 }
