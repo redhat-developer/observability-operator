@@ -39,6 +39,7 @@ const (
 	TokenRequest             ObservabilityStageName = "TokenRequest"
 	PromtailInstallation     ObservabilityStageName = "PromtailInstallation"
 	AlertmanagerInstallation ObservabilityStageName = "AlertmanagerInstallation"
+	Configuration            ObservabilityStageName = "configuration"
 )
 
 const (
@@ -63,14 +64,8 @@ type DashboardSource struct {
 }
 
 type GrafanaConfig struct {
-	// Dashboards to create from external sources
-	Dashboards []*DashboardSource `json:"dashboards,omitempty"`
-
 	// How often to refetch the dashboards?
 	ResyncPeriod string `json:"resyncPeriod,omitempty"`
-
-	// If false, the operator will install default dashboards and ignore list
-	Managed bool `json:"managed"`
 }
 
 type ObservatoriumConfig struct {
@@ -96,17 +91,19 @@ type AlertmanagerConfig struct {
 // ObservabilitySpec defines the desired state of Observability
 type ObservabilitySpec struct {
 	// Cluster ID. If not provided, the operator tries to obtain it.
-	ClusterID string `json:"clusterId,omitempty"`
+	ClusterID             string                `json:"clusterId,omitempty"`
+	ConfigurationSelector *metav1.LabelSelector `json:"configurationSelector"`
+	ResyncPeriod          string                `json:"resyncPeriod,omitempty""`
 }
 
 // ObservabilityStatus defines the observed state of Observability
 type ObservabilityStatus struct {
-	Stage                ObservabilityStageName   `json:"stage"`
-	StageStatus          ObservabilityStageStatus `json:"stageStatus"`
-	LastMessage          string                   `json:"lastMessage,omitempty"`
-	TokenExpires         int64                    `json:"tokenExpires,omitempty"`
-	ClusterID            string                   `json:"clusterId,omitempty"`
-	DashboardsLastSynced int64                    `json:"dashboardsLastSynced,omitempty"`
+	Stage        ObservabilityStageName   `json:"stage"`
+	StageStatus  ObservabilityStageStatus `json:"stageStatus"`
+	LastMessage  string                   `json:"lastMessage,omitempty"`
+	TokenExpires int64                    `json:"tokenExpires,omitempty"`
+	ClusterID    string                   `json:"clusterId,omitempty"`
+	LastSynced   int64                    `json:"lastSynced,omitempty"`
 }
 
 // +kubebuilder:object:root=true

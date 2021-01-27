@@ -2,4 +2,8 @@ apiVersion: observability.redhat.com/v1
 kind: Observability
 metadata:
   name: observability-sample
-spec: {}
+spec:
+  resyncPeriod: 30s
+  configurationSelector:
+    matchLabels:
+      configures: "observability-operator"

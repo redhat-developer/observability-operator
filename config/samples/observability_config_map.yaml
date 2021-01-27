@@ -1,0 +1,11 @@
+kind: ConfigMap
+apiVersion: v1
+metadata:
+  name: kafka-observability-configuration
+  namespace: kafka-observability
+  labels:
+    configures: observability-operator
+data:
+  access_token: ''
+  channel: development
+  repository: 'https://github.com/bf2fc6cc711aee1a0c2a/observability-resources-mk'
