@@ -2,6 +2,7 @@ package prometheus_rules
 
 import (
 	"context"
+
 	prometheusv1 "github.com/coreos/prometheus-operator/pkg/apis/monitoring/v1"
 	"github.com/go-logr/logr"
 	v1 "github.com/jeremyary/observability-operator/api/v1"
@@ -623,31 +624,6 @@ func (r *Reconciler) reconcileRule(ctx context.Context, cr *v1.Observability) (v
 								"description": "Topic  {{ $labels.topic }} has {{ $value }} under-replicated partition {{ $labels.partition }}",
 							},
 							Expr: intstr.Parse("kafka_topic_partition_under_replicated_partition > 0"),
-							Labels: map[string]string{
-								"severity": "warning",
-							},
-						},
-						{
-							Alert: "TooLargeConsumerGroupLag",
-							For:   "10s",
-							Annotations: map[string]string{
-								"summary": "Consumer group lag is too big",
-								"description": "Consumer group {{ $labels.consumergroup}} lag is too big ({{ $value }}) on topic " +
-									"{{ $labels.topic }}/partition {{ $labels.partition }}",
-							},
-							Expr: intstr.Parse("kafka_consumergroup_lag > 1000"),
-							Labels: map[string]string{
-								"severity": "warning",
-							},
-						},
-						{
-							Alert: "NoMessageForTooLong",
-							For:   "10s",
-							Annotations: map[string]string{
-								"summary":     "No message for 10 minutes",
-								"description": "There is no messages in topic {{ $labels.topic}}/partition {{ $labels.partition }} for 10 minutes",
-							},
-							Expr: intstr.Parse("changes(kafka_topic_partition_current_offset{topic!=\"__consumer_offsets\"}[10m]) == 0"),
 							Labels: map[string]string{
 								"severity": "warning",
 							},
