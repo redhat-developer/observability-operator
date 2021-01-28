@@ -3,16 +3,22 @@ package token
 import (
 	"context"
 	"crypto/tls"
+	"encoding/json"
+	"fmt"
 	_ "github.com/jeremyary/observability-operator/api/v1"
 	v1 "github.com/jeremyary/observability-operator/api/v1"
+	"io/ioutil"
+	v12 "k8s.io/api/core/v1"
 	"net/http"
+	"net/url"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"time"
 )
 
 // Types implementing AuthTokenFetcher can retrieve an auth token for
 // Observatorium
 type AuthTokenFetcher interface {
-	Fetch(config *v1.ObservatoriumConfig, oldToken string) (string, int64, error)
+	Fetch(cr *v1.Observability, config *v1.ObservatoriumIndex, oldToken string) (string, int64, error)
 }
 
 // Default empty token fetcher
@@ -25,8 +31,21 @@ type DexTokenFetcher struct {
 	HttpClient *http.Client
 }
 
+func AuthTokenExpires(expires int64) bool {
+	if expires > 0 {
+		// Refresh the token a little bit in advance
+		now := time.Now().Add(time.Hour * 1)
+		expiry := time.Unix(expires, 0)
+
+		// Is it really time for renewal?
+		return now.After(expiry)
+	} else {
+		return false
+	}
+}
+
 // Returns a token fetcher for the given auth type
-func GetTokenFetcher(config *v1.ObservatoriumConfig, ctx context.Context, client client.Client) AuthTokenFetcher {
+func GetTokenFetcher(config *v1.ObservatoriumIndex, ctx context.Context, client client.Client) AuthTokenFetcher {
 	if config == nil {
 		return NewNilTokenFetcher()
 	}
@@ -43,7 +62,7 @@ func NewNilTokenFetcher() AuthTokenFetcher {
 	return &NilTokenFetcher{}
 }
 
-func (r *NilTokenFetcher) Fetch(*v1.ObservatoriumConfig, string) (string, int64, error) {
+func (r *NilTokenFetcher) Fetch(*v1.Observability, *v1.ObservatoriumIndex, string) (string, int64, error) {
 	return "", 0, nil
 }
 
@@ -60,6 +79,64 @@ func NewDexTokenFetcher(ctx context.Context, client client.Client) AuthTokenFetc
 	}
 }
 
-func (r *DexTokenFetcher) Fetch(config *v1.ObservatoriumConfig, oldToken string) (string, int64, error) {
-	return "", 0, nil
+func (r *DexTokenFetcher) Fetch(cr *v1.Observability, config *v1.ObservatoriumIndex, oldToken string) (string, int64, error) {
+	// No config, no token
+	if config.DexConfig == nil {
+		return oldToken, 0, nil
+	}
+
+	// By default look for the dex secret in the same namespace as the CR
+	namespace := cr.Namespace
+	if config.DexConfig.CredentialSecretNamespace != "" {
+		namespace = config.DexConfig.CredentialSecretNamespace
+	}
+
+	// Get credential secret
+	secret := &v12.Secret{}
+	selector := client.ObjectKey{
+		Namespace: namespace,
+		Name:      config.DexConfig.CredentialSecretName,
+	}
+
+	err := r.Client.Get(r.Context, selector, secret)
+	if err != nil {
+		return oldToken, cr.Status.TokenExpires, err
+	}
+
+	tokenEndpoint := fmt.Sprintf("%s/dex/token", config.DexConfig.Url)
+	formData := url.Values{
+		"grant_type":    {"password"},
+		"username":      {string(secret.Data["username"])},
+		"password":      {string(secret.Data["password"])},
+		"client_id":     {config.Tenant},
+		"client_secret": {string(secret.Data["secret"])},
+		"scope":         {"openid email"},
+	}
+
+	resp, err := r.HttpClient.PostForm(tokenEndpoint, formData)
+	if err != nil {
+		return oldToken, cr.Status.TokenExpires, err
+	}
+	defer resp.Body.Close()
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return oldToken, cr.Status.TokenExpires, err
+	}
+	if resp.StatusCode != http.StatusOK {
+		return oldToken, cr.Status.TokenExpires, fmt.Errorf("unexpected response from token endpoint: %v", resp.Status)
+	}
+
+	dexResponse := struct {
+		AccessToken string `json:"id_token"`
+		ExpiresIn   int64  `json:"expires_in"`
+	}{}
+
+	err = json.Unmarshal(body, &dexResponse)
+	if err != nil {
+		return oldToken, cr.Status.TokenExpires, err
+	}
+
+	// Remember the expiry date so we can refetch only when needed
+	expires := time.Now().Add(time.Second * time.Duration(dexResponse.ExpiresIn)).Unix()
+	return dexResponse.AccessToken, expires, nil
 }

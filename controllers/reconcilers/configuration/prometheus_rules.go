@@ -19,7 +19,7 @@ type RuleInfo struct {
 	AccessToken string
 }
 
-func getUniqueRules(indexes []RepositoryIndex) []RuleInfo {
+func getUniqueRules(indexes []v1.RepositoryIndex) []RuleInfo {
 	var result []RuleInfo
 	for _, index := range indexes {
 		if index.Config == nil || index.Config.Prometheus == nil {
