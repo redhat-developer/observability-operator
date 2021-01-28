@@ -6,9 +6,6 @@ import (
 	v12 "github.com/coreos/prometheus-operator/pkg/apis/monitoring/v1"
 	"github.com/ghodss/yaml"
 	v1 "github.com/jeremyary/observability-operator/api/v1"
-	"io/ioutil"
-	"net/http"
-	url2 "net/url"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
@@ -79,7 +76,7 @@ func (r *Reconciler) deleteUnrequestedRules(cr *v1.Observability, ctx context.Co
 func (r *Reconciler) createRequestedRules(cr *v1.Observability, ctx context.Context, rules []RuleInfo) error {
 	// Sync requested prometheus rules
 	for _, rule := range rules {
-		bytes, err := r.fetchRule(rule.Url, rule.AccessToken)
+		bytes, err := r.fetchResource(rule.Url, rule.AccessToken)
 		if err != nil {
 			return err
 		}
@@ -108,34 +105,4 @@ func parseRuleFromYaml(cr *v1.Observability, name string, source []byte) (*v12.P
 	rule.Namespace = cr.Namespace
 	rule.Name = name
 	return rule, nil
-}
-
-func (r *Reconciler) fetchRule(path string, token string) ([]byte, error) {
-	url, err := url2.ParseRequestURI(path)
-	if err != nil {
-		return nil, err
-	}
-
-	req, err := http.NewRequest(http.MethodGet, url.String(), nil)
-	if err != nil {
-		return nil, err
-	}
-	req.Header.Set("Authorization", fmt.Sprintf("token %s", token))
-
-	resp, err := r.httpClient.Do(req)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != 200 {
-		return nil, fmt.Errorf("unexpected status code: %v", resp.StatusCode)
-	}
-
-	body, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return nil, err
-	}
-
-	return body, nil
 }

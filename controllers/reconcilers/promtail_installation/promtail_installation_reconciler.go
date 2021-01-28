@@ -99,7 +99,7 @@ func (r *Reconciler) reconcilePromtailDaemonSet(ctx context.Context, cr *v1.Obse
 	daemonset := model.GetPromtailDaemonSet(cr)
 	sa := model.GetPromtailServiceAccount(cr)
 	config := model.GetPromtailConfigmap(cr)
-	tokenSecret := model.GetTokenSecret(cr)
+	tokenSecret := model.GetTokenSecret(cr, "observatorium-credentials")
 
 	var t = true
 

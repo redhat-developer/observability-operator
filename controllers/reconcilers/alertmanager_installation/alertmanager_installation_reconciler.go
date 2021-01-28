@@ -188,7 +188,7 @@ func (r *Reconciler) waitForRoute(ctx context.Context, cr *v1.Observability) (v1
 		return v1.ResultFailed, err
 	}
 
-	if utils.IsRouteReads(route) {
+	if utils.IsRouteReady(route) {
 		return v1.ResultSuccess, nil
 	}
 
@@ -213,7 +213,7 @@ func (r *Reconciler) reconcileAlertmanager(ctx context.Context, cr *v1.Observabi
 	}
 
 	host := ""
-	if utils.IsRouteReads(route) {
+	if utils.IsRouteReady(route) {
 		host = route.Spec.Host
 	}
 

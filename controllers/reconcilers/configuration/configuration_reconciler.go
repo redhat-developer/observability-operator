@@ -7,14 +7,17 @@ import (
 	"fmt"
 	"github.com/go-logr/logr"
 	v1 "github.com/jeremyary/observability-operator/api/v1"
+	"github.com/jeremyary/observability-operator/controllers/model"
 	"github.com/jeremyary/observability-operator/controllers/reconcilers"
 	"github.com/jeremyary/observability-operator/controllers/token"
 	"io/ioutil"
 	v12 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/labels"
 	"net/http"
 	"net/url"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"strconv"
 	"time"
 )
@@ -46,21 +49,70 @@ func NewReconciler(client client.Client, logger logr.Logger) reconcilers.Observa
 	}
 }
 
-func (r *Reconciler) refreshToken(ctx context.Context, cr *v1.Observability, target *v12.ConfigMap, index *v1.ObservatoriumIndex) error {
-	if index == nil {
+func (r *Reconciler) Cleanup(ctx context.Context, cr *v1.Observability) (v1.ObservabilityStageStatus, error) {
+	list := &v12.SecretList{}
+	opts := &client.ListOptions{
+		LabelSelector: labels.SelectorFromSet(map[string]string{
+			"managed-by": "observability-operator",
+		}),
+		Namespace: cr.Namespace,
+	}
+
+	err := r.client.List(ctx, list, opts)
+	if err != nil {
+		return v1.ResultFailed, err
+	}
+
+	// Delete all managed secrets
+	for _, secret := range list.Items {
+		err := r.client.Delete(ctx, &secret)
+		if err != nil {
+			return v1.ResultFailed, err
+		}
+	}
+
+	return v1.ResultSuccess, nil
+}
+
+func (r *Reconciler) refreshToken(ctx context.Context, cr *v1.Observability, index *v1.RepositoryIndex, from *v12.ConfigMap) error {
+	if index == nil || index.Config == nil || index.Config.Prometheus == nil || index.Config.Prometheus.Observatorium == nil {
 		return nil
 	}
 
-	oldToken := target.Data[RemoteObservatoriumToken]
-	fetcher := token.GetTokenFetcher(index, ctx, r.client)
-	newToken, expires, err := fetcher.Fetch(cr, index, oldToken)
+	secretName := fmt.Sprintf("%s-%s", index.Id, "observatorium-credentials")
+	secret := model.GetTokenSecret(cr, secretName)
+	selector := client.ObjectKey{
+		Namespace: cr.Namespace,
+		Name:      secretName,
+	}
+
+	err := r.client.Get(ctx, selector, secret)
+	if err != nil && !errors.IsNotFound(err) {
+		return err
+	}
+
+	oldToken := from.Data[RemoteObservatoriumToken]
+	fetcher := token.GetTokenFetcher(index.Config.Prometheus.Observatorium, ctx, r.client)
+	newToken, expires, err := fetcher.Fetch(cr, index.Config.Prometheus.Observatorium, oldToken)
 	if err != nil {
 		return err
 	}
 
-	target.Data[RemoteObservatoriumToken] = newToken
-	target.Data[RemoteObservatoriumTokenExpires] = strconv.FormatInt(expires, 10)
-	err = r.client.Update(ctx, target)
+	// Write token secret
+	_, err = controllerutil.CreateOrUpdate(ctx, r.client, secret, func() error {
+		secret.StringData = map[string]string{
+			"token": newToken,
+		}
+		return nil
+	})
+
+	if err != nil {
+		return err
+	}
+
+	// Write expiration info
+	from.Data[RemoteObservatoriumTokenExpires] = strconv.FormatInt(expires, 10)
+	err = r.client.Update(ctx, from)
 	if err != nil {
 		return err
 	}
@@ -92,12 +144,11 @@ func (r *Reconciler) Reconcile(ctx context.Context, cr *v1.Observability, s *v1.
 	// If yes, we must force a sync
 	for _, configMap := range list.Items {
 		raw := configMap.Data[RemoteObservatoriumTokenExpires]
-		oldToken := configMap.Data[RemoteObservatoriumToken]
 		repoChannel := configMap.Data[RemoteChannel]
 		repoUrl := configMap.Data[RemoteRepository]
 		repoChannelId := fmt.Sprintf("%s/%s", repoUrl, repoChannel)
 
-		if oldToken == "" || raw == "" {
+		if raw == "" {
 			needsRefresh[repoChannelId] = &configMap
 			overrideLastSync = true
 			continue
@@ -172,12 +223,28 @@ func (r *Reconciler) Reconcile(ctx context.Context, cr *v1.Observability, s *v1.
 	for _, index := range indexes {
 		if cm, ok := needsRefresh[index.BaseUrl]; ok && cm != nil {
 			if index.Config != nil && index.Config.Prometheus != nil {
-				err = r.refreshToken(ctx, cr, cm, index.Config.Prometheus.Observatorium)
+				err = r.refreshToken(ctx, cr, &index, cm)
 				if err != nil {
 					r.logger.Error(err, "unable to obtain observatorium token")
 				}
 			}
 		}
+	}
+
+	// Prometheus additional scrape configs
+	federationConfig, err := r.fetchFederationConfigs(indexes)
+	if err != nil {
+		return v1.ResultFailed, err
+	}
+	err = r.createAdditionalScrapeConfigSecret(cr, ctx, federationConfig)
+	if err != nil {
+		return v1.ResultFailed, err
+	}
+
+	// Prometheus CR
+	err = r.reconcilePrometheus(ctx, cr)
+	if err != nil {
+		return v1.ResultFailed, err
 	}
 
 	// Manage dashboards
@@ -209,10 +276,6 @@ func (r *Reconciler) Reconcile(ctx context.Context, cr *v1.Observability, s *v1.
 	return v1.ResultSuccess, nil
 }
 
-func (r *Reconciler) Cleanup(ctx context.Context, cr *v1.Observability) (v1.ObservabilityStageStatus, error) {
-	return v1.ResultSuccess, nil
-}
-
 func (r *Reconciler) readIndexFile(repo *v1.RepositoryInfo) ([]byte, error) {
 	repoUrl := fmt.Sprintf("%s/%s/index.json", repo.Repository, repo.Channel)
 
@@ -239,4 +302,34 @@ func (r *Reconciler) readIndexFile(repo *v1.RepositoryInfo) ([]byte, error) {
 	}
 
 	return bytes, nil
+}
+
+func (r *Reconciler) fetchResource(path string, token string) ([]byte, error) {
+	url, err := url.ParseRequestURI(path)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, url.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Authorization", fmt.Sprintf("token %s", token))
+
+	resp, err := r.httpClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != 200 {
+		return nil, fmt.Errorf("unexpected status code: %v", resp.StatusCode)
+	}
+
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+
+	return body, nil
 }

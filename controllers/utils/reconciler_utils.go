@@ -50,7 +50,7 @@ func HasOperatorGroupForNamespace(ctx context.Context, client k8sclient.Client, 
 	return false, nil
 }
 
-func IsRouteReads(route *routev1.Route) bool {
+func IsRouteReady(route *routev1.Route) bool {
 	if route == nil {
 		return false
 	}

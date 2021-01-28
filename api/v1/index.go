@@ -25,6 +25,7 @@ type ObservatoriumIndex struct {
 
 type PrometheusIndex struct {
 	Rules         []string            `json:"rules"`
+	Federation    string              `json:"federation,omitempty"`
 	Observatorium *ObservatoriumIndex `json:"observatorium,omitempty"`
 }
 

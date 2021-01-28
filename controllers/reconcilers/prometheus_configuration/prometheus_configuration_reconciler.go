@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	prometheusv1 "github.com/coreos/prometheus-operator/pkg/apis/monitoring/v1"
 	"github.com/go-logr/logr"
 	v1 "github.com/jeremyary/observability-operator/api/v1"
 	"github.com/jeremyary/observability-operator/controllers/model"
@@ -16,7 +15,6 @@ import (
 	rbacv1 "k8s.io/api/rbac/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
-	v12 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
@@ -35,9 +33,15 @@ func NewReconciler(client client.Client, logger logr.Logger) reconcilers.Observa
 }
 
 func (r *Reconciler) Cleanup(ctx context.Context, cr *v1.Observability) (v1.ObservabilityStageStatus, error) {
+	// Delete additional scrape config
+	s := model.GetPrometheusAdditionalScrapeConfig(cr)
+	err := r.client.Delete(ctx, s)
+	if err != nil && !errors.IsNotFound(err) {
+		return v1.ResultFailed, err
+	}
 	// Delete route
 	route := model.GetPrometheusRoute(cr)
-	err := r.client.Delete(ctx, route)
+	err = r.client.Delete(ctx, route)
 	if err != nil && !errors.IsNotFound(err) {
 		return v1.ResultFailed, err
 	}
@@ -83,7 +87,7 @@ func (r *Reconciler) Cleanup(ctx context.Context, cr *v1.Observability) (v1.Obse
 	}
 
 	// Proxy secret account
-	s := model.GetPrometheusProxySecret(cr)
+	s = model.GetPrometheusProxySecret(cr)
 	err = r.client.Delete(ctx, s)
 	if err != nil && !errors.IsNotFound(err) {
 		return v1.ResultFailed, err
@@ -164,12 +168,6 @@ func (r *Reconciler) Reconcile(ctx context.Context, cr *v1.Observability, s *v1.
 
 	// try to obtain the cluster id
 	status, err = r.fetchClusterId(ctx, cr, s)
-	if status != v1.ResultSuccess {
-		return status, err
-	}
-
-	// prometheus instance CR
-	status, err = r.reconcilePrometheus(ctx, cr, s)
 	if status != v1.ResultSuccess {
 		return status, err
 	}
@@ -350,7 +348,7 @@ func (r *Reconciler) waitForRoute(ctx context.Context, cr *v1.Observability) (v1
 		return v1.ResultFailed, err
 	}
 
-	if utils.IsRouteReads(route) {
+	if utils.IsRouteReady(route) {
 		return v1.ResultSuccess, nil
 	}
 
@@ -433,134 +431,6 @@ func (r *Reconciler) fetchClusterId(ctx context.Context, cr *v1.Observability, n
 		return v1.ResultFailed, err
 	}
 	nextStatus.ClusterID = clusterId
-
-	return v1.ResultSuccess, nil
-}
-
-func (r *Reconciler) reconcilePrometheus(ctx context.Context, cr *v1.Observability, nextStatus *v1.ObservabilityStatus) (v1.ObservabilityStageStatus, error) {
-	prometheus := model.GetPrometheus(cr)
-	tokenSecret := model.GetTokenSecret(cr)
-	proxySecret := model.GetPrometheusProxySecret(cr)
-	sa := model.GetPrometheusServiceAccount(cr)
-	alertmanager := model.GetAlertmanagerCr(cr)
-	alertmanagerService := model.GetAlertmanagerService(cr)
-
-	route := model.GetPrometheusRoute(cr)
-	selector := client.ObjectKey{
-		Namespace: route.Namespace,
-		Name:      route.Name,
-	}
-
-	err := r.client.Get(ctx, selector, route)
-	if err != nil && !errors.IsNotFound(err) {
-		return v1.ResultFailed, err
-	}
-
-	host := ""
-	if utils.IsRouteReads(route) {
-		host = route.Spec.Host
-	}
-
-	_, err = controllerutil.CreateOrUpdate(ctx, r.client, prometheus, func() error {
-		prometheus.Spec = prometheusv1.PrometheusSpec{
-			ServiceAccountName: sa.Name,
-			ExternalURL:        fmt.Sprintf("https://%v", host),
-			AdditionalScrapeConfigs: &core.SecretKeySelector{
-				LocalObjectReference: core.LocalObjectReference{
-					Name: "additional-scrape-configs",
-				},
-				Key: "additional-scrape-config.yaml",
-			},
-			ExternalLabels: map[string]string{
-				"cluster_id": cr.Status.ClusterID,
-			},
-			PodMonitorSelector: &v12.LabelSelector{
-				MatchLabels: model.GetResourceLabels(),
-			},
-			ServiceMonitorSelector: &v12.LabelSelector{
-				MatchLabels: model.GetResourceLabels(),
-			},
-			RuleSelector: &v12.LabelSelector{
-				MatchLabels: model.GetResourceLabels(),
-			},
-			RemoteWrite: model.GetPrometheusRemoteWriteConfig(cr, tokenSecret.Name),
-			Alerting: &prometheusv1.AlertingSpec{
-				Alertmanagers: []prometheusv1.AlertmanagerEndpoints{
-					{
-						Namespace: cr.Namespace,
-						Name:      alertmanager.Name,
-						Port:      intstr.FromString("web"),
-						Scheme:    "https",
-						TLSConfig: &prometheusv1.TLSConfig{
-							CAFile:     "/var/run/secrets/kubernetes.io/serviceaccount/service-ca.crt",
-							ServerName: fmt.Sprintf("%v.%v.svc", alertmanagerService.Name, cr.Namespace),
-						},
-						BearerTokenFile: "/var/run/secrets/kubernetes.io/serviceaccount/token",
-					},
-				},
-			},
-			Secrets: []string{
-				tokenSecret.Name,
-				proxySecret.Name,
-				"prometheus-k8s-tls",
-			},
-			Containers: []core.Container{
-				{
-					Name:  "oauth-proxy",
-					Image: "quay.io/openshift/origin-oauth-proxy:4.2",
-					Args: []string{
-						"-provider=openshift",
-						"-https-address=:9091",
-						"-http-address=",
-						"-email-domain=*",
-						"-upstream=http://localhost:9090",
-						fmt.Sprintf("-openshift-service-account=%v", sa.Name),
-						"-openshift-sar={\"resource\": \"namespaces\", \"verb\": \"get\"}",
-						"-openshift-delegate-urls={\"/\": {\"resource\": \"namespaces\", \"verb\": \"get\"}}",
-						"-tls-cert=/etc/tls/private/tls.crt",
-						"-tls-key=/etc/tls/private/tls.key",
-						"-client-secret-file=/var/run/secrets/kubernetes.io/serviceaccount/token",
-						"-cookie-secret-file=/etc/proxy/secrets/session_secret",
-						"-openshift-ca=/etc/pki/tls/cert.pem",
-						"-openshift-ca=/var/run/secrets/kubernetes.io/serviceaccount/ca.crt",
-						"-skip-auth-regex=^/metrics",
-					},
-					Env: []core.EnvVar{
-						{
-							Name: "HTTP_PROXY",
-						},
-						{
-							Name: "HTTPS_PROXY",
-						},
-						{
-							Name: "NO_PROXY",
-						},
-					},
-					Ports: []core.ContainerPort{
-						{
-							Name:          "proxy",
-							ContainerPort: 9091,
-						},
-					},
-					VolumeMounts: []core.VolumeMount{
-						{
-							Name:      "secret-prometheus-k8s-tls",
-							MountPath: "/etc/tls/private",
-						},
-						{
-							Name:      fmt.Sprintf("secret-%v", proxySecret.Name),
-							MountPath: "/etc/proxy/secrets",
-						},
-					},
-				},
-			},
-		}
-		return nil
-	})
-
-	if err != nil {
-		return v1.ResultFailed, err
-	}
 
 	return v1.ResultSuccess, nil
 }
