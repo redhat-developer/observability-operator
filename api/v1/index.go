@@ -23,10 +23,15 @@ type ObservatoriumIndex struct {
 	DexConfig *DexConfig            `json:dexConfig,omitempty`
 }
 
+type RemoteWriteIndex struct {
+	Patterns []string `json:"patterns"`
+}
+
 type PrometheusIndex struct {
 	Rules         []string            `json:"rules"`
 	Federation    string              `json:"federation,omitempty"`
 	Observatorium *ObservatoriumIndex `json:"observatorium,omitempty"`
+	RemoteWrite   string              `json:"remoteWrite,omitempty"`
 }
 
 type RepositoryConfig struct {
