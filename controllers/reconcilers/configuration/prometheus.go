@@ -13,6 +13,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 	v12 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/util/intstr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"strings"
@@ -133,7 +134,74 @@ func (r *Reconciler) getTokenSecrets(ctx context.Context, cr *v1.Observability) 
 	return result, nil
 }
 
-func (r *Reconciler) reconcilePrometheus(ctx context.Context, cr *v1.Observability) error {
+func (r *Reconciler) getRemoteWriteIndex(index v1.RepositoryIndex) (*v1.RemoteWriteIndex, error) {
+	patternUrl := fmt.Sprintf("%s/%s", index.BaseUrl, index.Config.Prometheus.RemoteWrite)
+	bytes, err := r.fetchResource(patternUrl, index.AccessToken)
+	if err != nil {
+		return nil, err
+	}
+
+	remoteWrite := v1.RemoteWriteIndex{}
+	err = json.Unmarshal(bytes, &remoteWrite)
+	if err != nil {
+		return nil, err
+	}
+	return &remoteWrite, nil
+}
+
+func (r *Reconciler) getRemoteWriteSpec(index v1.RepositoryIndex, secrets []string, remoteWrite *v1.RemoteWriteIndex) (*prometheusv1.RemoteWriteSpec, error) {
+	indexToken := fmt.Sprintf("%s-observatorium-credentials", index.Id)
+	// sanity check that secret we require for current index exists
+	found := false
+	for _, secret := range secrets {
+		if secret == indexToken {
+			found = true
+			break
+		}
+	}
+	if !found {
+		return nil, errors.NewNotFound(kv1.Resource("secret"), indexToken)
+	}
+
+	observatoriumConfig := index.Config.Prometheus.Observatorium
+	return &prometheusv1.RemoteWriteSpec{
+		URL: fmt.Sprintf("%s/api/metrics/v1/%s/api/v1/receive", observatoriumConfig.Gateway, observatoriumConfig.Tenant),
+		WriteRelabelConfigs: []prometheusv1.RelabelConfig{
+			{
+				SourceLabels: []string{"__name__"},
+				Regex:        fmt.Sprintf("(%s)", strings.Join(remoteWrite.Patterns, "|")),
+				Action:       "keep",
+			},
+		},
+		BearerTokenFile: fmt.Sprintf("/etc/prometheus/secrets/%s/token", indexToken),
+		TLSConfig: &prometheusv1.TLSConfig{
+			InsecureSkipVerify: true,
+		},
+	}, nil
+}
+
+func (r *Reconciler) getAlerting(cr *v1.Observability) *prometheusv1.AlertingSpec {
+	alertmanager := model.GetAlertmanagerCr(cr)
+	alertmanagerService := model.GetAlertmanagerService(cr)
+
+	return &prometheusv1.AlertingSpec{
+		Alertmanagers: []prometheusv1.AlertmanagerEndpoints {
+			{
+				Namespace: cr.Namespace,
+				Name: alertmanager.Name,
+				Port: intstr.FromString("web"),
+				Scheme:    "https",
+				TLSConfig: &prometheusv1.TLSConfig{
+					CAFile:     "/var/run/secrets/kubernetes.io/serviceaccount/service-ca.crt",
+					ServerName: fmt.Sprintf("%v.%v.svc", alertmanagerService.Name, cr.Namespace),
+				},
+				BearerTokenFile: "/var/run/secrets/kubernetes.io/serviceaccount/token",
+			},
+		},
+	}
+}
+
+func (r *Reconciler) reconcilePrometheus(ctx context.Context, cr *v1.Observability, indexes []v1.RepositoryIndex) error {
 	secrets, err := r.getTokenSecrets(ctx, cr)
 	if err != nil {
 		return err
@@ -161,6 +229,20 @@ func (r *Reconciler) reconcilePrometheus(ctx context.Context, cr *v1.Observabili
 	secrets = append(secrets, proxySecret.Name)
 	secrets = append(secrets, "prometheus-k8s-tls")
 
+	var remoteWrites []prometheusv1.RemoteWriteSpec
+	for _, index := range indexes {
+		patterns, err := r.getRemoteWriteIndex(index)
+		if err != nil {
+			return err
+		}
+
+		remoteWrite, err := r.getRemoteWriteSpec(index, secrets, patterns)
+		if err != nil {
+			return err
+		}
+		remoteWrites = append(remoteWrites, *remoteWrite)
+	}
+
 	prometheus := model.GetPrometheus(cr)
 	_, err = controllerutil.CreateOrUpdate(ctx, r.client, prometheus, func() error {
 		prometheus.Spec = prometheusv1.PrometheusSpec{
@@ -184,8 +266,8 @@ func (r *Reconciler) reconcilePrometheus(ctx context.Context, cr *v1.Observabili
 			RuleSelector: &v12.LabelSelector{
 				MatchLabels: model.GetResourceLabels(),
 			},
-			RemoteWrite: nil,
-			Alerting:    nil,
+			RemoteWrite: remoteWrites,
+			Alerting:    r.getAlerting(cr),
 			Secrets:     secrets,
 			Containers: []kv1.Container{
 				{
