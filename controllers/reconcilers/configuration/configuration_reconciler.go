@@ -28,6 +28,7 @@ const (
 	RemoteChannel                   = "channel"
 	RemoteObservatoriumToken        = "observatorium_token"
 	RemoteObservatoriumTokenExpires = "observatorium_token_expires"
+	PrometheusRuleIdentifierKey     = "receiver"
 )
 
 type Reconciler struct {
@@ -175,7 +176,6 @@ func (r *Reconciler) Reconcile(ctx context.Context, cr *v1.Observability, s *v1.
 	// on the generate secret's existence fails - operator things it still exists and hasn't expired, so skips re-fetch.
 	// Manually working around right now by removing the expiration flag from CM between operator runs.
 
-
 	// Then check if the next sync is due
 	// Override if any of the tokens needs a refresh
 	if cr.Status.LastSynced != 0 && !overrideLastSync {
@@ -240,12 +240,18 @@ func (r *Reconciler) Reconcile(ctx context.Context, cr *v1.Observability, s *v1.
 		}
 	}
 
-	// Prometheus additional scrape configs
-	federationConfig, err := r.fetchFederationConfigs(indexes)
+	// Alertmanager configuration
+	err = r.reconcileAlertmanagerSecret(ctx, cr, indexes)
 	if err != nil {
 		return v1.ResultFailed, err
 	}
-	err = r.createAdditionalScrapeConfigSecret(cr, ctx, federationConfig)
+
+	// Prometheus additional scrape configs
+	patterns, err := r.fetchFederationConfigs(indexes)
+	if err != nil {
+		return v1.ResultFailed, err
+	}
+	err = r.createAdditionalScrapeConfigSecret(cr, ctx, patterns)
 	if err != nil {
 		return v1.ResultFailed, err
 	}

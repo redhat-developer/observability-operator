@@ -1,11 +1,11 @@
 package configuration
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
 	prometheusv1 "github.com/coreos/prometheus-operator/pkg/apis/monitoring/v1"
+	"github.com/ghodss/yaml"
 	v1 "github.com/jeremyary/observability-operator/api/v1"
 	"github.com/jeremyary/observability-operator/controllers/model"
 	"github.com/jeremyary/observability-operator/controllers/utils"
@@ -17,11 +17,24 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"strings"
-	t "text/template"
 )
 
-func (r *Reconciler) fetchFederationConfigs(indexes []v1.RepositoryIndex) (string, error) {
+func (r *Reconciler) fetchFederationConfigs(indexes []v1.RepositoryIndex) ([]string, error) {
 	var result []string
+
+	type federationPatterns struct {
+		Match []string `json:"match[]"`
+	}
+
+	hasPattern := func(newPattern string) bool {
+		for _, pattern := range result {
+			if newPattern == pattern {
+				return true
+			}
+		}
+		return false
+	}
+
 	for _, index := range indexes {
 		if index.Config == nil || index.Config.Prometheus == nil || index.Config.Prometheus.Federation == "" {
 			continue
@@ -30,18 +43,28 @@ func (r *Reconciler) fetchFederationConfigs(indexes []v1.RepositoryIndex) (strin
 		federationConfigUrl := fmt.Sprintf("%s/%s", index.BaseUrl, index.Config.Prometheus.Federation)
 		bytes, err := r.fetchResource(federationConfigUrl, index.AccessToken)
 		if err != nil {
-			return "", err
+			return nil, err
 		}
 
-		result = append(result, string(bytes))
+		var indexConfig federationPatterns
+		err = yaml.Unmarshal(bytes, &indexConfig)
+		if err != nil {
+			return nil, err
+		}
+
+		for _, pattern := range indexConfig.Match {
+			if hasPattern(pattern) == false {
+				result = append(result, fmt.Sprintf("'%s'", pattern))
+			}
+		}
 	}
 
-	return strings.Join(result, "\n"), nil
+	return result, nil
 }
 
 // Write the additional scrape config secret, used to federate from openshift-monitoring
 // This expects the aggregation of all federation configs across all indexes
-func (r *Reconciler) createAdditionalScrapeConfigSecret(cr *v1.Observability, ctx context.Context, config string) error {
+func (r *Reconciler) createAdditionalScrapeConfigSecret(cr *v1.Observability, ctx context.Context, patterns []string) error {
 	secret := model.GetPrometheusAdditionalScrapeConfig(cr)
 
 	user, password, err := r.getOpenshiftMonitoringCredentials(ctx)
@@ -49,16 +72,7 @@ func (r *Reconciler) createAdditionalScrapeConfigSecret(cr *v1.Observability, ct
 		return err
 	}
 
-	template := t.Must(t.New("template").Parse(config))
-	var buffer bytes.Buffer
-	err = template.Execute(&buffer, struct {
-		User string
-		Pass string
-	}{
-		User: user,
-		Pass: password,
-	})
-
+	federationConfig, err := model.GetFederationConfig(user, password, patterns)
 	if err != nil {
 		return err
 	}
@@ -66,7 +80,7 @@ func (r *Reconciler) createAdditionalScrapeConfigSecret(cr *v1.Observability, ct
 	_, err = controllerutil.CreateOrUpdate(ctx, r.client, secret, func() error {
 		secret.Type = kv1.SecretTypeOpaque
 		secret.StringData = map[string]string{
-			"additional-scrape-config.yaml": string(buffer.Bytes()),
+			"additional-scrape-config.yaml": string(federationConfig),
 		}
 		return nil
 	})
@@ -185,12 +199,12 @@ func (r *Reconciler) getAlerting(cr *v1.Observability) *prometheusv1.AlertingSpe
 	alertmanagerService := model.GetAlertmanagerService(cr)
 
 	return &prometheusv1.AlertingSpec{
-		Alertmanagers: []prometheusv1.AlertmanagerEndpoints {
+		Alertmanagers: []prometheusv1.AlertmanagerEndpoints{
 			{
-				Namespace: cr.Namespace,
-				Name: alertmanager.Name,
-				Port: intstr.FromString("web"),
-				Scheme:    "https",
+				Namespace:  cr.Namespace,
+				Name:       alertmanager.Name,
+				Port:       intstr.FromString("web"),
+				Scheme:     "https",
 				TLSConfig: &prometheusv1.TLSConfig{
 					CAFile:     "/var/run/secrets/kubernetes.io/serviceaccount/service-ca.crt",
 					ServerName: fmt.Sprintf("%v.%v.svc", alertmanagerService.Name, cr.Namespace),

@@ -27,6 +27,13 @@ type RemoteWriteIndex struct {
 	Patterns []string `json:"patterns"`
 }
 
+type AlertmanagerIndex struct {
+	PagerDutySecretName           string `json:"pagerDutySecretName"`
+	PagerDutySecretNamespace      string `json:"pagerDutySecretNamespace"`
+	DeadmansSnitchSecretName      string `json:"deadmansSnitchSecretName"`
+	DeadmansSnitchSecretNamespace string `json:"deadmansSnitchSecretNamespace"`
+}
+
 type PrometheusIndex struct {
 	Rules         []string            `json:"rules"`
 	Federation    string              `json:"federation,omitempty"`
@@ -35,8 +42,9 @@ type PrometheusIndex struct {
 }
 
 type RepositoryConfig struct {
-	Grafana    *GrafanaIndex    `json:"grafana,omitempty"`
-	Prometheus *PrometheusIndex `json:"prometheus,omitempty"`
+	Grafana      *GrafanaIndex      `json:"grafana,omitempty"`
+	Prometheus   *PrometheusIndex   `json:"prometheus,omitempty"`
+	Alertmanager *AlertmanagerIndex `json:"alertmanager,omitempty"`
 }
 
 type RepositoryIndex struct {

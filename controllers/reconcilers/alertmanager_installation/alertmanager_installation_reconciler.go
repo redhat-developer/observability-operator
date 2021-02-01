@@ -31,22 +31,7 @@ func NewReconciler(client client.Client, logger logr.Logger) reconcilers.Observa
 }
 
 func (r *Reconciler) Reconcile(ctx context.Context, cr *v1.Observability, s *v1.ObservabilityStatus) (v1.ObservabilityStageStatus, error) {
-	status, pagerDutySecret, err := r.getPagerDutySecret(ctx, cr)
-	if status != v1.ResultSuccess {
-		return status, err
-	}
-
-	status, deadMansSnitchUrl, err := r.getDeadMansSnitchUrl(ctx, cr)
-	if status != v1.ResultSuccess {
-		return status, err
-	}
-
-	status, err = r.reconcileAlertmanagerSecret(ctx, cr, pagerDutySecret, deadMansSnitchUrl)
-	if status != v1.ResultSuccess {
-		return status, err
-	}
-
-	status, err = r.reconcileAlertmanagerProxySecret(ctx, cr)
+	status, err := r.reconcileAlertmanagerProxySecret(ctx, cr)
 	if status != v1.ResultSuccess {
 		return status, err
 	}
@@ -77,11 +62,6 @@ func (r *Reconciler) Reconcile(ctx context.Context, cr *v1.Observability, s *v1.
 	}
 
 	status, err = r.waitForRoute(ctx, cr)
-	if status != v1.ResultSuccess {
-		return status, err
-	}
-
-	status, err = r.reconcileAlertmanager(ctx, cr)
 	if status != v1.ResultSuccess {
 		return status, err
 	}
@@ -421,33 +401,4 @@ func (r *Reconciler) reconcileAlertmanagerProxySecret(ctx context.Context, cr *v
 	}
 
 	return v1.ResultSuccess, err
-}
-
-func (r *Reconciler) reconcileAlertmanagerSecret(ctx context.Context, cr *v1.Observability, pagerDutySecret []byte, deadMansSnitchUrl []byte) (v1.ObservabilityStageStatus, error) {
-	secret := model.GetAlertmanagerSecret(cr)
-	config, err := model.GetAlertmanagerConfig(string(pagerDutySecret), string(deadMansSnitchUrl))
-	if err != nil {
-		return v1.ResultFailed, err
-	}
-
-	_, err = controllerutil.CreateOrUpdate(ctx, r.client, secret, func() error {
-		secret.Type = v12.SecretTypeOpaque
-		secret.StringData = map[string]string{
-			"alertmanager.yaml": config,
-		}
-		return nil
-	})
-	if err != nil {
-		return v1.ResultFailed, err
-	}
-
-	return v1.ResultSuccess, err
-}
-
-func (r *Reconciler) getPagerDutySecret(ctx context.Context, cr *v1.Observability) (v1.ObservabilityStageStatus, []byte, error) {
-	return v1.ResultSuccess, []byte("dummy"), nil
-}
-
-func (r *Reconciler) getDeadMansSnitchUrl(ctx context.Context, cr *v1.Observability) (v1.ObservabilityStageStatus, []byte, error) {
-	return v1.ResultSuccess, []byte("http://dummy"), nil
 }

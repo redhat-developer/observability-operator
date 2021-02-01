@@ -11,6 +11,7 @@ import (
 )
 
 type RuleInfo struct {
+	Id          string
 	Name        string
 	Url         string
 	AccessToken string
@@ -30,6 +31,7 @@ func getUniqueRules(indexes []v1.RepositoryIndex) []RuleInfo {
 				}
 			}
 			result = append(result, RuleInfo{
+				Id:          index.Id,
 				Name:        name,
 				Url:         fmt.Sprintf("%s/%s", index.BaseUrl, rule),
 				AccessToken: index.AccessToken,
@@ -87,6 +89,8 @@ func (r *Reconciler) createRequestedRules(cr *v1.Observability, ctx context.Cont
 		}
 
 		_, err = controllerutil.CreateOrUpdate(ctx, r.client, parsedRule, func() error {
+			// Inject managed labels
+			injectIdLabel(parsedRule, rule.Id)
 			return nil
 		})
 		if err != nil {
@@ -94,6 +98,14 @@ func (r *Reconciler) createRequestedRules(cr *v1.Observability, ctx context.Cont
 		}
 	}
 	return nil
+}
+
+func injectIdLabel(rule *v12.PrometheusRule, id string) {
+	for i := 0; i < len(rule.Spec.Groups); i++ {
+		for j := 0; j < len(rule.Spec.Groups[i].Rules); j++ {
+			rule.Spec.Groups[i].Rules[j].Labels[PrometheusRuleIdentifierKey] = id
+		}
+	}
 }
 
 func parseRuleFromYaml(cr *v1.Observability, name string, source []byte) (*v12.PrometheusRule, error) {

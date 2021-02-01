@@ -388,34 +388,6 @@ func (r *Reconciler) getOpenshiftMonitoringCredentials(ctx context.Context) (str
 	return ds.Sources[0].BasicAuthUser, ds.Sources[0].BasicAuthPassword, nil
 }
 
-func (r *Reconciler) reconcileSecret(ctx context.Context, cr *v1.Observability) (v1.ObservabilityStageStatus, error) {
-	secret := model.GetPrometheusAdditionalScrapeConfig(cr)
-
-	user, password, err := r.getOpenshiftMonitoringCredentials(ctx)
-	if err != nil {
-		return v1.ResultFailed, err
-	}
-
-	federationConfig, err := model.GetFederationConfig(user, password)
-	if err != nil {
-		return v1.ResultFailed, err
-	}
-
-	_, err = controllerutil.CreateOrUpdate(ctx, r.client, secret, func() error {
-		secret.Type = core.SecretTypeOpaque
-		secret.StringData = map[string]string{
-			"additional-scrape-config.yaml": string(federationConfig),
-		}
-		return nil
-	})
-
-	if err != nil {
-		return v1.ResultFailed, err
-	}
-
-	return v1.ResultSuccess, nil
-}
-
 func (r *Reconciler) fetchClusterId(ctx context.Context, cr *v1.Observability, nextStatus *v1.ObservabilityStatus) (v1.ObservabilityStageStatus, error) {
 	if cr.Status.ClusterID != "" {
 		return v1.ResultSuccess, nil
