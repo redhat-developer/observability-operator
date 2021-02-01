@@ -256,6 +256,12 @@ func (r *Reconciler) Reconcile(ctx context.Context, cr *v1.Observability, s *v1.
 		return v1.ResultFailed, err
 	}
 
+	// Alertmanager CR
+	err = r.reconcileAlertmanager(ctx, cr)
+	if err != nil {
+		return v1.ResultFailed, err
+	}
+
 	// Prometheus CR
 	err = r.reconcilePrometheus(ctx, cr, indexes)
 	if err != nil {

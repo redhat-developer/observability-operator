@@ -6,10 +6,103 @@ import (
 	"github.com/ghodss/yaml"
 	v1 "github.com/jeremyary/observability-operator/api/v1"
 	"github.com/jeremyary/observability-operator/controllers/model"
+	"github.com/jeremyary/observability-operator/controllers/utils"
 	v12 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
+
+func (r *Reconciler) reconcileAlertmanager(ctx context.Context, cr *v1.Observability) error {
+	alertmanager := model.GetAlertmanagerCr(cr)
+	configSecret := model.GetAlertmanagerSecret(cr)
+	proxySecret := model.GetAlertmanagerProxySecret(cr)
+	sa := model.GetAlertmanagerServiceAccount(cr)
+
+	route := model.GetAlertmanagerRoute(cr)
+	selector := client.ObjectKey{
+		Namespace: route.Namespace,
+		Name:      route.Name,
+	}
+
+	err := r.client.Get(ctx, selector, route)
+	if err != nil && !errors.IsNotFound(err) {
+		return err
+	}
+
+	host := ""
+	if utils.IsRouteReady(route) {
+		host = route.Spec.Host
+	}
+
+	_, err = controllerutil.CreateOrUpdate(ctx, r.client, alertmanager, func() error {
+		alertmanager.Spec.ConfigSecret = configSecret.Name
+		alertmanager.Spec.ListenLocal = true
+		alertmanager.Spec.ExternalURL = fmt.Sprintf("https://%v", host)
+		alertmanager.Spec.ServiceAccountName = sa.Name
+		alertmanager.Spec.Secrets = []string{
+			proxySecret.Name,
+			"alertmanager-k8s-tls",
+		}
+		alertmanager.Spec.Containers = []v12.Container{
+			{
+				Name:  "oauth-proxy",
+				Image: "quay.io/openshift/origin-oauth-proxy:4.2",
+				Args: []string{
+					"-provider=openshift",
+					"-https-address=:9091",
+					"-http-address=",
+					"-email-domain=*",
+					"-upstream=http://localhost:9093",
+					"-openshift-sar={\"resource\": \"namespaces\", \"verb\": \"get\"}",
+					"-openshift-delegate-urls={\"/\": {\"resource\": \"namespaces\", \"verb\": \"get\"}}",
+					"-tls-cert=/etc/tls/private/tls.crt",
+					"-tls-key=/etc/tls/private/tls.key",
+					"-client-secret-file=/var/run/secrets/kubernetes.io/serviceaccount/token",
+					"-cookie-secret-file=/etc/proxy/secrets/session_secret",
+					fmt.Sprintf("-openshift-service-account=%v", sa.Name),
+					"-openshift-ca=/etc/pki/tls/cert.pem",
+					"-openshift-ca=/var/run/secrets/kubernetes.io/serviceaccount/ca.crt",
+					"-skip-auth-regex=^/metrics",
+				},
+				Ports: []v12.ContainerPort{
+					{
+						Name:          "proxy",
+						ContainerPort: 9091,
+					},
+				},
+				Env: []v12.EnvVar{
+					{
+						Name: "HTTP_PROXY",
+					},
+					{
+						Name: "HTTPS_PROXY",
+					},
+					{
+						Name: "NO_PROXY",
+					},
+				},
+				VolumeMounts: []v12.VolumeMount{
+					{
+						Name:      "secret-alertmanager-k8s-tls",
+						MountPath: "/etc/tls/private",
+					},
+					{
+						Name:      fmt.Sprintf("secret-%v", proxySecret.Name),
+						MountPath: "/etc/proxy/secrets",
+					},
+				},
+			},
+		}
+		return nil
+	})
+	if err != nil {
+		return err
+	}
+
+	return err
+
+}
 
 func (r *Reconciler) reconcileAlertmanagerSecret(ctx context.Context, cr *v1.Observability, indexes []v1.RepositoryIndex) error {
 	root := &v1.AlertmanagerConfigRoute{
