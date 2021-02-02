@@ -313,6 +313,15 @@ func (r *Reconciler) reconcileGrafanaCr(ctx context.Context, cr *v1.Observabilit
 			Client: &v1alpha1.GrafanaClient{
 				PreferService: true,
 			},
+			Deployment: &v1alpha1.GrafanaDeployment{
+				Replicas: 1,
+			},
+		}
+		if cr.Spec.Tolerations != nil {
+			grafana.Spec.Deployment.Tolerations = cr.Spec.Tolerations
+		}
+		if cr.Spec.Affinity != nil {
+			grafana.Spec.Deployment.Affinity = cr.Spec.Affinity
 		}
 		return nil
 	})

@@ -334,6 +334,15 @@ func (r *Reconciler) reconcilePrometheus(ctx context.Context, cr *v1.Observabili
 				},
 			},
 		}
+		if cr.Spec.Storage != nil && cr.Spec.Storage.PrometheusStorageSpec != nil {
+			prometheus.Spec.Storage = cr.Spec.Storage.PrometheusStorageSpec
+		}
+		if cr.Spec.Tolerations != nil {
+			prometheus.Spec.Tolerations = cr.Spec.Tolerations
+		}
+		if cr.Spec.Affinity != nil {
+			prometheus.Spec.Affinity = cr.Spec.Affinity
+		}
 		return nil
 	})
 

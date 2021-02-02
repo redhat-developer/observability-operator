@@ -17,6 +17,8 @@ limitations under the License.
 package v1
 
 import (
+	prometheusv1 "github.com/coreos/prometheus-operator/pkg/apis/monitoring/v1"
+	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -88,12 +90,19 @@ type AlertmanagerConfig struct {
 	DeadMansSnitchSecretNamespace string `json:"deadMansSnitchSecretNamespace,omitempty"`
 }
 
+type Storage struct {
+	PrometheusStorageSpec *prometheusv1.StorageSpec `json:"prometheus,omitempty"`
+}
+
 // ObservabilitySpec defines the desired state of Observability
 type ObservabilitySpec struct {
 	// Cluster ID. If not provided, the operator tries to obtain it.
 	ClusterID             string                `json:"clusterId,omitempty"`
 	ConfigurationSelector *metav1.LabelSelector `json:"configurationSelector"`
-	ResyncPeriod          string                `json:"resyncPeriod,omitempty""`
+	ResyncPeriod          string                `json:"resyncPeriod,omitempty"`
+	Storage               *Storage              `json:"storage,omitempty"`
+	Tolerations           []v1.Toleration       `json:"tolerations,omitempty"`
+	Affinity              *v1.Affinity          `json:"affinity,omitempty"`
 }
 
 // ObservabilityStatus defines the observed state of Observability
