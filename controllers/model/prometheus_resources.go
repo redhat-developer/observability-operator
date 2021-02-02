@@ -15,6 +15,15 @@ import (
 	t "text/template"
 )
 
+func GetPrometheusAuthTokenLifetimes(cr *v1.Observability) *v13.ConfigMap {
+	return &v13.ConfigMap{
+		ObjectMeta: v12.ObjectMeta{
+			Name:      "observatorium-token-lifetiems",
+			Namespace: cr.Namespace,
+		},
+	}
+}
+
 func GetPrometheusOperatorgroup(cr *v1.Observability) *coreosv1.OperatorGroup {
 	return &coreosv1.OperatorGroup{
 		ObjectMeta: v12.ObjectMeta{

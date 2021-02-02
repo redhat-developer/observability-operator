@@ -172,6 +172,28 @@ func (r *Reconciler) Reconcile(ctx context.Context, cr *v1.Observability, s *v1.
 		return status, err
 	}
 
+	// create token lifetime storage
+	status, err = r.reconcileTokenLifetimeStorage(ctx, cr)
+	if status != v1.ResultSuccess {
+		return status, err
+	}
+
+	return v1.ResultSuccess, nil
+}
+
+func (r *Reconciler) reconcileTokenLifetimeStorage(ctx context.Context, cr *v1.Observability) (v1.ObservabilityStageStatus, error) {
+	configmap := model.GetPrometheusAuthTokenLifetimes(cr)
+	_, err := controllerutil.CreateOrUpdate(ctx, r.client, configmap, func() error {
+		configmap.Labels = map[string]string{
+			"managed-by": "observability-operator",
+		}
+		return nil
+	})
+
+	if err != nil {
+		return v1.ResultFailed, err
+	}
+
 	return v1.ResultSuccess, nil
 }
 

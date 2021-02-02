@@ -28,7 +28,7 @@ const (
 	RemoteChannel                   = "channel"
 	RemoteObservatoriumToken        = "observatorium_token"
 	RemoteObservatoriumTokenExpires = "observatorium_token_expires"
-	PrometheusRuleIdentifierKey     = "receiver"
+	PrometheusRuleIdentifierKey     = "observability"
 )
 
 type Reconciler struct {
@@ -72,10 +72,24 @@ func (r *Reconciler) Cleanup(ctx context.Context, cr *v1.Observability) (v1.Obse
 		}
 	}
 
+	configMapList := &v12.ConfigMapList{}
+	err = r.client.List(ctx, configMapList, opts)
+	if err != nil {
+		return v1.ResultFailed, err
+	}
+
+	// Delete all managed config maps
+	for _, configmap := range configMapList.Items {
+		err := r.client.Delete(ctx, &configmap)
+		if err != nil {
+			return v1.ResultFailed, err
+		}
+	}
+
 	return v1.ResultSuccess, nil
 }
 
-func (r *Reconciler) refreshToken(ctx context.Context, cr *v1.Observability, index *v1.RepositoryIndex, from *v12.ConfigMap) error {
+func (r *Reconciler) refreshToken(ctx context.Context, cr *v1.Observability, index *v1.RepositoryIndex, lifetimeStorage *v12.ConfigMap) error {
 	if index == nil || index.Config == nil || index.Config.Prometheus == nil || index.Config.Prometheus.Observatorium == nil {
 		return nil
 	}
@@ -92,7 +106,7 @@ func (r *Reconciler) refreshToken(ctx context.Context, cr *v1.Observability, ind
 		return err
 	}
 
-	oldToken := from.Data[RemoteObservatoriumToken]
+	oldToken := secret.StringData["token"]
 	fetcher := token.GetTokenFetcher(index.Config.Prometheus.Observatorium, ctx, r.client)
 	newToken, expires, err := fetcher.Fetch(cr, index.Config.Prometheus.Observatorium, oldToken)
 	if err != nil {
@@ -112,13 +126,31 @@ func (r *Reconciler) refreshToken(ctx context.Context, cr *v1.Observability, ind
 	}
 
 	// Write expiration info
-	from.Data[RemoteObservatoriumTokenExpires] = strconv.FormatInt(expires, 10)
-	err = r.client.Update(ctx, from)
+	if lifetimeStorage.Data == nil {
+		lifetimeStorage.Data = map[string]string{}
+	}
+	lifetimeStorage.Data[index.Id] = strconv.FormatInt(expires, 10)
+	err = r.client.Update(ctx, lifetimeStorage)
 	if err != nil {
 		return err
 	}
 
 	return nil
+}
+
+func (r *Reconciler) getTokenLifetimeStorage(ctx context.Context, cr *v1.Observability) (*v12.ConfigMap, error) {
+	storage := model.GetPrometheusAuthTokenLifetimes(cr)
+	selector := client.ObjectKey{
+		Namespace: cr.Namespace,
+		Name:      storage.Name,
+	}
+
+	err := r.client.Get(ctx, selector, storage)
+	if err != nil {
+		return nil, err
+	}
+
+	return storage, err
 }
 
 func (r *Reconciler) Reconcile(ctx context.Context, cr *v1.Observability, s *v1.ObservabilityStatus) (v1.ObservabilityStageStatus, error) {
@@ -127,54 +159,33 @@ func (r *Reconciler) Reconcile(ctx context.Context, cr *v1.Observability, s *v1.
 		return v1.ResultSuccess, nil
 	}
 
-	list := &v12.ConfigMapList{}
-	opts := &client.ListOptions{
-		LabelSelector: labels.SelectorFromSet(cr.Spec.ConfigurationSelector.MatchLabels),
-	}
+	tokensValid := map[string]bool{}
+	overrideLastSync := false
 
-	// Get all configuration sets
-	err := r.client.List(ctx, list, opts)
+	tokenLifetimes, err := r.getTokenLifetimeStorage(ctx, cr)
 	if err != nil {
 		return v1.ResultFailed, err
 	}
 
-	needsRefresh := map[string]*v12.ConfigMap{}
-	overrideLastSync := false
-
-	// First check if any of the tokens has expired
-	// If yes, we must force a sync
-	for _, configMap := range list.Items {
-		raw := configMap.Data[RemoteObservatoriumTokenExpires]
-		repoChannel := configMap.Data[RemoteChannel]
-		repoUrl := configMap.Data[RemoteRepository]
-		repoChannelId := fmt.Sprintf("%s/%s", repoUrl, repoChannel)
-
-		if raw == "" {
-			needsRefresh[repoChannelId] = &configMap
+	// First check if any of the tokens have expired
+	for id, lifetime := range tokenLifetimes.Data {
+		if lifetime == "" {
+			tokensValid[id] = false
 			overrideLastSync = true
-			continue
 		}
 
-		expires, err := strconv.ParseInt(raw, 10, 64)
+		expires, err := strconv.ParseInt(lifetime, 10, 64)
 		if err != nil {
 			r.logger.Error(err, "unknown expiration format, int64 expected")
 			continue
 		}
 
 		if token.AuthTokenExpires(expires) {
-			needsRefresh[repoChannelId] = &configMap
+			tokensValid[id] = false
 			overrideLastSync = true
 			continue
 		}
 	}
-
-	// TODO consider nulling our the token expiry on "delete" so that when the operator cycles, it'll re-fetch
-	// and rebuild the <index id>-observatorium-credentials secret.
-	//
-	// as-is, if you run the operator (creates secret and stamps expiry in our CM), stop the operator (deletes the
-	// generated secret but keeps the not-yet-reached-expiry timestamp on CM) and run the operator again, code depending
-	// on the generate secret's existence fails - operator things it still exists and hasn't expired, so skips re-fetch.
-	// Manually working around right now by removing the expiration flag from CM between operator runs.
 
 	// Then check if the next sync is due
 	// Override if any of the tokens needs a refresh
@@ -189,6 +200,17 @@ func (r *Reconciler) Reconcile(ctx context.Context, cr *v1.Observability, s *v1.
 		if time.Now().Before(nextSync) {
 			return v1.ResultSuccess, nil
 		}
+	}
+
+	list := &v12.ConfigMapList{}
+	opts := &client.ListOptions{
+		LabelSelector: labels.SelectorFromSet(cr.Spec.ConfigurationSelector.MatchLabels),
+	}
+
+	// Get all configuration sets
+	err = r.client.List(ctx, list, opts)
+	if err != nil {
+		return v1.ResultFailed, err
 	}
 
 	// Extract repository info
@@ -230,13 +252,14 @@ func (r *Reconciler) Reconcile(ctx context.Context, cr *v1.Observability, s *v1.
 
 	// Refresh observatorium tokens
 	for _, index := range indexes {
-		if cm, ok := needsRefresh[index.BaseUrl]; ok && cm != nil {
+		if val, ok := tokensValid[index.Id]; !ok || !val {
 			if index.Config != nil && index.Config.Prometheus != nil {
-				err = r.refreshToken(ctx, cr, &index, cm)
+				err = r.refreshToken(ctx, cr, &index, tokenLifetimes)
 				if err != nil {
 					r.logger.Error(err, "unable to obtain observatorium token")
 				}
 			}
+
 		}
 	}
 

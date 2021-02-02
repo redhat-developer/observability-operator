@@ -201,10 +201,10 @@ func (r *Reconciler) getAlerting(cr *v1.Observability) *prometheusv1.AlertingSpe
 	return &prometheusv1.AlertingSpec{
 		Alertmanagers: []prometheusv1.AlertmanagerEndpoints{
 			{
-				Namespace:  cr.Namespace,
-				Name:       alertmanager.Name,
-				Port:       intstr.FromString("web"),
-				Scheme:     "https",
+				Namespace: cr.Namespace,
+				Name:      alertmanager.Name,
+				Port:      intstr.FromString("web"),
+				Scheme:    "https",
 				TLSConfig: &prometheusv1.TLSConfig{
 					CAFile:     "/var/run/secrets/kubernetes.io/serviceaccount/service-ca.crt",
 					ServerName: fmt.Sprintf("%v.%v.svc", alertmanagerService.Name, cr.Namespace),
