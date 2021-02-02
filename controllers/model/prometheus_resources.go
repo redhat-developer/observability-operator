@@ -11,8 +11,18 @@ import (
 	v13 "k8s.io/api/core/v1"
 	v14 "k8s.io/api/rbac/v1"
 	v12 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"strings"
 	t "text/template"
 )
+
+func GetPrometheusAuthTokenLifetimes(cr *v1.Observability) *v13.ConfigMap {
+	return &v13.ConfigMap{
+		ObjectMeta: v12.ObjectMeta{
+			Name:      "observatorium-token-lifetiems",
+			Namespace: cr.Namespace,
+		},
+	}
+}
 
 func GetPrometheusOperatorgroup(cr *v1.Observability) *coreosv1.OperatorGroup {
 	return &coreosv1.OperatorGroup{
@@ -99,7 +109,7 @@ func GetPrometheusRoute(cr *v1.Observability) *routev1.Route {
 	}
 }
 
-func GetFederationConfig(user, pass string) ([]byte, error) {
+func GetFederationConfig(user, pass string, patterns []string) ([]byte, error) {
 	const config = `
 - job_name: openshift-monitoring-federation
   honor_labels: true
@@ -118,28 +128,7 @@ func GetFederationConfig(user, pass string) ([]byte, error) {
       source_labels: [ '__meta_kubernetes_service_port_name' ]
       regex: web
   params:
-    match[]:
-      - 'console_url'
-      - 'cluster_version'
-      - 'ALERTS'
-      - 'subscription_sync_total'
-      - 'kubelet_volume_stats_used_bytes{endpoint="https-metrics",namespace!~"openshift-.*$",namespace!~"kube-.*$",namespace!="default"}'
-      - 'kubelet_volume_stats_available_bytes{endpoint="https-metrics",namespace!~"openshift-.*$",namespace!~"kube-.*$",namespace!="default"}'
-      - 'kubelet_volume_stats_capacity_bytes{endpoint="https-metrics",namespace!~"openshift-.*$",namespace!~"kube-.*$",namespace!="default"}'
-      - 'kubelet_volume_stats_inodes{endpoint="https-metrics",namespace!~"openshift-.*$",namespace!~"kube-.*$",namespace!="default"}'
-      - 'kubelet_volume_stats_inodes_used{endpoint="https-metrics",namespace!~"openshift-.*$",namespace!~"kube-.*$",namespace!="default"}'
-      - '{service="kube-state-metrics"}'
-      - '{service="node-exporter"}'
-      - '{__name__=~"node_namespace_pod_container:.*"}'
-      - '{__name__=~"node:.*"}'
-      - '{__name__=~"instance:.*"}'
-      - '{__name__=~"container_memory_.*"}'
-      - '{__name__=~"container_cpu_.*"}'
-      - '{__name__="container_last_seen"}'
-      - '{__name__=~":node_memory_.*"}'
-      - '{__name__=~"csv_.*"}'
-      - '{__name__=~"node_.*"}'
-      - '{__name__=~"container_network.*"}'
+    match[]: [{{ .Patterns }}]
   scheme: https
   tls_config:
     insecure_skip_verify: true
@@ -151,11 +140,13 @@ func GetFederationConfig(user, pass string) ([]byte, error) {
 	template := t.Must(t.New("template").Parse(config))
 	var buffer bytes.Buffer
 	err := template.Execute(&buffer, struct {
-		User string
-		Pass string
+		User     string
+		Pass     string
+		Patterns string
 	}{
-		User: user,
-		Pass: pass,
+		User:     user,
+		Pass:     pass,
+		Patterns: strings.Join(patterns, ","),
 	})
 
 	return buffer.Bytes(), err
@@ -168,32 +159,6 @@ func GetPrometheusAdditionalScrapeConfig(cr *v1.Observability) *v13.Secret {
 			Namespace: cr.Namespace,
 		},
 	}
-}
-
-func GetPrometheusRemoteWriteConfig(cr *v1.Observability, tokenSecret string) []prometheusv1.RemoteWriteSpec {
-	/*
-		if cr.Spec.Observatorium == nil {
-			return nil
-		}
-
-		return []prometheusv1.RemoteWriteSpec{
-			{
-				URL: fmt.Sprintf("%s/api/metrics/v1/%s/api/v1/receive", cr.Spec.Observatorium.Gateway, cr.Spec.Observatorium.Tenant),
-				WriteRelabelConfigs: []prometheusv1.RelabelConfig{
-					{
-						SourceLabels: []string{"__name__"},
-						Regex:        "(kafka_controller.*$|console_url$|csv_succeeded$|csv_abnormal$|cluster_version$|ALERTS$|strimzi_.*$|subscription_sync_total|node.*$|kube.*$|container.*$)",
-						Action:       "keep",
-					},
-				},
-				BearerTokenFile: fmt.Sprintf("/etc/prometheus/secrets/%s/token", tokenSecret),
-				TLSConfig: &prometheusv1.TLSConfig{
-					InsecureSkipVerify: true,
-				},
-			},
-		}
-	*/
-	return []prometheusv1.RemoteWriteSpec{}
 }
 
 func GetPrometheus(cr *v1.Observability) *prometheusv1.Prometheus {

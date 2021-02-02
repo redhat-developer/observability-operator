@@ -6,11 +6,15 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-func GetTokenSecret(cr *v1.Observability) *v12.Secret {
+func GetTokenSecret(cr *v1.Observability, name string) *v12.Secret {
 	return &v12.Secret{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      "observatorium-token",
+			Name:      name,
 			Namespace: cr.Namespace,
+			Labels: map[string]string{
+				"managed-by": "observability-operator",
+				"purpose":    "observatorium-token-secret",
+			},
 		},
 	}
 }

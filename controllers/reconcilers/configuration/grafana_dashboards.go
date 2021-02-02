@@ -37,7 +37,7 @@ func getNameFromUrl(path string) string {
 	return parts[0]
 }
 
-func getUniqueDashboards(indexes []RepositoryIndex) []DashboardInfo {
+func getUniqueDashboards(indexes []v1.RepositoryIndex) []DashboardInfo {
 	var result []DashboardInfo
 	for _, index := range indexes {
 		if index.Config == nil || index.Config.Grafana == nil {

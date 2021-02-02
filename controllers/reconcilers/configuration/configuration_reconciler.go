@@ -7,46 +7,29 @@ import (
 	"fmt"
 	"github.com/go-logr/logr"
 	v1 "github.com/jeremyary/observability-operator/api/v1"
+	"github.com/jeremyary/observability-operator/controllers/model"
 	"github.com/jeremyary/observability-operator/controllers/reconcilers"
+	"github.com/jeremyary/observability-operator/controllers/token"
 	"io/ioutil"
 	v12 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/labels"
 	"net/http"
 	"net/url"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+	"strconv"
 	"time"
 )
 
 const (
-	RemoteRepository  = "repository"
-	RemoteAccessToken = "access_token"
-	RemoteChannel     = "channel"
+	RemoteRepository                = "repository"
+	RemoteAccessToken               = "access_token"
+	RemoteChannel                   = "channel"
+	RemoteObservatoriumToken        = "observatorium_token"
+	RemoteObservatoriumTokenExpires = "observatorium_token_expires"
+	PrometheusRuleIdentifierKey     = "observability"
 )
-
-type RepositoryInfo struct {
-	Repository  string
-	Channel     string
-	AccessToken string
-}
-
-type GrafanaIndex struct {
-	Dashboards []string `json:"dashboards"`
-}
-
-type PrometheusIndex struct {
-	Rules []string `json:"rules"`
-}
-
-type RepositoryConfig struct {
-	Grafana    *GrafanaIndex    `json:"grafana,omitempty"`
-	Prometheus *PrometheusIndex `json:"prometheus,omitempty"`
-}
-
-type RepositoryIndex struct {
-	BaseUrl     string            `json:"-"`
-	AccessToken string            `json:"-"`
-	Config      *RepositoryConfig `json:"config"`
-}
 
 type Reconciler struct {
 	client     client.Client
@@ -67,14 +50,146 @@ func NewReconciler(client client.Client, logger logr.Logger) reconcilers.Observa
 	}
 }
 
+func (r *Reconciler) Cleanup(ctx context.Context, cr *v1.Observability) (v1.ObservabilityStageStatus, error) {
+	list := &v12.SecretList{}
+	opts := &client.ListOptions{
+		LabelSelector: labels.SelectorFromSet(map[string]string{
+			"managed-by": "observability-operator",
+		}),
+		Namespace: cr.Namespace,
+	}
+
+	err := r.client.List(ctx, list, opts)
+	if err != nil {
+		return v1.ResultFailed, err
+	}
+
+	// Delete all managed secrets
+	for _, secret := range list.Items {
+		err := r.client.Delete(ctx, &secret)
+		if err != nil {
+			return v1.ResultFailed, err
+		}
+	}
+
+	configMapList := &v12.ConfigMapList{}
+	err = r.client.List(ctx, configMapList, opts)
+	if err != nil {
+		return v1.ResultFailed, err
+	}
+
+	// Delete all managed config maps
+	for _, configmap := range configMapList.Items {
+		err := r.client.Delete(ctx, &configmap)
+		if err != nil {
+			return v1.ResultFailed, err
+		}
+	}
+
+	return v1.ResultSuccess, nil
+}
+
+func (r *Reconciler) refreshToken(ctx context.Context, cr *v1.Observability, index *v1.RepositoryIndex, lifetimeStorage *v12.ConfigMap) error {
+	if index == nil || index.Config == nil || index.Config.Prometheus == nil || index.Config.Prometheus.Observatorium == nil {
+		return nil
+	}
+
+	secretName := fmt.Sprintf("%s-%s", index.Id, "observatorium-credentials")
+	secret := model.GetTokenSecret(cr, secretName)
+	selector := client.ObjectKey{
+		Namespace: cr.Namespace,
+		Name:      secretName,
+	}
+
+	err := r.client.Get(ctx, selector, secret)
+	if err != nil && !errors.IsNotFound(err) {
+		return err
+	}
+
+	oldToken := secret.StringData["token"]
+	fetcher := token.GetTokenFetcher(index.Config.Prometheus.Observatorium, ctx, r.client)
+	newToken, expires, err := fetcher.Fetch(cr, index.Config.Prometheus.Observatorium, oldToken)
+	if err != nil {
+		return err
+	}
+
+	// Write token secret
+	_, err = controllerutil.CreateOrUpdate(ctx, r.client, secret, func() error {
+		secret.StringData = map[string]string{
+			"token": newToken,
+		}
+		return nil
+	})
+
+	if err != nil {
+		return err
+	}
+
+	// Write expiration info
+	if lifetimeStorage.Data == nil {
+		lifetimeStorage.Data = map[string]string{}
+	}
+	lifetimeStorage.Data[index.Id] = strconv.FormatInt(expires, 10)
+	err = r.client.Update(ctx, lifetimeStorage)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (r *Reconciler) getTokenLifetimeStorage(ctx context.Context, cr *v1.Observability) (*v12.ConfigMap, error) {
+	storage := model.GetPrometheusAuthTokenLifetimes(cr)
+	selector := client.ObjectKey{
+		Namespace: cr.Namespace,
+		Name:      storage.Name,
+	}
+
+	err := r.client.Get(ctx, selector, storage)
+	if err != nil {
+		return nil, err
+	}
+
+	return storage, err
+}
+
 func (r *Reconciler) Reconcile(ctx context.Context, cr *v1.Observability, s *v1.ObservabilityStatus) (v1.ObservabilityStageStatus, error) {
 	if cr.Spec.ConfigurationSelector == nil {
 		r.logger.Info("warning: configuration label selector present, dynamic configuration will be skipped")
 		return v1.ResultSuccess, nil
 	}
 
-	// First check if the next sync is due
-	if cr.Status.LastSynced != 0 {
+	tokensValid := map[string]bool{}
+	overrideLastSync := false
+
+	tokenLifetimes, err := r.getTokenLifetimeStorage(ctx, cr)
+	if err != nil {
+		return v1.ResultFailed, err
+	}
+
+	// First check if any of the tokens have expired
+	for id, lifetime := range tokenLifetimes.Data {
+		if lifetime == "" {
+			tokensValid[id] = false
+			overrideLastSync = true
+		}
+
+		expires, err := strconv.ParseInt(lifetime, 10, 64)
+		if err != nil {
+			r.logger.Error(err, "unknown expiration format, int64 expected")
+			continue
+		}
+
+		if token.AuthTokenExpires(expires) {
+			tokensValid[id] = false
+			overrideLastSync = true
+			continue
+		}
+	}
+
+	// Then check if the next sync is due
+	// Override if any of the tokens needs a refresh
+	if cr.Status.LastSynced != 0 && !overrideLastSync {
 		lastSync := time.Unix(cr.Status.LastSynced, 0)
 		period, err := time.ParseDuration(cr.Spec.ResyncPeriod)
 		if err != nil {
@@ -93,13 +208,13 @@ func (r *Reconciler) Reconcile(ctx context.Context, cr *v1.Observability, s *v1.
 	}
 
 	// Get all configuration sets
-	err := r.client.List(ctx, list, opts)
+	err = r.client.List(ctx, list, opts)
 	if err != nil {
 		return v1.ResultFailed, err
 	}
 
 	// Extract repository info
-	var repos []RepositoryInfo
+	var repos []v1.RepositoryInfo
 	for _, configMap := range list.Items {
 		repoUrl := configMap.Data[RemoteRepository]
 		_, err := url.Parse(repoUrl)
@@ -108,7 +223,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, cr *v1.Observability, s *v1.
 			continue
 		}
 
-		repos = append(repos, RepositoryInfo{
+		repos = append(repos, v1.RepositoryInfo{
 			AccessToken: configMap.Data[RemoteAccessToken],
 			Channel:     configMap.Data[RemoteChannel],
 			Repository:  repoUrl,
@@ -116,7 +231,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, cr *v1.Observability, s *v1.
 	}
 
 	// Collect index files
-	var indexes []RepositoryIndex
+	var indexes []v1.RepositoryIndex
 	for _, repoInfo := range repos {
 		indexBytes, err := r.readIndexFile(&repoInfo)
 		if err != nil {
@@ -124,7 +239,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, cr *v1.Observability, s *v1.
 			continue
 		}
 
-		var index RepositoryIndex
+		var index v1.RepositoryIndex
 		err = json.Unmarshal(indexBytes, &index)
 		if err != nil {
 			r.logger.Error(err, "corrupt index file")
@@ -133,6 +248,47 @@ func (r *Reconciler) Reconcile(ctx context.Context, cr *v1.Observability, s *v1.
 		index.BaseUrl = fmt.Sprintf("%s/%s", repoInfo.Repository, repoInfo.Channel)
 		index.AccessToken = repoInfo.AccessToken
 		indexes = append(indexes, index)
+	}
+
+	// Refresh observatorium tokens
+	for _, index := range indexes {
+		if val, ok := tokensValid[index.Id]; !ok || !val {
+			if index.Config != nil && index.Config.Prometheus != nil {
+				err = r.refreshToken(ctx, cr, &index, tokenLifetimes)
+				if err != nil {
+					r.logger.Error(err, "unable to obtain observatorium token")
+				}
+			}
+
+		}
+	}
+
+	// Alertmanager configuration
+	err = r.reconcileAlertmanagerSecret(ctx, cr, indexes)
+	if err != nil {
+		return v1.ResultFailed, err
+	}
+
+	// Prometheus additional scrape configs
+	patterns, err := r.fetchFederationConfigs(indexes)
+	if err != nil {
+		return v1.ResultFailed, err
+	}
+	err = r.createAdditionalScrapeConfigSecret(cr, ctx, patterns)
+	if err != nil {
+		return v1.ResultFailed, err
+	}
+
+	// Alertmanager CR
+	err = r.reconcileAlertmanager(ctx, cr)
+	if err != nil {
+		return v1.ResultFailed, err
+	}
+
+	// Prometheus CR
+	err = r.reconcilePrometheus(ctx, cr, indexes)
+	if err != nil {
+		return v1.ResultFailed, err
 	}
 
 	// Manage dashboards
@@ -164,11 +320,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, cr *v1.Observability, s *v1.
 	return v1.ResultSuccess, nil
 }
 
-func (r *Reconciler) Cleanup(ctx context.Context, cr *v1.Observability) (v1.ObservabilityStageStatus, error) {
-	return v1.ResultSuccess, nil
-}
-
-func (r *Reconciler) readIndexFile(repo *RepositoryInfo) ([]byte, error) {
+func (r *Reconciler) readIndexFile(repo *v1.RepositoryInfo) ([]byte, error) {
 	repoUrl := fmt.Sprintf("%s/%s/index.json", repo.Repository, repo.Channel)
 
 	req, err := http.NewRequest(http.MethodGet, repoUrl, nil)
@@ -177,6 +329,7 @@ func (r *Reconciler) readIndexFile(repo *RepositoryInfo) ([]byte, error) {
 	}
 
 	req.Header.Set("Authorization", fmt.Sprintf("token %s", repo.AccessToken))
+	req.Header.Set("Accept", "application/vnd.github.v3.raw")
 
 	resp, err := r.httpClient.Do(req)
 	if err != nil {
@@ -194,4 +347,35 @@ func (r *Reconciler) readIndexFile(repo *RepositoryInfo) ([]byte, error) {
 	}
 
 	return bytes, nil
+}
+
+func (r *Reconciler) fetchResource(path string, token string) ([]byte, error) {
+	url, err := url.ParseRequestURI(path)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, url.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Authorization", fmt.Sprintf("token %s", token))
+	req.Header.Set("Accept", "application/vnd.github.v3.raw")
+
+	resp, err := r.httpClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != 200 {
+		return nil, fmt.Errorf("unexpected status code: %v", resp.StatusCode)
+	}
+
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+
+	return body, nil
 }

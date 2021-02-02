@@ -6,20 +6,18 @@ import (
 	v12 "github.com/coreos/prometheus-operator/pkg/apis/monitoring/v1"
 	"github.com/ghodss/yaml"
 	v1 "github.com/jeremyary/observability-operator/api/v1"
-	"io/ioutil"
-	"net/http"
-	url2 "net/url"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
 
 type RuleInfo struct {
+	Id          string
 	Name        string
 	Url         string
 	AccessToken string
 }
 
-func getUniqueRules(indexes []RepositoryIndex) []RuleInfo {
+func getUniqueRules(indexes []v1.RepositoryIndex) []RuleInfo {
 	var result []RuleInfo
 	for _, index := range indexes {
 		if index.Config == nil || index.Config.Prometheus == nil {
@@ -33,6 +31,7 @@ func getUniqueRules(indexes []RepositoryIndex) []RuleInfo {
 				}
 			}
 			result = append(result, RuleInfo{
+				Id:          index.Id,
 				Name:        name,
 				Url:         fmt.Sprintf("%s/%s", index.BaseUrl, rule),
 				AccessToken: index.AccessToken,
@@ -79,7 +78,7 @@ func (r *Reconciler) deleteUnrequestedRules(cr *v1.Observability, ctx context.Co
 func (r *Reconciler) createRequestedRules(cr *v1.Observability, ctx context.Context, rules []RuleInfo) error {
 	// Sync requested prometheus rules
 	for _, rule := range rules {
-		bytes, err := r.fetchRule(rule.Url, rule.AccessToken)
+		bytes, err := r.fetchResource(rule.Url, rule.AccessToken)
 		if err != nil {
 			return err
 		}
@@ -90,6 +89,8 @@ func (r *Reconciler) createRequestedRules(cr *v1.Observability, ctx context.Cont
 		}
 
 		_, err = controllerutil.CreateOrUpdate(ctx, r.client, parsedRule, func() error {
+			// Inject managed labels
+			injectIdLabel(parsedRule, rule.Id)
 			return nil
 		})
 		if err != nil {
@@ -97,6 +98,14 @@ func (r *Reconciler) createRequestedRules(cr *v1.Observability, ctx context.Cont
 		}
 	}
 	return nil
+}
+
+func injectIdLabel(rule *v12.PrometheusRule, id string) {
+	for i := 0; i < len(rule.Spec.Groups); i++ {
+		for j := 0; j < len(rule.Spec.Groups[i].Rules); j++ {
+			rule.Spec.Groups[i].Rules[j].Labels[PrometheusRuleIdentifierKey] = id
+		}
+	}
 }
 
 func parseRuleFromYaml(cr *v1.Observability, name string, source []byte) (*v12.PrometheusRule, error) {
@@ -108,34 +117,4 @@ func parseRuleFromYaml(cr *v1.Observability, name string, source []byte) (*v12.P
 	rule.Namespace = cr.Namespace
 	rule.Name = name
 	return rule, nil
-}
-
-func (r *Reconciler) fetchRule(path string, token string) ([]byte, error) {
-	url, err := url2.ParseRequestURI(path)
-	if err != nil {
-		return nil, err
-	}
-
-	req, err := http.NewRequest(http.MethodGet, url.String(), nil)
-	if err != nil {
-		return nil, err
-	}
-	req.Header.Set("Authorization", fmt.Sprintf("token %s", token))
-
-	resp, err := r.httpClient.Do(req)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != 200 {
-		return nil, fmt.Errorf("unexpected status code: %v", resp.StatusCode)
-	}
-
-	body, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return nil, err
-	}
-
-	return body, nil
 }

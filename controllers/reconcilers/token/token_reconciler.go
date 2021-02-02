@@ -23,7 +23,7 @@ func NewReconciler(client client.Client, logger logr.Logger) reconcilers.Observa
 }
 
 func (r *Reconciler) Cleanup(ctx context.Context, cr *v1.Observability) (v1.ObservabilityStageStatus, error) {
-	secret := model.GetTokenSecret(cr)
+	secret := model.GetTokenSecret(cr, "observatorium-credentials")
 	err := r.client.Delete(ctx, secret)
 	if err != nil && !errors.IsNotFound(err) {
 		return v1.ResultFailed, err

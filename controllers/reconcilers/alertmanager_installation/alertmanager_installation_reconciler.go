@@ -31,22 +31,7 @@ func NewReconciler(client client.Client, logger logr.Logger) reconcilers.Observa
 }
 
 func (r *Reconciler) Reconcile(ctx context.Context, cr *v1.Observability, s *v1.ObservabilityStatus) (v1.ObservabilityStageStatus, error) {
-	status, pagerDutySecret, err := r.getPagerDutySecret(ctx, cr)
-	if status != v1.ResultSuccess {
-		return status, err
-	}
-
-	status, deadMansSnitchUrl, err := r.getDeadMansSnitchUrl(ctx, cr)
-	if status != v1.ResultSuccess {
-		return status, err
-	}
-
-	status, err = r.reconcileAlertmanagerSecret(ctx, cr, pagerDutySecret, deadMansSnitchUrl)
-	if status != v1.ResultSuccess {
-		return status, err
-	}
-
-	status, err = r.reconcileAlertmanagerProxySecret(ctx, cr)
+	status, err := r.reconcileAlertmanagerProxySecret(ctx, cr)
 	if status != v1.ResultSuccess {
 		return status, err
 	}
@@ -77,11 +62,6 @@ func (r *Reconciler) Reconcile(ctx context.Context, cr *v1.Observability, s *v1.
 	}
 
 	status, err = r.waitForRoute(ctx, cr)
-	if status != v1.ResultSuccess {
-		return status, err
-	}
-
-	status, err = r.reconcileAlertmanager(ctx, cr)
 	if status != v1.ResultSuccess {
 		return status, err
 	}
@@ -188,102 +168,11 @@ func (r *Reconciler) waitForRoute(ctx context.Context, cr *v1.Observability) (v1
 		return v1.ResultFailed, err
 	}
 
-	if utils.IsRouteReads(route) {
+	if utils.IsRouteReady(route) {
 		return v1.ResultSuccess, nil
 	}
 
 	return v1.ResultInProgress, nil
-}
-
-func (r *Reconciler) reconcileAlertmanager(ctx context.Context, cr *v1.Observability) (v1.ObservabilityStageStatus, error) {
-	alertmanager := model.GetAlertmanagerCr(cr)
-	configSecret := model.GetAlertmanagerSecret(cr)
-	proxySecret := model.GetAlertmanagerProxySecret(cr)
-	sa := model.GetAlertmanagerServiceAccount(cr)
-
-	route := model.GetAlertmanagerRoute(cr)
-	selector := client.ObjectKey{
-		Namespace: route.Namespace,
-		Name:      route.Name,
-	}
-
-	err := r.client.Get(ctx, selector, route)
-	if err != nil && !errors.IsNotFound(err) {
-		return v1.ResultFailed, err
-	}
-
-	host := ""
-	if utils.IsRouteReads(route) {
-		host = route.Spec.Host
-	}
-
-	_, err = controllerutil.CreateOrUpdate(ctx, r.client, alertmanager, func() error {
-		alertmanager.Spec.ConfigSecret = configSecret.Name
-		alertmanager.Spec.ListenLocal = true
-		alertmanager.Spec.ExternalURL = fmt.Sprintf("https://%v", host)
-		alertmanager.Spec.ServiceAccountName = sa.Name
-		alertmanager.Spec.Secrets = []string{
-			proxySecret.Name,
-			"alertmanager-k8s-tls",
-		}
-		alertmanager.Spec.Containers = []v12.Container{
-			{
-				Name:  "oauth-proxy",
-				Image: "quay.io/openshift/origin-oauth-proxy:4.2",
-				Args: []string{
-					"-provider=openshift",
-					"-https-address=:9091",
-					"-http-address=",
-					"-email-domain=*",
-					"-upstream=http://localhost:9093",
-					"-openshift-sar={\"resource\": \"namespaces\", \"verb\": \"get\"}",
-					"-openshift-delegate-urls={\"/\": {\"resource\": \"namespaces\", \"verb\": \"get\"}}",
-					"-tls-cert=/etc/tls/private/tls.crt",
-					"-tls-key=/etc/tls/private/tls.key",
-					"-client-secret-file=/var/run/secrets/kubernetes.io/serviceaccount/token",
-					"-cookie-secret-file=/etc/proxy/secrets/session_secret",
-					fmt.Sprintf("-openshift-service-account=%v", sa.Name),
-					"-openshift-ca=/etc/pki/tls/cert.pem",
-					"-openshift-ca=/var/run/secrets/kubernetes.io/serviceaccount/ca.crt",
-					"-skip-auth-regex=^/metrics",
-				},
-				Ports: []v12.ContainerPort{
-					{
-						Name:          "proxy",
-						ContainerPort: 9091,
-					},
-				},
-				Env: []v12.EnvVar{
-					{
-						Name: "HTTP_PROXY",
-					},
-					{
-						Name: "HTTPS_PROXY",
-					},
-					{
-						Name: "NO_PROXY",
-					},
-				},
-				VolumeMounts: []v12.VolumeMount{
-					{
-						Name:      "secret-alertmanager-k8s-tls",
-						MountPath: "/etc/tls/private",
-					},
-					{
-						Name:      fmt.Sprintf("secret-%v", proxySecret.Name),
-						MountPath: "/etc/proxy/secrets",
-					},
-				},
-			},
-		}
-		return nil
-	})
-	if err != nil {
-		return v1.ResultFailed, err
-	}
-
-	return v1.ResultSuccess, err
-
 }
 
 func (r *Reconciler) reconcileAlertmanagerServiceAccount(ctx context.Context, cr *v1.Observability) (v1.ObservabilityStageStatus, error) {
@@ -421,33 +310,4 @@ func (r *Reconciler) reconcileAlertmanagerProxySecret(ctx context.Context, cr *v
 	}
 
 	return v1.ResultSuccess, err
-}
-
-func (r *Reconciler) reconcileAlertmanagerSecret(ctx context.Context, cr *v1.Observability, pagerDutySecret []byte, deadMansSnitchUrl []byte) (v1.ObservabilityStageStatus, error) {
-	secret := model.GetAlertmanagerSecret(cr)
-	config, err := model.GetAlertmanagerConfig(string(pagerDutySecret), string(deadMansSnitchUrl))
-	if err != nil {
-		return v1.ResultFailed, err
-	}
-
-	_, err = controllerutil.CreateOrUpdate(ctx, r.client, secret, func() error {
-		secret.Type = v12.SecretTypeOpaque
-		secret.StringData = map[string]string{
-			"alertmanager.yaml": config,
-		}
-		return nil
-	})
-	if err != nil {
-		return v1.ResultFailed, err
-	}
-
-	return v1.ResultSuccess, err
-}
-
-func (r *Reconciler) getPagerDutySecret(ctx context.Context, cr *v1.Observability) (v1.ObservabilityStageStatus, []byte, error) {
-	return v1.ResultSuccess, []byte("dummy"), nil
-}
-
-func (r *Reconciler) getDeadMansSnitchUrl(ctx context.Context, cr *v1.Observability) (v1.ObservabilityStageStatus, []byte, error) {
-	return v1.ResultSuccess, []byte("http://dummy"), nil
 }
