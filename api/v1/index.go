@@ -36,6 +36,7 @@ type AlertmanagerIndex struct {
 
 type PrometheusIndex struct {
 	Rules         []string            `json:"rules"`
+	PodMonitors   []string            `json:"pod_monitors"`
 	Federation    string              `json:"federation,omitempty"`
 	Observatorium *ObservatoriumIndex `json:"observatorium,omitempty"`
 	RemoteWrite   string              `json:"remoteWrite,omitempty"`

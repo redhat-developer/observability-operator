@@ -10,20 +10,13 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
 
-type ResourceInfo struct {
-	Id          string
-	Name        string
-	Url         string
-	AccessToken string
-}
-
-func getUniqueRules(indexes []v1.RepositoryIndex) []ResourceInfo {
+func getUniquePodMonitors(indexes []v1.RepositoryIndex) []ResourceInfo {
 	var result []ResourceInfo
 	for _, index := range indexes {
 		if index.Config == nil || index.Config.Prometheus == nil {
 			continue
 		}
-		for _, rule := range index.Config.Prometheus.Rules {
+		for _, rule := range index.Config.Prometheus.PodMonitors {
 			name := getNameFromUrl(rule)
 			for _, existing := range result {
 				if existing.Name == name {
@@ -41,20 +34,20 @@ func getUniqueRules(indexes []v1.RepositoryIndex) []ResourceInfo {
 	return result
 }
 
-func (r *Reconciler) deleteUnrequestedRules(cr *v1.Observability, ctx context.Context, rules []ResourceInfo) error {
+func (r *Reconciler) deleteUnrequestedPodMonitors(cr *v1.Observability, ctx context.Context, monitors []ResourceInfo) error {
 	// List existing dashboards
-	existingRules := &v12.PrometheusRuleList{}
+	existingMonitors := &v12.PodMonitorList{}
 	opts := &client.ListOptions{
 		Namespace: cr.Namespace,
 	}
-	err := r.client.List(ctx, existingRules, opts)
+	err := r.client.List(ctx, existingMonitors, opts)
 	if err != nil {
 		return err
 	}
 
 	isRequested := func(name string) bool {
-		for _, rule := range rules {
-			if name == rule.Name {
+		for _, monitor := range monitors {
+			if name == monitor.Name {
 				return true
 			}
 		}
@@ -63,9 +56,9 @@ func (r *Reconciler) deleteUnrequestedRules(cr *v1.Observability, ctx context.Co
 
 	// Check which rules are no longer requested and
 	// delete them
-	for _, rule := range existingRules.Items {
-		if isRequested(rule.Name) == false {
-			err = r.client.Delete(ctx, rule)
+	for _, monitor := range existingMonitors.Items {
+		if isRequested(monitor.Name) == false {
+			err = r.client.Delete(ctx, monitor)
 			if err != nil {
 				return err
 			}
@@ -75,7 +68,7 @@ func (r *Reconciler) deleteUnrequestedRules(cr *v1.Observability, ctx context.Co
 	return nil
 }
 
-func (r *Reconciler) createRequestedRules(cr *v1.Observability, ctx context.Context, rules []ResourceInfo) error {
+func (r *Reconciler) createRequestedPodMonitors(cr *v1.Observability, ctx context.Context, rules []ResourceInfo) error {
 	// Sync requested prometheus rules
 	for _, rule := range rules {
 		bytes, err := r.fetchResource(rule.Url, rule.AccessToken)
@@ -100,15 +93,7 @@ func (r *Reconciler) createRequestedRules(cr *v1.Observability, ctx context.Cont
 	return nil
 }
 
-func injectIdLabel(rule *v12.PrometheusRule, id string) {
-	for i := 0; i < len(rule.Spec.Groups); i++ {
-		for j := 0; j < len(rule.Spec.Groups[i].Rules); j++ {
-			rule.Spec.Groups[i].Rules[j].Labels[PrometheusRuleIdentifierKey] = id
-		}
-	}
-}
-
-func parseRuleFromYaml(cr *v1.Observability, name string, source []byte) (*v12.PrometheusRule, error) {
+func parsePodMonitorFromYaml(cr *v1.Observability, name string, source []byte) (*v12.PrometheusRule, error) {
 	rule := &v12.PrometheusRule{}
 	err := yaml.Unmarshal(source, rule)
 	if err != nil {
