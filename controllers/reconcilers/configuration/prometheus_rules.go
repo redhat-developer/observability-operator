@@ -19,6 +19,7 @@ type ResourceInfo struct {
 
 func getUniqueRules(indexes []v1.RepositoryIndex) []ResourceInfo {
 	var result []ResourceInfo
+	seek:
 	for _, index := range indexes {
 		if index.Config == nil || index.Config.Prometheus == nil {
 			continue
@@ -27,7 +28,7 @@ func getUniqueRules(indexes []v1.RepositoryIndex) []ResourceInfo {
 			name := getNameFromUrl(rule)
 			for _, existing := range result {
 				if existing.Name == name {
-					continue
+					continue seek
 				}
 			}
 			result = append(result, ResourceInfo{

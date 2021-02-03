@@ -16,17 +16,18 @@ func getUniquePodMonitors(indexes []v1.RepositoryIndex) []ResourceInfo {
 		if index.Config == nil || index.Config.Prometheus == nil {
 			continue
 		}
-		for _, rule := range index.Config.Prometheus.PodMonitors {
-			name := getNameFromUrl(rule)
+		seek:
+		for _, monitor := range index.Config.Prometheus.PodMonitors {
+			name := getNameFromUrl(monitor)
 			for _, existing := range result {
 				if existing.Name == name {
-					continue
+					continue seek
 				}
 			}
 			result = append(result, ResourceInfo{
 				Id:          index.Id,
 				Name:        name,
-				Url:         fmt.Sprintf("%s/%s", index.BaseUrl, rule),
+				Url:         fmt.Sprintf("%s/%s", index.BaseUrl, monitor),
 				AccessToken: index.AccessToken,
 			})
 		}
@@ -35,7 +36,7 @@ func getUniquePodMonitors(indexes []v1.RepositoryIndex) []ResourceInfo {
 }
 
 func (r *Reconciler) deleteUnrequestedPodMonitors(cr *v1.Observability, ctx context.Context, monitors []ResourceInfo) error {
-	// List existing dashboards
+	// List existing pod monitors
 	existingMonitors := &v12.PodMonitorList{}
 	opts := &client.ListOptions{
 		Namespace: cr.Namespace,
@@ -54,8 +55,7 @@ func (r *Reconciler) deleteUnrequestedPodMonitors(cr *v1.Observability, ctx cont
 		return false
 	}
 
-	// Check which rules are no longer requested and
-	// delete them
+	// Check which pod monitors are no longer requested and delete them
 	for _, monitor := range existingMonitors.Items {
 		if isRequested(monitor.Name) == false {
 			err = r.client.Delete(ctx, monitor)
@@ -68,15 +68,15 @@ func (r *Reconciler) deleteUnrequestedPodMonitors(cr *v1.Observability, ctx cont
 	return nil
 }
 
-func (r *Reconciler) createRequestedPodMonitors(cr *v1.Observability, ctx context.Context, rules []ResourceInfo) error {
-	// Sync requested prometheus rules
-	for _, rule := range rules {
-		bytes, err := r.fetchResource(rule.Url, rule.AccessToken)
+func (r *Reconciler) createRequestedPodMonitors(cr *v1.Observability, ctx context.Context, monitors []ResourceInfo) error {
+	// Sync requested pod monitors
+	for _, resource := range monitors {
+		bytes, err := r.fetchResource(resource.Url, resource.AccessToken)
 		if err != nil {
 			return err
 		}
 
-		monitor, err := parsePodMonitorFromYaml(cr, rule.Name, bytes)
+		monitor, err := parsePodMonitorFromYaml(cr, resource.Name, bytes)
 		if err != nil {
 			return err
 		}
