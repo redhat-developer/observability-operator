@@ -315,6 +315,18 @@ func (r *Reconciler) Reconcile(ctx context.Context, cr *v1.Observability, s *v1.
 		return v1.ResultFailed, err
 	}
 
+	// Manage pod monitors
+	monitors := getUniquePodMonitors(indexes)
+	err = r.deleteUnrequestedPodMonitors(cr, ctx, monitors)
+	if err != nil {
+		return v1.ResultFailed, err
+	}
+
+	err = r.createRequestedPodMonitors(cr, ctx, monitors)
+	if err != nil {
+		return v1.ResultFailed, err
+	}
+
 	// Next status: update timestamp
 	s.LastSynced = time.Now().Unix()
 	return v1.ResultSuccess, nil

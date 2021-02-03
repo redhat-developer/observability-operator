@@ -76,14 +76,12 @@ func (r *Reconciler) createRequestedPodMonitors(cr *v1.Observability, ctx contex
 			return err
 		}
 
-		parsedRule, err := parseRuleFromYaml(cr, rule.Name, bytes)
+		monitor, err := parsePodMonitorFromYaml(cr, rule.Name, bytes)
 		if err != nil {
 			return err
 		}
 
-		_, err = controllerutil.CreateOrUpdate(ctx, r.client, parsedRule, func() error {
-			// Inject managed labels
-			injectIdLabel(parsedRule, rule.Id)
+		_, err = controllerutil.CreateOrUpdate(ctx, r.client, monitor, func() error {
 			return nil
 		})
 		if err != nil {
@@ -93,13 +91,13 @@ func (r *Reconciler) createRequestedPodMonitors(cr *v1.Observability, ctx contex
 	return nil
 }
 
-func parsePodMonitorFromYaml(cr *v1.Observability, name string, source []byte) (*v12.PrometheusRule, error) {
-	rule := &v12.PrometheusRule{}
-	err := yaml.Unmarshal(source, rule)
+func parsePodMonitorFromYaml(cr *v1.Observability, name string, source []byte) (*v12.PodMonitor, error) {
+	monitor := &v12.PodMonitor{}
+	err := yaml.Unmarshal(source, monitor)
 	if err != nil {
 		return nil, err
 	}
-	rule.Namespace = cr.Namespace
-	rule.Name = name
-	return rule, nil
+	monitor.Namespace = cr.Namespace
+	monitor.Name = name
+	return monitor, nil
 }
