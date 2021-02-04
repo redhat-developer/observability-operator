@@ -10,15 +10,16 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
 
-type RuleInfo struct {
+type ResourceInfo struct {
 	Id          string
 	Name        string
 	Url         string
 	AccessToken string
 }
 
-func getUniqueRules(indexes []v1.RepositoryIndex) []RuleInfo {
-	var result []RuleInfo
+func getUniqueRules(indexes []v1.RepositoryIndex) []ResourceInfo {
+	var result []ResourceInfo
+	seek:
 	for _, index := range indexes {
 		if index.Config == nil || index.Config.Prometheus == nil {
 			continue
@@ -27,10 +28,10 @@ func getUniqueRules(indexes []v1.RepositoryIndex) []RuleInfo {
 			name := getNameFromUrl(rule)
 			for _, existing := range result {
 				if existing.Name == name {
-					continue
+					continue seek
 				}
 			}
-			result = append(result, RuleInfo{
+			result = append(result, ResourceInfo{
 				Id:          index.Id,
 				Name:        name,
 				Url:         fmt.Sprintf("%s/%s", index.BaseUrl, rule),
@@ -41,7 +42,7 @@ func getUniqueRules(indexes []v1.RepositoryIndex) []RuleInfo {
 	return result
 }
 
-func (r *Reconciler) deleteUnrequestedRules(cr *v1.Observability, ctx context.Context, rules []RuleInfo) error {
+func (r *Reconciler) deleteUnrequestedRules(cr *v1.Observability, ctx context.Context, rules []ResourceInfo) error {
 	// List existing dashboards
 	existingRules := &v12.PrometheusRuleList{}
 	opts := &client.ListOptions{
@@ -75,7 +76,7 @@ func (r *Reconciler) deleteUnrequestedRules(cr *v1.Observability, ctx context.Co
 	return nil
 }
 
-func (r *Reconciler) createRequestedRules(cr *v1.Observability, ctx context.Context, rules []RuleInfo) error {
+func (r *Reconciler) createRequestedRules(cr *v1.Observability, ctx context.Context, rules []ResourceInfo) error {
 	// Sync requested prometheus rules
 	for _, rule := range rules {
 		bytes, err := r.fetchResource(rule.Url, rule.AccessToken)

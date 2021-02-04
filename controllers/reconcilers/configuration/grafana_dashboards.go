@@ -39,6 +39,7 @@ func getNameFromUrl(path string) string {
 
 func getUniqueDashboards(indexes []v1.RepositoryIndex) []DashboardInfo {
 	var result []DashboardInfo
+	seek:
 	for _, index := range indexes {
 		if index.Config == nil || index.Config.Grafana == nil {
 			continue
@@ -47,7 +48,7 @@ func getUniqueDashboards(indexes []v1.RepositoryIndex) []DashboardInfo {
 			name := getNameFromUrl(dashboard)
 			for _, existing := range result {
 				if existing.Name == name {
-					continue
+					continue seek
 				}
 			}
 			result = append(result, DashboardInfo{
