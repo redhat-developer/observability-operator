@@ -128,6 +128,8 @@ func GetFederationConfig(user, pass string) ([]byte, error) {
       - 'kubelet_volume_stats_capacity_bytes{endpoint="https-metrics",namespace!~"openshift-.*$",namespace!~"kube-.*$",namespace!="default"}'
       - 'kubelet_volume_stats_inodes{endpoint="https-metrics",namespace!~"openshift-.*$",namespace!~"kube-.*$",namespace!="default"}'
       - 'kubelet_volume_stats_inodes_used{endpoint="https-metrics",namespace!~"openshift-.*$",namespace!~"kube-.*$",namespace!="default"}'
+      - 'haproxy_server_bytes_in_total{endpoint="metrics",job!="router-internal-default"}'
+      - 'haproxy_server_bytes_out_total{endpoint="metrics",job!="router-internal-default"}'
       - '{service="kube-state-metrics"}'
       - '{service="node-exporter"}'
       - '{__name__=~"node_namespace_pod_container:.*"}'
@@ -181,7 +183,7 @@ func GetPrometheusRemoteWriteConfig(cr *v1.Observability, tokenSecret string) []
 			WriteRelabelConfigs: []prometheusv1.RelabelConfig{
 				{
 					SourceLabels: []string{"__name__"},
-					Regex:        "(kafka_controller.*$|console_url$|csv_succeeded$|csv_abnormal$|cluster_version$|ALERTS$|strimzi_.*$|subscription_sync_total|node.*$|kube.*$|container.*$|kafka_server_brokertopicmetrics_bytes.*$|kafka_server_brokertopicmetrics_messages_in_total$|kubelet_volume_stats_available_bytes$|kafka_log_log_size$)",
+					Regex:        "(kafka_controller.*$|console_url$|csv_succeeded$|csv_abnormal$|cluster_version$|ALERTS$|strimzi_.*$|subscription_sync_total|node.*$|kube.*$|container.*$|haproxy_server_bytes_.*_total$|kafka_server_brokertopicmetrics_bytes.*$|kafka_server_brokertopicmetrics_messages_in_total$|kubelet_volume_stats_available_bytes$|kafka_log_log_size$)",
 					Action:       "keep",
 				},
 			},
