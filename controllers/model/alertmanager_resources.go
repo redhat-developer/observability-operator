@@ -110,13 +110,17 @@ route:
         alertname: DeadMansSwitch
       repeat_interval: 5m
       receiver: deadmansswitch
+    - match:
+        severity: critical
+      receiver: critical
 receivers:
   - name: default
-    pagerduty_configs:
-      - service_key: {{ .PagerDutyServiceKey }}
   - name: deadmansswitch
     webhook_configs:
       - url: {{ .DeadMansSnitchURL }}
+  - name: critical
+    pagerduty_configs:
+      - service_key: {{ .PagerDutyServiceKey }}
 `
 	template := t.Must(t.New("template").Parse(config))
 	var buffer bytes.Buffer
