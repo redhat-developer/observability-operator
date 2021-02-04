@@ -166,7 +166,7 @@ func (r *ObservabilityReconciler) InitializeOperand(mgr ctrl.Manager) error {
 	instance := apiv1.Observability{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "observability-stack",
-			Namespace: strings.TrimSpace(string(namespace)),
+			Namespace: strings.TrimSpace(namespace),
 		},
 		Spec: apiv1.ObservabilitySpec{
 			ResyncPeriod: "30s",
