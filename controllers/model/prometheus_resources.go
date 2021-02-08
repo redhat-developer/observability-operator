@@ -18,7 +18,7 @@ import (
 func GetPrometheusAuthTokenLifetimes(cr *v1.Observability) *v13.ConfigMap {
 	return &v13.ConfigMap{
 		ObjectMeta: v12.ObjectMeta{
-			Name:      "observatorium-token-lifetiems",
+			Name:      "observatorium-token-lifetimes",
 			Namespace: cr.Namespace,
 		},
 	}

@@ -5,7 +5,9 @@ import (
 	"crypto/tls"
 	"encoding/json"
 	"fmt"
+	prometheusv1 "github.com/coreos/prometheus-operator/pkg/apis/monitoring/v1"
 	"github.com/go-logr/logr"
+	"github.com/integr8ly/grafana-operator/v3/pkg/apis/integreatly/v1alpha1"
 	v1 "github.com/jeremyary/observability-operator/api/v1"
 	"github.com/jeremyary/observability-operator/controllers/model"
 	"github.com/jeremyary/observability-operator/controllers/reconcilers"
@@ -23,12 +25,10 @@ import (
 )
 
 const (
-	RemoteRepository                = "repository"
-	RemoteAccessToken               = "access_token"
-	RemoteChannel                   = "channel"
-	RemoteObservatoriumToken        = "observatorium_token"
-	RemoteObservatoriumTokenExpires = "observatorium_token_expires"
-	PrometheusRuleIdentifierKey     = "observability"
+	RemoteRepository            = "repository"
+	RemoteAccessToken           = "access_token"
+	RemoteChannel               = "channel"
+	PrometheusRuleIdentifierKey = "observability"
 )
 
 type Reconciler struct {
@@ -51,7 +51,6 @@ func NewReconciler(client client.Client, logger logr.Logger) reconcilers.Observa
 }
 
 func (r *Reconciler) Cleanup(ctx context.Context, cr *v1.Observability) (v1.ObservabilityStageStatus, error) {
-	list := &v12.SecretList{}
 	opts := &client.ListOptions{
 		LabelSelector: labels.SelectorFromSet(map[string]string{
 			"managed-by": "observability-operator",
@@ -59,6 +58,7 @@ func (r *Reconciler) Cleanup(ctx context.Context, cr *v1.Observability) (v1.Obse
 		Namespace: cr.Namespace,
 	}
 
+	list := &v12.SecretList{}
 	err := r.client.List(ctx, list, opts)
 	if err != nil {
 		return v1.ResultFailed, err
@@ -81,6 +81,48 @@ func (r *Reconciler) Cleanup(ctx context.Context, cr *v1.Observability) (v1.Obse
 	// Delete all managed config maps
 	for _, configmap := range configMapList.Items {
 		err := r.client.Delete(ctx, &configmap)
+		if err != nil {
+			return v1.ResultFailed, err
+		}
+	}
+
+	dashboardList := &v1alpha1.GrafanaDashboardList{}
+	err = r.client.List(ctx, dashboardList, opts)
+	if err != nil {
+		return v1.ResultFailed, err
+	}
+
+	// Delete all managed grafana dashboards
+	for _, dashboard := range dashboardList.Items {
+		err := r.client.Delete(ctx, &dashboard)
+		if err != nil {
+			return v1.ResultFailed, err
+		}
+	}
+
+	prometheusRuleList := &prometheusv1.PrometheusRuleList{}
+	err = r.client.List(ctx, prometheusRuleList, opts)
+	if err != nil {
+		return v1.ResultFailed, err
+	}
+
+	// Delete all managed prometheus rules
+	for _, rule := range prometheusRuleList.Items {
+		err := r.client.Delete(ctx, rule)
+		if err != nil {
+			return v1.ResultFailed, err
+		}
+	}
+
+	podMonitorList := &prometheusv1.PodMonitorList{}
+	err = r.client.List(ctx, podMonitorList, opts)
+	if err != nil {
+		return v1.ResultFailed, err
+	}
+
+	// Delete all managed pod monitors
+	for _, monitor := range podMonitorList.Items {
+		err := r.client.Delete(ctx, monitor)
 		if err != nil {
 			return v1.ResultFailed, err
 		}
