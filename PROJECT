@@ -1,7 +1,7 @@
 domain: redhat.com
 layout: go.kubebuilder.io/v2
 projectName: observability-operator
-repo: github.com/jeremyary/observability-operator
+repo: github.com/bf2fc6cc711aee1a0c2a/observability-operator
 resources:
 - group: observability
   kind: Observability
