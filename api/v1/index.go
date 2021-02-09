@@ -20,7 +20,7 @@ type ObservatoriumIndex struct {
 	Gateway   string                `json:"gateway"`
 	Tenant    string                `json:"tenant"`
 	AuthType  ObservabilityAuthType `json:"authType"`
-	DexConfig *DexConfig            `json:dexConfig,omitempty`
+	DexConfig *DexConfig            `json:"dexConfig,omitempty"`
 }
 
 type RemoteWriteIndex struct {
