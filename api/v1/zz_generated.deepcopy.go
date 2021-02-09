@@ -412,6 +412,11 @@ func (in *PrometheusIndex) DeepCopyInto(out *PrometheusIndex) {
 		*out = make([]string, len(*in))
 		copy(*out, *in)
 	}
+	if in.PodMonitors != nil {
+		in, out := &in.PodMonitors, &out.PodMonitors
+		*out = make([]string, len(*in))
+		copy(*out, *in)
+	}
 	if in.Observatorium != nil {
 		in, out := &in.Observatorium, &out.Observatorium
 		*out = new(ObservatoriumIndex)

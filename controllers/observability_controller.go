@@ -13,7 +13,6 @@ import (
 	"github.com/jeremyary/observability-operator/controllers/reconcilers/grafana_installation"
 	"github.com/jeremyary/observability-operator/controllers/reconcilers/prometheus_configuration"
 	"github.com/jeremyary/observability-operator/controllers/reconcilers/prometheus_installation"
-	"github.com/jeremyary/observability-operator/controllers/reconcilers/prometheus_rules"
 	"github.com/jeremyary/observability-operator/controllers/reconcilers/promtail_installation"
 	"github.com/jeremyary/observability-operator/controllers/reconcilers/token"
 	"io/ioutil"
@@ -246,9 +245,6 @@ func (r *ObservabilityReconciler) getReconcilerForStage(stage apiv1.Observabilit
 
 	case apiv1.PrometheusConfiguration:
 		return prometheus_configuration.NewReconciler(r.Client, r.Log)
-
-	case apiv1.PrometheusRules:
-		return prometheus_rules.NewReconciler(r.Client, r.Log)
 
 	case apiv1.GrafanaInstallation:
 		return grafana_installation.NewReconciler(r.Client, r.Log)

@@ -116,7 +116,7 @@ func (r *Reconciler) createRequestedDashboards(cr *v1.Observability, ctx context
 			requestedDashboards = append(requestedDashboards, dashboard)
 		case SourceTypeJsonnet:
 		case SourceTypeJson:
-			dashboard, err := createDashbaordFromSource(cr, d.Name, sourceType, source)
+			dashboard, err := createDashboardFromSource(cr, d.Name, sourceType, source)
 			if err != nil {
 				return err
 			}
@@ -128,6 +128,9 @@ func (r *Reconciler) createRequestedDashboards(cr *v1.Observability, ctx context
 	// Sync requested dashboards
 	for _, dashboard := range requestedDashboards {
 		_, err := controllerutil.CreateOrUpdate(ctx, r.client, dashboard, func() error {
+			dashboard.Labels = map[string]string{
+				"managed-by": "observability-operator",
+			}
 			return nil
 		})
 		if err != nil {
@@ -149,7 +152,7 @@ func parseDashboardFromYaml(cr *v1.Observability, name string, source []byte) (*
 	return dashboard, nil
 }
 
-func createDashbaordFromSource(cr *v1.Observability, name string, t SourceType, source []byte) (*v1alpha1.GrafanaDashboard, error) {
+func createDashboardFromSource(cr *v1.Observability, name string, t SourceType, source []byte) (*v1alpha1.GrafanaDashboard, error) {
 	dashboard := &v1alpha1.GrafanaDashboard{}
 	dashboard.Name = name
 	dashboard.Namespace = cr.Namespace

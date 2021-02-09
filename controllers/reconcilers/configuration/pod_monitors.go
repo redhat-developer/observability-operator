@@ -82,6 +82,9 @@ func (r *Reconciler) createRequestedPodMonitors(cr *v1.Observability, ctx contex
 		}
 
 		_, err = controllerutil.CreateOrUpdate(ctx, r.client, monitor, func() error {
+			monitor.Labels = map[string]string{
+				"managed-by": "observability-operator",
+			}
 			return nil
 		})
 		if err != nil {
