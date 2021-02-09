@@ -13,6 +13,7 @@ import (
 	"github.com/jeremyary/observability-operator/controllers/reconcilers"
 	"github.com/jeremyary/observability-operator/controllers/token"
 	"io/ioutil"
+	v13 "k8s.io/api/apps/v1"
 	v12 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/labels"
@@ -123,6 +124,20 @@ func (r *Reconciler) Cleanup(ctx context.Context, cr *v1.Observability) (v1.Obse
 	// Delete all managed pod monitors
 	for _, monitor := range podMonitorList.Items {
 		err := r.client.Delete(ctx, monitor)
+		if err != nil {
+			return v1.ResultFailed, err
+		}
+	}
+
+	// Delete Promtail daemonsets
+	daemonsetList := &v13.DaemonSetList{}
+	err = r.client.List(ctx, daemonsetList, opts)
+	if err != nil {
+		return v1.ResultFailed, err
+	}
+
+	for _, daemonset := range daemonsetList.Items {
+		err := r.client.Delete(ctx, &daemonset)
 		if err != nil {
 			return v1.ResultFailed, err
 		}
@@ -301,7 +316,6 @@ func (r *Reconciler) Reconcile(ctx context.Context, cr *v1.Observability, s *v1.
 					r.logger.Error(err, "unable to obtain observatorium token")
 				}
 			}
-
 		}
 	}
 
@@ -367,6 +381,22 @@ func (r *Reconciler) Reconcile(ctx context.Context, cr *v1.Observability, s *v1.
 	err = r.createRequestedPodMonitors(cr, ctx, monitors)
 	if err != nil {
 		return v1.ResultFailed, err
+	}
+
+	// Promtai instances
+	// First cleanup any no longer requested instances
+	err = r.deleteUnrequestedDaemonsets(ctx, cr, indexes)
+	if err != nil {
+		return v1.ResultFailed, err
+	}
+
+	// Create requested promtail instances
+	// There will be a dedicated instance for every index
+	for _, index := range indexes {
+		err = r.createPromtailDaemonsetFor(ctx, cr, &index)
+		if err != nil {
+			return v1.ResultFailed, err
+		}
 	}
 
 	// Next status: update timestamp

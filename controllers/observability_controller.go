@@ -203,6 +203,7 @@ func (r *ObservabilityReconciler) getInstallationStages() []apiv1.ObservabilityS
 		apiv1.GrafanaInstallation,
 		apiv1.GrafanaConfiguration,
 		apiv1.AlertmanagerInstallation,
+		apiv1.PromtailInstallation,
 		apiv1.Configuration,
 	}
 }
@@ -214,6 +215,7 @@ func (r *ObservabilityReconciler) getCleanupStages() []apiv1.ObservabilityStageN
 		apiv1.PrometheusInstallation,
 		apiv1.GrafanaInstallation,
 		apiv1.AlertmanagerInstallation,
+		apiv1.PromtailInstallation,
 		apiv1.Configuration,
 		apiv1.TokenRequest,
 		apiv1.CsvRemoval,

@@ -13,20 +13,26 @@ import (
 	t "text/template"
 )
 
-func GetPromtailConfigmap(cr *v1.Observability) *v12.ConfigMap {
+func GetPromtailConfigmap(cr *v1.Observability, name string) *v12.ConfigMap {
 	return &v12.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      "promtaila-config",
+			Name:      fmt.Sprintf("promtail-config-%s", name),
 			Namespace: cr.Namespace,
+			Labels: map[string]string{
+				"managed-by": "observability-operator",
+			},
 		},
 	}
 }
 
-func GetPromtailDaemonSet(cr *v1.Observability) *v13.DaemonSet {
+func GetPromtailDaemonSet(cr *v1.Observability, name string) *v13.DaemonSet {
 	return &v13.DaemonSet{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      "kafka-promtail",
+			Name:      fmt.Sprintf("promtail-%s", name),
 			Namespace: cr.Namespace,
+			Labels: map[string]string{
+				"managed-by": "observability-operator",
+			},
 		},
 	}
 }
@@ -56,7 +62,7 @@ func GetPromtailClusterRoleBinding(cr *v1.Observability) *v14.ClusterRoleBinding
 	}
 }
 
-func GetPromtailConfig(c *v1.ObservatoriumConfig, id string, namespaces []string) (string, error) {
+func GetPromtailConfig(c *v1.ObservatoriumIndex, clusterId string, indexId string, namespaces []string) (string, error) {
 	const config = `
 server:
   http_listen_port: 9080
@@ -66,6 +72,7 @@ clients:
     bearer_token_file: /opt/secrets/token
     external_labels:
       cluster_id: "{{ .ClusterID }}"
+      observability_id: "{{ .ObservabililtyId }}"
     tls_config:
       insecure_skip_verify: true
 scrape_configs:
@@ -116,13 +123,15 @@ scrape_configs:
 	sort.Strings(namespaces)
 
 	err := template.Execute(&buffer, struct {
-		ClusterID  string
-		Namespaces string
-		Url        string
+		ClusterID        string
+		ObservabililtyId string
+		Namespaces       string
+		Url              string
 	}{
-		ClusterID:  id,
-		Namespaces: strings.Join(namespaces, ","),
-		Url:        url,
+		ClusterID:        clusterId,
+		ObservabililtyId: indexId,
+		Namespaces:       strings.Join(namespaces, ","),
+		Url:              url,
 	})
 
 	return string(buffer.Bytes()), err
