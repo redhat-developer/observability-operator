@@ -42,10 +42,16 @@ type PrometheusIndex struct {
 	RemoteWrite   string              `json:"remoteWrite,omitempty"`
 }
 
+type PromtailIndex struct {
+	Enabled                bool              `json:"enabled,omitempty"`
+	NamespaceLabelSelector map[string]string `json:"namespaceLabelSelector,omitempty"`
+}
+
 type RepositoryConfig struct {
 	Grafana      *GrafanaIndex      `json:"grafana,omitempty"`
 	Prometheus   *PrometheusIndex   `json:"prometheus,omitempty"`
 	Alertmanager *AlertmanagerIndex `json:"alertmanager,omitempty"`
+	Promtail     *PromtailIndex     `json:"promtail,omitempty"`
 }
 
 type RepositoryIndex struct {
