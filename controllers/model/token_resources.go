@@ -1,7 +1,7 @@
 package model
 
 import (
-	v1 "github.com/jeremyary/observability-operator/api/v1"
+	v1 "github.com/bf2fc6cc711aee1a0c2a/observability-operator/api/v1"
 	v12 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
