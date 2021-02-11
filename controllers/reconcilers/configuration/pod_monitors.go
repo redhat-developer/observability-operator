@@ -10,6 +10,17 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
 
+func MergeLabels(requested map[string]string, existing map[string]string) map[string]string {
+	if existing == nil {
+		return requested
+	}
+
+	for k, v := range requested {
+		existing[k] = v
+	}
+	return existing
+}
+
 func getUniquePodMonitors(indexes []v1.RepositoryIndex) []ResourceInfo {
 	var result []ResourceInfo
 	for _, index := range indexes {
@@ -82,9 +93,9 @@ func (r *Reconciler) createRequestedPodMonitors(cr *v1.Observability, ctx contex
 		}
 
 		_, err = controllerutil.CreateOrUpdate(ctx, r.client, monitor, func() error {
-			monitor.Labels = map[string]string{
+			monitor.Labels = MergeLabels(map[string]string{
 				"managed-by": "observability-operator",
-			}
+			}, monitor.Labels)
 			return nil
 		})
 		if err != nil {
