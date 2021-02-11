@@ -1,4 +1,4 @@
-module github.com/jeremyary/observability-operator
+module github.com/bf2fc6cc711aee1a0c2a/observability-operator
 
 go 1.13
 

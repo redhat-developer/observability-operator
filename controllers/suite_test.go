@@ -30,7 +30,7 @@ import (
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
-	observabilityv1 "github.com/jeremyary/observability-operator/api/v1"
+	observabilityv1 "github.com/bf2fc6cc711aee1a0c2a/observability-operator/api/v1"
 	// +kubebuilder:scaffold:imports
 )
 
