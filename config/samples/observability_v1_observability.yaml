@@ -4,9 +4,9 @@ metadata:
   name: observability-sample
 spec:
   # clusterId: "dummy-observability-operator"
-  # alertmanager:
-  # pagerDutySecretName: "pagerduty"
-  # deadMansSnitchSecretName: "deadmanssnitch"
+  alertmanager:
+    pagerDutySecretName: "pagerduty"
+    deadMansSnitchSecretName: "deadmanssnitch"
   grafana:
     managed: false
     # resyncPeriod: "5m"
@@ -25,5 +25,5 @@ spec:
     authType: "dex"
     dexConfig:
       url: "http://dex-dex.apps.pbraun-observatorium.observability.rhmw.io"
-      credentialSecretNamespace: "test-5"
+      credentialSecretNamespace: "kafka-observability"
       credentialSecretName: "observatorium-dex-credentials"
