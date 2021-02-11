@@ -3,9 +3,9 @@ package configuration
 import (
 	"context"
 	"fmt"
+	v1 "github.com/bf2fc6cc711aee1a0c2a/observability-operator/api/v1"
 	v12 "github.com/coreos/prometheus-operator/pkg/apis/monitoring/v1"
 	"github.com/ghodss/yaml"
-	v1 "github.com/bf2fc6cc711aee1a0c2a/observability-operator/api/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
@@ -16,7 +16,7 @@ func getUniquePodMonitors(indexes []v1.RepositoryIndex) []ResourceInfo {
 		if index.Config == nil || index.Config.Prometheus == nil {
 			continue
 		}
-		seek:
+	seek:
 		for _, monitor := range index.Config.Prometheus.PodMonitors {
 			name := getNameFromUrl(monitor)
 			for _, existing := range result {

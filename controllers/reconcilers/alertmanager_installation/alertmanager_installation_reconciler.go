@@ -3,11 +3,11 @@ package alertmanager_installation
 import (
 	"context"
 	"fmt"
-	"github.com/go-logr/logr"
 	v1 "github.com/bf2fc6cc711aee1a0c2a/observability-operator/api/v1"
 	"github.com/bf2fc6cc711aee1a0c2a/observability-operator/controllers/model"
 	"github.com/bf2fc6cc711aee1a0c2a/observability-operator/controllers/reconcilers"
 	"github.com/bf2fc6cc711aee1a0c2a/observability-operator/controllers/utils"
+	"github.com/go-logr/logr"
 	v13 "github.com/openshift/api/route/v1"
 	v14 "k8s.io/api/apps/v1"
 	v12 "k8s.io/api/core/v1"

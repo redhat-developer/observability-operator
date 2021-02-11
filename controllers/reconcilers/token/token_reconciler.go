@@ -2,23 +2,23 @@ package token
 
 import (
 	"context"
-	"github.com/go-logr/logr"
 	v1 "github.com/bf2fc6cc711aee1a0c2a/observability-operator/api/v1"
 	"github.com/bf2fc6cc711aee1a0c2a/observability-operator/controllers/model"
 	"github.com/bf2fc6cc711aee1a0c2a/observability-operator/controllers/reconcilers"
+	"github.com/go-logr/logr"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 type Reconciler struct {
-	client     client.Client
-	logger     logr.Logger
+	client client.Client
+	logger logr.Logger
 }
 
 func NewReconciler(client client.Client, logger logr.Logger) reconcilers.ObservabilityReconciler {
 	return &Reconciler{
-		client:     client,
-		logger:     logger,
+		client: client,
+		logger: logger,
 	}
 }
 

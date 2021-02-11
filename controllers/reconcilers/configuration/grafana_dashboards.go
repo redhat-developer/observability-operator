@@ -3,9 +3,9 @@ package configuration
 import (
 	"context"
 	"fmt"
+	v1 "github.com/bf2fc6cc711aee1a0c2a/observability-operator/api/v1"
 	"github.com/ghodss/yaml"
 	"github.com/integr8ly/grafana-operator/v3/pkg/apis/integreatly/v1alpha1"
-	v1 "github.com/bf2fc6cc711aee1a0c2a/observability-operator/api/v1"
 	"io/ioutil"
 	"k8s.io/apimachinery/pkg/types"
 	"net/http"
@@ -39,7 +39,7 @@ func getNameFromUrl(path string) string {
 
 func getUniqueDashboards(indexes []v1.RepositoryIndex) []DashboardInfo {
 	var result []DashboardInfo
-	seek:
+seek:
 	for _, index := range indexes {
 		if index.Config == nil || index.Config.Grafana == nil {
 			continue

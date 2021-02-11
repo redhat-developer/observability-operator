@@ -19,11 +19,11 @@ package main
 import (
 	"context"
 	"flag"
+	apiv1 "github.com/bf2fc6cc711aee1a0c2a/observability-operator/api/v1"
+	"github.com/bf2fc6cc711aee1a0c2a/observability-operator/controllers"
 	prometheusv1 "github.com/coreos/prometheus-operator/pkg/apis/monitoring/v1"
 	"github.com/go-logr/logr"
 	grafana "github.com/integr8ly/grafana-operator/v3/pkg/apis/integreatly/v1alpha1"
-	apiv1 "github.com/bf2fc6cc711aee1a0c2a/observability-operator/api/v1"
-	"github.com/bf2fc6cc711aee1a0c2a/observability-operator/controllers"
 	configv1 "github.com/openshift/api/config/v1"
 	projectv1 "github.com/openshift/api/project/v1"
 	routev1 "github.com/openshift/api/route/v1"

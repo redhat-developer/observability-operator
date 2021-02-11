@@ -6,6 +6,6 @@ metadata:
   labels:
     configures: observability-operator
 data:
-  access_token: ''
+  access_token: '74f043339197245e106b84d639f94241a5a22f77'
   channel: development
   repository: 'https://api.github.com/repos/bf2fc6cc711aee1a0c2a/observability-resources-mk/contents'
