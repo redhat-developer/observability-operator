@@ -172,6 +172,10 @@ func (r *Reconciler) refreshToken(ctx context.Context, cr *v1.Observability, ind
 
 	// Write token secret
 	_, err = controllerutil.CreateOrUpdate(ctx, r.client, secret, func() error {
+		secret.Labels = map[string]string{
+			"managed-by": "observability-operator",
+			"purpose":    "observatorium-token-secret",
+		}
 		secret.StringData = map[string]string{
 			"token": newToken,
 		}

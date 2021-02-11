@@ -112,6 +112,9 @@ func (r *ObservabilityReconciler) Reconcile(req ctrl.Request) (ctrl.Result, erro
 			if err != nil {
 				r.Log.Error(err, fmt.Sprintf("reconciler error in stage %v", stage))
 				nextStatus.LastMessage = err.Error()
+			} else {
+				// Reset error message when everything went well
+				nextStatus.LastMessage = ""
 			}
 
 			nextStatus.StageStatus = status
