@@ -127,10 +127,15 @@ func (r *Reconciler) createRequestedDashboards(cr *v1.Observability, ctx context
 
 	// Sync requested dashboards
 	for _, dashboard := range requestedDashboards {
+
+		requestedSpec := dashboard.Spec
+		requestedLabels := dashboard.Labels
+
 		_, err := controllerutil.CreateOrUpdate(ctx, r.client, dashboard, func() error {
-			dashboard.Labels = map[string]string{
+			dashboard.Spec = requestedSpec
+			dashboard.Labels = MergeLabels(map[string]string{
 				"managed-by": "observability-operator",
-			}
+			}, requestedLabels)
 			return nil
 		})
 		if err != nil {
