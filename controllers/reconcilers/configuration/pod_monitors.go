@@ -92,10 +92,14 @@ func (r *Reconciler) createRequestedPodMonitors(cr *v1.Observability, ctx contex
 			return err
 		}
 
+		requestedLabels := monitor.Labels
+		requestedSpec := monitor.Spec
+
 		_, err = controllerutil.CreateOrUpdate(ctx, r.client, monitor, func() error {
+			monitor.Spec = requestedSpec
 			monitor.Labels = MergeLabels(map[string]string{
 				"managed-by": "observability-operator",
-			}, monitor.Labels)
+			}, requestedLabels)
 			return nil
 		})
 		if err != nil {

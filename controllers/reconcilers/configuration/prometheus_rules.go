@@ -89,11 +89,15 @@ func (r *Reconciler) createRequestedRules(cr *v1.Observability, ctx context.Cont
 			return err
 		}
 
+		requestedSpec := parsedRule.Spec
+		requestedLabels := parsedRule.Labels
+
 		_, err = controllerutil.CreateOrUpdate(ctx, r.client, parsedRule, func() error {
 			// Add managed label to Rule CR
-			parsedRule.Labels = map[string]string{
+			parsedRule.Spec = requestedSpec
+			parsedRule.Labels = MergeLabels(map[string]string{
 				"managed-by": "observability-operator",
-			}
+			}, requestedLabels)
 			// Inject managed labels for each rule
 			injectIdLabel(parsedRule, rule.Id)
 			return nil
