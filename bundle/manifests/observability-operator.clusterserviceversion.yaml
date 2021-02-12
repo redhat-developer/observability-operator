@@ -11,29 +11,49 @@ metadata:
             "name": "observability-sample"
           },
           "spec": {
-            "canaryPodSelector": {
-              "matchLabels": {
-                "mas-managed": "true"
+            "affinity": {
+              "nodeAffinity": {
+                "requiredDuringSchedulingIgnoredDuringExecution": {
+                  "nodeSelectorTerms": [
+                    {
+                      "matchExpressions": [
+                        {
+                          "key": "node-role.kubernetes.io/infra",
+                          "operator": "Exists"
+                        }
+                      ]
+                    }
+                  ]
+                }
               }
             },
-            "grafana": {
-              "managed": false
-            },
-            "kafkaNamespaceSelector": {
+            "configurationSelector": {
               "matchLabels": {
-                "app": "strimzi"
+                "configures": "observability-operator"
               }
             },
-            "observatorium": {
-              "authType": "dex",
-              "dexConfig": {
-                "credentialSecretName": "observatorium-dex-credentials",
-                "credentialSecretNamespace": "test-5",
-                "url": "http://dex-dex.apps.pbraun-observatorium.observability.rhmw.io"
-              },
-              "gateway": "https://observatorium-observatorium.apps.pbraun-observatorium.observability.rhmw.io",
-              "tenant": "test"
-            }
+            "resyncPeriod": "30s",
+            "storage": {
+              "prometheus": {
+                "volumeClaimTemplate": {
+                  "spec": {
+                    "resources": {
+                      "requests": {
+                        "storage": "40Gi"
+                      }
+                    },
+                    "storageClassName": "ssd"
+                  }
+                }
+              }
+            },
+            "tolerations": [
+              {
+                "effect": "NoSchedule",
+                "key": "node-role.kubernetes.io/infra",
+                "operator": "Exists"
+              }
+            ]
           }
         }
       ]
