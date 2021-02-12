@@ -615,8 +615,6 @@ spec:
                     type: string
                 type: object
               type: array
-          required:
-          - configurationSelector
           type: object
         status:
           description: ObservabilityStatus defines the observed state of Observability

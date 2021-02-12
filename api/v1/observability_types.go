@@ -98,7 +98,7 @@ type Storage struct {
 type ObservabilitySpec struct {
 	// Cluster ID. If not provided, the operator tries to obtain it.
 	ClusterID             string                `json:"clusterId,omitempty"`
-	ConfigurationSelector *metav1.LabelSelector `json:"configurationSelector"`
+	ConfigurationSelector *metav1.LabelSelector `json:"configurationSelector,omitempty"`
 	ResyncPeriod          string                `json:"resyncPeriod,omitempty"`
 	Storage               *Storage              `json:"storage,omitempty"`
 	Tolerations           []v1.Toleration       `json:"tolerations,omitempty"`
