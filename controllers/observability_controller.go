@@ -145,7 +145,11 @@ func (r *ObservabilityReconciler) SetupWithManager(mgr ctrl.Manager) error {
 }
 
 func (r *ObservabilityReconciler) UpdateOperand(from *apiv1.Observability, to *apiv1.Observability) error {
+	originalName := from.Name
+	originalVersion := from.ResourceVersion
 	to.DeepCopyInto(from)
+	from.Name = originalName
+	from.ResourceVersion = originalVersion
 	err := r.Client.Update(context.Background(), from)
 	if err != nil {
 		return err
