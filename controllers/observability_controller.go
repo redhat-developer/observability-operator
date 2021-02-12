@@ -144,6 +144,15 @@ func (r *ObservabilityReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Complete(r)
 }
 
+func (r *ObservabilityReconciler) UpdateOperand(from *apiv1.Observability, to *apiv1.Observability) error {
+	to.DeepCopyInto(from)
+	err := r.Client.Update(context.Background(), from)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
 func (r *ObservabilityReconciler) InitializeOperand(mgr ctrl.Manager) error {
 	// Try to retrieve the namespace from the pod filesystem first
 	var namespace string
@@ -169,7 +178,7 @@ func (r *ObservabilityReconciler) InitializeOperand(mgr ctrl.Manager) error {
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "observability-stack",
 			Namespace: strings.TrimSpace(namespace),
-			Labels: map[string]string{ "managed-by": "observability-operator"},
+			Labels:    map[string]string{"managed-by": "observability-operator"},
 		},
 		Spec: apiv1.ObservabilitySpec{
 			ResyncPeriod: "30s",
@@ -191,10 +200,11 @@ func (r *ObservabilityReconciler) InitializeOperand(mgr ctrl.Manager) error {
 	for _, existing := range instances.Items {
 		if existing.Labels["managed-by"] != "observability-operator" {
 			r.Log.Info("removing pre-existing operand missing or mismatching managed label")
-			if err := mgrClient.Delete(context.Background(), &existing); err != nil {
+			if err := r.UpdateOperand(&existing, &instance); err != nil {
 				r.Log.Error(err, "Failed to remove pre-existing operand with missing or incorrect managed label")
 				return err
 			}
+			found = true
 		} else {
 			found = true
 		}
