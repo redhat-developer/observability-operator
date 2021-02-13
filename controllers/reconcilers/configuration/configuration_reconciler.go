@@ -233,6 +233,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, cr *v1.Observability, s *v1.
 		if lifetime == "" {
 			tokensValid[id] = false
 			overrideLastSync = true
+			continue
 		}
 
 		expires, err := strconv.ParseInt(lifetime, 10, 64)
@@ -246,6 +247,8 @@ func (r *Reconciler) Reconcile(ctx context.Context, cr *v1.Observability, s *v1.
 			overrideLastSync = true
 			continue
 		}
+
+		tokensValid[id] = true
 	}
 
 	// Then check if the next sync is due
