@@ -196,6 +196,13 @@ func (r *Reconciler) refreshToken(ctx context.Context, cr *v1.Observability, ind
 		return err
 	}
 
+	// Update source configmap
+	index.Source.Annotations["observability-operator/status"] = "accepted"
+	err = r.client.Update(ctx, index.Source)
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -291,6 +298,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, cr *v1.Observability, s *v1.
 			AccessToken: configMap.Data[RemoteAccessToken],
 			Channel:     configMap.Data[RemoteChannel],
 			Repository:  repoUrl,
+			Source:      &configMap,
 		})
 	}
 
@@ -311,6 +319,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, cr *v1.Observability, s *v1.
 		}
 		index.BaseUrl = fmt.Sprintf("%s/%s", repoInfo.Repository, repoInfo.Channel)
 		index.AccessToken = repoInfo.AccessToken
+		index.Source = repoInfo.Source
 		indexes = append(indexes, index)
 	}
 
