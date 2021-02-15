@@ -11,36 +11,56 @@ metadata:
             "name": "observability-sample"
           },
           "spec": {
-            "canaryPodSelector": {
-              "matchLabels": {
-                "mas-managed": "true"
+            "affinity": {
+              "nodeAffinity": {
+                "requiredDuringSchedulingIgnoredDuringExecution": {
+                  "nodeSelectorTerms": [
+                    {
+                      "matchExpressions": [
+                        {
+                          "key": "node-role.kubernetes.io/infra",
+                          "operator": "Exists"
+                        }
+                      ]
+                    }
+                  ]
+                }
               }
             },
-            "grafana": {
-              "managed": false
-            },
-            "kafkaNamespaceSelector": {
+            "configurationSelector": {
               "matchLabels": {
-                "app": "strimzi"
+                "configures": "observability-operator"
               }
             },
-            "observatorium": {
-              "authType": "dex",
-              "dexConfig": {
-                "credentialSecretName": "observatorium-dex-credentials",
-                "credentialSecretNamespace": "test-5",
-                "url": "http://dex-dex.apps.pbraun-observatorium.observability.rhmw.io"
-              },
-              "gateway": "https://observatorium-observatorium.apps.pbraun-observatorium.observability.rhmw.io",
-              "tenant": "test"
-            }
+            "resyncPeriod": "30s",
+            "storage": {
+              "prometheus": {
+                "volumeClaimTemplate": {
+                  "spec": {
+                    "resources": {
+                      "requests": {
+                        "storage": "40Gi"
+                      }
+                    },
+                    "storageClassName": "ssd"
+                  }
+                }
+              }
+            },
+            "tolerations": [
+              {
+                "effect": "NoSchedule",
+                "key": "node-role.kubernetes.io/infra",
+                "operator": "Exists"
+              }
+            ]
           }
         }
       ]
     capabilities: Basic Install
     operators.operatorframework.io/builder: operator-sdk-v1.2.0
     operators.operatorframework.io/project_layout: go.kubebuilder.io/v2
-  name: observability-operator.v0.0.1
+  name: observability-operator.v2.0.0
   namespace: placeholder
 spec:
   apiservicedefinitions: {}
@@ -275,7 +295,7 @@ spec:
                 - --enable-leader-election
                 command:
                 - /manager
-                image: quay.io/integreatly/observability-operator:latest
+                image: quay.io/integreatly/observability-operator:v2.0.0
                 name: manager
                 resources:
                   limits:
@@ -335,4 +355,5 @@ spec:
   maturity: alpha
   provider:
     name: Red Hat
-  version: 0.0.1
+  replaces: observability-operator.v0.0.1
+  version: 2.0.0

@@ -1,9 +1,12 @@
 package v1
 
+import v1 "k8s.io/api/core/v1"
+
 type RepositoryInfo struct {
 	Repository  string
 	Channel     string
 	AccessToken string
+	Source      *v1.ConfigMap
 }
 
 type GrafanaIndex struct {
@@ -57,6 +60,7 @@ type RepositoryConfig struct {
 type RepositoryIndex struct {
 	BaseUrl     string            `json:"-"`
 	AccessToken string            `json:"-"`
+	Source      *v1.ConfigMap     `json:"-"`
 	Id          string            `json:"id"`
 	Config      *RepositoryConfig `json:"config"`
 }
