@@ -209,6 +209,7 @@ func (r *Reconciler) fetchDashboard(path string, token string) (SourceType, []by
 		return SourceTypeUnknown, nil, err
 	}
 	req.Header.Set("Authorization", fmt.Sprintf("token %s", token))
+	req.Header.Set("Accept", "application/vnd.github.v3.raw")
 
 	resp, err := r.httpClient.Do(req)
 	if err != nil {
