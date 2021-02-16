@@ -185,7 +185,7 @@ func (r *ObservabilityReconciler) InitializeOperand(mgr ctrl.Manager) error {
 			Labels:    map[string]string{"managed-by": "observability-operator"},
 		},
 		Spec: apiv1.ObservabilitySpec{
-			ResyncPeriod: "30s",
+			ResyncPeriod: "1h",
 			ConfigurationSelector: &metav1.LabelSelector{
 				MatchLabels: map[string]string{
 					"configures": "observability-operator",
