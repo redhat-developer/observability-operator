@@ -284,6 +284,12 @@ func (r *Reconciler) Reconcile(ctx context.Context, cr *v1.Observability, s *v1.
 		return v1.ResultFailed, err
 	}
 
+	// No configurations yet? Keep reconciling and don't wait for the resync period
+	if len(list.Items) == 0 {
+		s.LastSynced = 0
+		return v1.ResultInProgress, nil
+	}
+
 	// Extract repository info
 	var repos []v1.RepositoryInfo
 	for _, configMap := range list.Items {
@@ -315,7 +321,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, cr *v1.Observability, s *v1.
 		err = json.Unmarshal(indexBytes, &index)
 		if err != nil {
 			r.logger.Error(err, "corrupt index file")
-			continue
+			return v1.ResultFailed, err
 		}
 		index.BaseUrl = fmt.Sprintf("%s/%s", repoInfo.Repository, repoInfo.Channel)
 		index.AccessToken = repoInfo.AccessToken
