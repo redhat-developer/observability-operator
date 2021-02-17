@@ -156,7 +156,7 @@ func (r *Reconciler) getRemoteWriteIndex(index v1.RepositoryIndex) (*v1.RemoteWr
 	}
 
 	remoteWrite := v1.RemoteWriteIndex{}
-	err = json.Unmarshal(bytes, &remoteWrite)
+	err = yaml.Unmarshal(bytes, &remoteWrite)
 	if err != nil {
 		return nil, err
 	}
