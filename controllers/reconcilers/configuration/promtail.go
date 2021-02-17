@@ -26,7 +26,6 @@ func (r *Reconciler) getScrapeNamespacesFor(ctx context.Context, cr *v1.Observab
 	list := &v12.NamespaceList{}
 	selector := labels.SelectorFromSet(index.Config.Promtail.NamespaceLabelSelector)
 	opts := &client.ListOptions{
-		Namespace:     cr.Namespace,
 		LabelSelector: selector,
 	}
 
