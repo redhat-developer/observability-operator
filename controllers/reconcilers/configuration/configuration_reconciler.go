@@ -314,7 +314,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, cr *v1.Observability, s *v1.
 		indexBytes, err := r.readIndexFile(&repoInfo)
 		if err != nil {
 			r.logger.Error(err, "error reading repository index")
-			continue
+			return v1.ResultFailed, err
 		}
 
 		var index v1.RepositoryIndex
