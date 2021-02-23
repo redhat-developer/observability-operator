@@ -9,6 +9,9 @@
 .idea/
 *.iml
 
+# prevent accidental check-ins of auth token
+config/samples/observability_config_map.yaml
+
 # VS Code
 .factorypath
 .vscode
