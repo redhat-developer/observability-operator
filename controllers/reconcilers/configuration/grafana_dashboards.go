@@ -204,6 +204,10 @@ func (r *Reconciler) fetchDashboard(path string, token string) (SourceType, []by
 		return SourceTypeUnknown, nil, err
 	}
 
+	if token == "" {
+		return SourceTypeUnknown, nil, fmt.Errorf("repository ConfigMap missing required AccessToken")
+	}
+
 	req, err := http.NewRequest(http.MethodGet, url.String(), nil)
 	if err != nil {
 		return SourceTypeUnknown, nil, err
