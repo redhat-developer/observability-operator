@@ -43,10 +43,6 @@ func (r *Reconciler) getScrapeNamespacesFor(ctx context.Context, cr *v1.Observab
 
 // Create an index-specific Promtail config
 func (r *Reconciler) createPromtailConfigFor(ctx context.Context, cr *v1.Observability, index *v1.RepositoryIndex) (*v12.ConfigMap, []byte, error) {
-	if index.Config == nil || index.Config.Promtail == nil || index.Config.Promtail.Enabled == false {
-		return nil, nil, nil
-	}
-
 	namespaces, err := r.getScrapeNamespacesFor(ctx, cr, index)
 	if err != nil {
 		return nil, nil, err
@@ -91,6 +87,9 @@ func (r *Reconciler) deleteUnrequestedDaemonsets(ctx context.Context, cr *v1.Obs
 		for _, index := range indexes {
 			expectedName := fmt.Sprintf("promtail-%s", index.Id)
 			if name == expectedName {
+				if index.Config == nil || index.Config.Promtail == nil || index.Config.Promtail.Enabled == false {
+					return false
+				}
 				return true
 			}
 		}
@@ -111,6 +110,10 @@ func (r *Reconciler) deleteUnrequestedDaemonsets(ctx context.Context, cr *v1.Obs
 
 // Create an index-specific daemonset
 func (r *Reconciler) createPromtailDaemonsetFor(ctx context.Context, cr *v1.Observability, index *v1.RepositoryIndex) error {
+	if index.Config == nil || index.Config.Promtail == nil || index.Config.Promtail.Enabled == false {
+		return nil
+	}
+
 	daemonset := model.GetPromtailDaemonSet(cr, index.Id)
 	sa := model.GetPromtailServiceAccount(cr)
 
