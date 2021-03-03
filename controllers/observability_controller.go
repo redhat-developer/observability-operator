@@ -38,8 +38,9 @@ const (
 // ObservabilityReconciler reconciles a Observability object
 type ObservabilityReconciler struct {
 	client.Client
-	Log    logr.Logger
-	Scheme *runtime.Scheme
+	Log             logr.Logger
+	Scheme          *runtime.Scheme
+	installComplete bool
 }
 
 // +kubebuilder:rbac:groups=observability.redhat.com,resources=observabilities,verbs=get;list;watch;create;update;patch;delete
@@ -110,7 +111,7 @@ func (r *ObservabilityReconciler) Reconcile(req ctrl.Request) (ctrl.Result, erro
 			}
 
 			if err != nil {
-				r.Log.Error(err, fmt.Sprintf("reconciler error in stage %v", stage))
+				log.Error(err, fmt.Sprintf("reconciler error in stage %v", stage))
 				nextStatus.LastMessage = err.Error()
 			} else {
 				// Reset error message when everything went well
@@ -121,17 +122,29 @@ func (r *ObservabilityReconciler) Reconcile(req ctrl.Request) (ctrl.Result, erro
 
 			// If a stage is not complete, do not continue with the next
 			if status != apiv1.ResultSuccess {
+				if obs.DeletionTimestamp == nil {
+					log.Info("stack install in progress", "working stage", stage)
+				} else {
+					log.Info("stack cleanup in progress", "working stage", stage)
+				}
 				finished = false
 				break
 			}
 		}
 	}
 
+	if obs.DeletionTimestamp == nil && finished && !r.installComplete {
+		r.installComplete = true
+		log.Info("stack installation complete")
+	}
+
 	// Ready for deletion?
 	// Only remove the finalizer when all stages were successful
 	if obs.DeletionTimestamp != nil && finished {
+		log.Info("cleanup stages complete, removing finalizer")
 		obs.Finalizers = []string{}
 		err = r.Update(ctx, obs)
+		r.installComplete = false
 		return ctrl.Result{}, err
 	}
 
@@ -159,6 +172,7 @@ func (r *ObservabilityReconciler) UpdateOperand(from *apiv1.Observability, to *a
 
 func (r *ObservabilityReconciler) InitializeOperand(mgr ctrl.Manager) error {
 	// Try to retrieve the namespace from the pod filesystem first
+	r.Log.Info("determining if operand instantiation required")
 	var namespace string
 	namespacePath := "/var/run/secrets/kubernetes.io/serviceaccount/namespace"
 	ns, err := ioutil.ReadFile(namespacePath)

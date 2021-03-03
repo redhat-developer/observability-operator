@@ -147,6 +147,7 @@ func (r *Reconciler) Cleanup(ctx context.Context, cr *v1.Observability) (v1.Obse
 }
 
 func (r *Reconciler) refreshToken(ctx context.Context, cr *v1.Observability, index *v1.RepositoryIndex, lifetimeStorage *v12.ConfigMap) error {
+	log := r.logger.WithValues("observability", cr.Name)
 	if index == nil || index.Config == nil || index.Config.Prometheus == nil || index.Config.Prometheus.Observatorium == nil {
 		return nil
 	}
@@ -167,7 +168,10 @@ func (r *Reconciler) refreshToken(ctx context.Context, cr *v1.Observability, ind
 	fetcher := token.GetTokenFetcher(index.Config.Prometheus.Observatorium, ctx, r.client)
 	newToken, expires, err := fetcher.Fetch(cr, index.Config.Prometheus.Observatorium, oldToken)
 	if err != nil {
+		log.Error(err, "failed to fetch auth token")
 		return err
+	} else {
+		log.Info("new observatorium token expiry", "epoch", expires)
 	}
 
 	// Write token secret
@@ -222,8 +226,9 @@ func (r *Reconciler) getTokenLifetimeStorage(ctx context.Context, cr *v1.Observa
 }
 
 func (r *Reconciler) Reconcile(ctx context.Context, cr *v1.Observability, s *v1.ObservabilityStatus) (v1.ObservabilityStageStatus, error) {
+	log := r.logger.WithValues("observability", cr.Name)
 	if cr.Spec.ConfigurationSelector == nil {
-		r.logger.Info("warning: configuration label selector present, dynamic configuration will be skipped")
+		log.Info("warning: configuration label selector present, dynamic configuration will be skipped")
 		return v1.ResultSuccess, nil
 	}
 
@@ -240,18 +245,20 @@ func (r *Reconciler) Reconcile(ctx context.Context, cr *v1.Observability, s *v1.
 		if lifetime == "" {
 			tokensValid[id] = false
 			overrideLastSync = true
+			log.Info("token expired, overriding lastSync for re-fetch")
 			continue
 		}
 
 		expires, err := strconv.ParseInt(lifetime, 10, 64)
 		if err != nil {
-			r.logger.Error(err, "unknown expiration format, int64 expected")
+			log.Error(err, "unknown expiration format, int64 expected")
 			continue
 		}
 
 		if token.AuthTokenExpires(expires) {
 			tokensValid[id] = false
 			overrideLastSync = true
+			log.Info("auth token expired, overriding lastSync for re-fetch")
 			continue
 		}
 
@@ -272,6 +279,8 @@ func (r *Reconciler) Reconcile(ctx context.Context, cr *v1.Observability, s *v1.
 			return v1.ResultSuccess, nil
 		}
 	}
+	log.Info("token resync window elapsed, proceeding with re-fetch",
+		"configured resync period", cr.Spec.ResyncPeriod)
 
 	list := &v12.ConfigMapList{}
 	opts := &client.ListOptions{
@@ -287,16 +296,18 @@ func (r *Reconciler) Reconcile(ctx context.Context, cr *v1.Observability, s *v1.
 	// No configurations yet? Keep reconciling and don't wait for the resync period
 	if len(list.Items) == 0 {
 		s.LastSynced = 0
+		log.Info("no configurations found, resync window disabled awaiting initial config")
 		return v1.ResultInProgress, nil
 	}
 
 	// Extract repository info
+	log.Info("configurations found, resync initiated", "configuration count", len(list.Items))
 	var repos []v1.RepositoryInfo
 	for _, configMap := range list.Items {
 		repoUrl := configMap.Data[RemoteRepository]
 		_, err := url.Parse(repoUrl)
 		if err != nil {
-			r.logger.Error(err, "invalid repository url")
+			log.Error(err, "failed to resync configuration, invalid repository url specified")
 			continue
 		}
 
@@ -313,14 +324,14 @@ func (r *Reconciler) Reconcile(ctx context.Context, cr *v1.Observability, s *v1.
 	for _, repoInfo := range repos {
 		indexBytes, err := r.readIndexFile(&repoInfo)
 		if err != nil {
-			r.logger.Error(err, "error reading repository index")
+			log.Error(err, "failed to fetch configuration repository index file")
 			return v1.ResultFailed, err
 		}
 
 		var index v1.RepositoryIndex
 		err = json.Unmarshal(indexBytes, &index)
 		if err != nil {
-			r.logger.Error(err, "corrupt index file")
+			log.Error(err, "failed to unmarshal configuration repository index")
 			return v1.ResultFailed, err
 		}
 		index.BaseUrl = fmt.Sprintf("%s/%s", repoInfo.Repository, repoInfo.Channel)
@@ -333,9 +344,10 @@ func (r *Reconciler) Reconcile(ctx context.Context, cr *v1.Observability, s *v1.
 	for _, index := range indexes {
 		if val, ok := tokensValid[index.Id]; !ok || !val {
 			if index.Config != nil && index.Config.Prometheus != nil {
+				log.Info("observatorium token missing or expired, refreshing")
 				err = r.refreshToken(ctx, cr, &index, tokenLifetimes)
 				if err != nil {
-					r.logger.Error(err, "unable to obtain observatorium token")
+					log.Error(err, "failed to refresh observatorium token")
 				}
 			}
 		}
@@ -427,9 +439,16 @@ func (r *Reconciler) Reconcile(ctx context.Context, cr *v1.Observability, s *v1.
 }
 
 func (r *Reconciler) readIndexFile(repo *v1.RepositoryInfo) ([]byte, error) {
-	repoUrl := fmt.Sprintf("%s/%s/index.json", repo.Repository, repo.Channel)
+	repoUrl, err := url.ParseRequestURI(fmt.Sprintf("%s/%s/index.json", repo.Repository, repo.Channel))
+	if err != nil {
+		return nil, err
+	}
 
-	req, err := http.NewRequest(http.MethodGet, repoUrl, nil)
+	if repo.AccessToken == "" {
+		return nil, fmt.Errorf("repository ConfigMap missing required AccessToken")
+	}
+
+	req, err := http.NewRequest(http.MethodGet, repoUrl.String(), nil)
 	if err != nil {
 		return nil, err
 	}
@@ -456,12 +475,16 @@ func (r *Reconciler) readIndexFile(repo *v1.RepositoryInfo) ([]byte, error) {
 }
 
 func (r *Reconciler) fetchResource(path string, token string) ([]byte, error) {
-	url, err := url.ParseRequestURI(path)
+	resourceUrl, err := url.ParseRequestURI(path)
 	if err != nil {
 		return nil, err
 	}
 
-	req, err := http.NewRequest(http.MethodGet, url.String(), nil)
+	if token == "" {
+		return nil, fmt.Errorf("repository ConfigMap missing required AccessToken")
+	}
+
+	req, err := http.NewRequest(http.MethodGet, resourceUrl.String(), nil)
 	if err != nil {
 		return nil, err
 	}
