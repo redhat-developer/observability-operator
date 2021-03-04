@@ -1,6 +1,9 @@
 package v1
 
-import v1 "k8s.io/api/core/v1"
+import (
+	v12 "github.com/coreos/prometheus-operator/pkg/apis/monitoring/v1"
+	v1 "k8s.io/api/core/v1"
+)
 
 type RepositoryInfo struct {
 	Repository  string
@@ -27,7 +30,10 @@ type ObservatoriumIndex struct {
 }
 
 type RemoteWriteIndex struct {
-	Patterns []string `json:"patterns"`
+	QueueConfig        *v12.QueueConfig    `json:"queueConfig,omitempty"`
+	RemoteTimeout      string              `json:"remoteTimeout,omitempty"`
+	ProxyUrl           string              `json:"proxyUrl,omitempty"`
+	WriteRelabelCofigs []v12.RelabelConfig `json:"writeRelabelConfigs,omitempty"`
 }
 
 type AlertmanagerIndex struct {

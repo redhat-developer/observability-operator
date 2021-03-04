@@ -9,6 +9,7 @@ import (
 	"github.com/bf2fc6cc711aee1a0c2a/observability-operator/controllers/utils"
 	prometheusv1 "github.com/coreos/prometheus-operator/pkg/apis/monitoring/v1"
 	"github.com/ghodss/yaml"
+	errors2 "github.com/pkg/errors"
 	kv1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	v12 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -16,7 +17,6 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
-	"strings"
 )
 
 func (r *Reconciler) fetchFederationConfigs(indexes []v1.RepositoryIndex) ([]string, error) {
@@ -158,7 +158,7 @@ func (r *Reconciler) getRemoteWriteIndex(index v1.RepositoryIndex) (*v1.RemoteWr
 	remoteWrite := v1.RemoteWriteIndex{}
 	err = yaml.Unmarshal(bytes, &remoteWrite)
 	if err != nil {
-		return nil, err
+		return nil, errors2.Wrap(err, "error parsing remote write index")
 	}
 	return &remoteWrite, nil
 }
@@ -179,18 +179,16 @@ func (r *Reconciler) getRemoteWriteSpec(index v1.RepositoryIndex, secrets []stri
 
 	observatoriumConfig := index.Config.Prometheus.Observatorium
 	return &prometheusv1.RemoteWriteSpec{
-		URL: fmt.Sprintf("%s/api/metrics/v1/%s/api/v1/receive", observatoriumConfig.Gateway, observatoriumConfig.Tenant),
-		WriteRelabelConfigs: []prometheusv1.RelabelConfig{
-			{
-				SourceLabels: []string{"__name__"},
-				Regex:        fmt.Sprintf("(%s)", strings.Join(remoteWrite.Patterns, "|")),
-				Action:       "keep",
-			},
-		},
-		BearerTokenFile: fmt.Sprintf("/etc/prometheus/secrets/%s/token", indexToken),
+		URL:                 fmt.Sprintf("%s/api/metrics/v1/%s/api/v1/receive", observatoriumConfig.Gateway, observatoriumConfig.Tenant),
+		Name:                index.Id,
+		RemoteTimeout:       remoteWrite.RemoteTimeout,
+		WriteRelabelConfigs: remoteWrite.WriteRelabelCofigs,
+		BearerTokenFile:     fmt.Sprintf("/etc/prometheus/secrets/%s/token", indexToken),
 		TLSConfig: &prometheusv1.TLSConfig{
 			InsecureSkipVerify: true,
 		},
+		ProxyURL:    remoteWrite.ProxyUrl,
+		QueueConfig: remoteWrite.QueueConfig,
 	}, nil
 }
 
@@ -245,12 +243,12 @@ func (r *Reconciler) reconcilePrometheus(ctx context.Context, cr *v1.Observabili
 
 	var remoteWrites []prometheusv1.RemoteWriteSpec
 	for _, index := range indexes {
-		patterns, err := r.getRemoteWriteIndex(index)
+		rw, err := r.getRemoteWriteIndex(index)
 		if err != nil {
 			return err
 		}
 
-		remoteWrite, err := r.getRemoteWriteSpec(index, secrets, patterns)
+		remoteWrite, err := r.getRemoteWriteSpec(index, secrets, rw)
 		if err != nil {
 			return err
 		}
