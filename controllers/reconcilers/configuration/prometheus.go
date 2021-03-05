@@ -17,6 +17,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+	"strings"
 )
 
 func (r *Reconciler) fetchFederationConfigs(indexes []v1.RepositoryIndex) ([]string, error) {
@@ -178,18 +179,38 @@ func (r *Reconciler) getRemoteWriteSpec(index v1.RepositoryIndex, secrets []stri
 	}
 
 	observatoriumConfig := index.Config.Prometheus.Observatorium
-	return &prometheusv1.RemoteWriteSpec{
-		URL:                 fmt.Sprintf("%s/api/metrics/v1/%s/api/v1/receive", observatoriumConfig.Gateway, observatoriumConfig.Tenant),
-		Name:                index.Id,
-		RemoteTimeout:       remoteWrite.RemoteTimeout,
-		WriteRelabelConfigs: remoteWrite.WriteRelabelCofigs,
-		BearerTokenFile:     fmt.Sprintf("/etc/prometheus/secrets/%s/token", indexToken),
-		TLSConfig: &prometheusv1.TLSConfig{
-			InsecureSkipVerify: true,
-		},
-		ProxyURL:    remoteWrite.ProxyUrl,
-		QueueConfig: remoteWrite.QueueConfig,
-	}, nil
+
+	if remoteWrite.Patterns == nil {
+		return &prometheusv1.RemoteWriteSpec{
+			URL:                 fmt.Sprintf("%s/api/metrics/v1/%s/api/v1/receive", observatoriumConfig.Gateway, observatoriumConfig.Tenant),
+			Name:                index.Id,
+			RemoteTimeout:       remoteWrite.RemoteTimeout,
+			WriteRelabelConfigs: remoteWrite.WriteRelabelCofigs,
+			BearerTokenFile:     fmt.Sprintf("/etc/prometheus/secrets/%s/token", indexToken),
+			TLSConfig: &prometheusv1.TLSConfig{
+				InsecureSkipVerify: true,
+			},
+			ProxyURL:    remoteWrite.ProxyUrl,
+			QueueConfig: remoteWrite.QueueConfig,
+		}, nil
+	} else {
+		// for v2.0.0 backwards compatibility
+		// if patterns are provided, use them instead of the new config options
+		return &prometheusv1.RemoteWriteSpec{
+			URL: fmt.Sprintf("%s/api/metrics/v1/%s/api/v1/receive", observatoriumConfig.Gateway, observatoriumConfig.Tenant),
+			WriteRelabelConfigs: []prometheusv1.RelabelConfig{
+				{
+					SourceLabels: []string{"__name__"},
+					Regex:        fmt.Sprintf("(%s)", strings.Join(remoteWrite.Patterns, "|")),
+					Action:       "keep",
+				},
+			},
+			BearerTokenFile: fmt.Sprintf("/etc/prometheus/secrets/%s/token", indexToken),
+			TLSConfig: &prometheusv1.TLSConfig{
+				InsecureSkipVerify: true,
+			},
+		}, nil
+	}
 }
 
 func (r *Reconciler) getAlerting(cr *v1.Observability) *prometheusv1.AlertingSpec {
