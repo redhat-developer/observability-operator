@@ -296,6 +296,7 @@ spec:
                 command:
                 - /manager
                 image: quay.io/integreatly/observability-operator:v2.0.0
+                imagePullPolicy: Always
                 name: manager
                 resources:
                   limits:
@@ -355,5 +356,4 @@ spec:
   maturity: alpha
   provider:
     name: Red Hat
-  replaces: observability-operator.v0.0.1
   version: 2.0.0

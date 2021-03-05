@@ -14,6 +14,7 @@ require (
 	github.com/operator-framework/api v0.3.20
 	github.com/operator-framework/operator-registry v1.12.6-0.20200611222234-275301b779f8
 	github.com/pkg/errors v0.9.1
+	github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring v0.46.0
 	golang.org/x/sys v0.0.0-20200625212154-ddb9806d33ae // indirect
 	google.golang.org/protobuf v1.25.0 // indirect
 	k8s.io/api v0.19.2

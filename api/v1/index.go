@@ -34,6 +34,9 @@ type RemoteWriteIndex struct {
 	RemoteTimeout      string              `json:"remoteTimeout,omitempty"`
 	ProxyUrl           string              `json:"proxyUrl,omitempty"`
 	WriteRelabelCofigs []v12.RelabelConfig `json:"writeRelabelConfigs,omitempty"`
+
+	// for v2.0.0 backwards compatibility
+	Patterns []string `json:"patterns,omitempty"`
 }
 
 type AlertmanagerIndex struct {
