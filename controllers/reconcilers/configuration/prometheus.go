@@ -185,7 +185,7 @@ func (r *Reconciler) getRemoteWriteSpec(index v1.RepositoryIndex, secrets []stri
 			URL:                 fmt.Sprintf("%s/api/metrics/v1/%s/api/v1/receive", observatoriumConfig.Gateway, observatoriumConfig.Tenant),
 			Name:                index.Id,
 			RemoteTimeout:       remoteWrite.RemoteTimeout,
-			WriteRelabelConfigs: remoteWrite.WriteRelabelCofigs,
+			WriteRelabelConfigs: remoteWrite.WriteRelabelConfigs,
 			BearerTokenFile:     fmt.Sprintf("/etc/prometheus/secrets/%s/token", indexToken),
 			TLSConfig: &prometheusv1.TLSConfig{
 				InsecureSkipVerify: true,

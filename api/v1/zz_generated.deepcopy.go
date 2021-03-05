@@ -464,8 +464,8 @@ func (in *RemoteWriteIndex) DeepCopyInto(out *RemoteWriteIndex) {
 		*out = new(monitoringv1.QueueConfig)
 		**out = **in
 	}
-	if in.WriteRelabelCofigs != nil {
-		in, out := &in.WriteRelabelCofigs, &out.WriteRelabelCofigs
+	if in.WriteRelabelConfigs != nil {
+		in, out := &in.WriteRelabelConfigs, &out.WriteRelabelConfigs
 		*out = make([]monitoringv1.RelabelConfig, len(*in))
 		for i := range *in {
 			(*in)[i].DeepCopyInto(&(*out)[i])

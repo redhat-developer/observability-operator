@@ -30,10 +30,10 @@ type ObservatoriumIndex struct {
 }
 
 type RemoteWriteIndex struct {
-	QueueConfig        *v12.QueueConfig    `json:"queueConfig,omitempty"`
-	RemoteTimeout      string              `json:"remoteTimeout,omitempty"`
-	ProxyUrl           string              `json:"proxyUrl,omitempty"`
-	WriteRelabelCofigs []v12.RelabelConfig `json:"writeRelabelConfigs,omitempty"`
+	QueueConfig         *v12.QueueConfig    `json:"queueConfig,omitempty"`
+	RemoteTimeout       string              `json:"remoteTimeout,omitempty"`
+	ProxyUrl            string              `json:"proxyUrl,omitempty"`
+	WriteRelabelConfigs []v12.RelabelConfig `json:"writeRelabelConfigs,omitempty"`
 
 	// for v2.0.0 backwards compatibility
 	Patterns []string `json:"patterns,omitempty"`
