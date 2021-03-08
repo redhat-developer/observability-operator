@@ -12,6 +12,7 @@ import (
 	prometheusv1 "github.com/coreos/prometheus-operator/pkg/apis/monitoring/v1"
 	"github.com/go-logr/logr"
 	"github.com/integr8ly/grafana-operator/v3/pkg/apis/integreatly/v1alpha1"
+	errors2 "github.com/pkg/errors"
 	"io/ioutil"
 	v13 "k8s.io/api/apps/v1"
 	v12 "k8s.io/api/core/v1"
@@ -237,7 +238,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, cr *v1.Observability, s *v1.
 
 	tokenLifetimes, err := r.getTokenLifetimeStorage(ctx, cr)
 	if err != nil {
-		return v1.ResultFailed, err
+		return v1.ResultFailed, errors2.Wrap(err, "error finding or creating token lifetime cache")
 	}
 
 	// First check if any of the tokens have expired
@@ -271,7 +272,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, cr *v1.Observability, s *v1.
 		lastSync := time.Unix(cr.Status.LastSynced, 0)
 		period, err := time.ParseDuration(cr.Spec.ResyncPeriod)
 		if err != nil {
-			return v1.ResultFailed, err
+			return v1.ResultFailed, errors2.Wrap(err, "error parsing operator resync period")
 		}
 
 		nextSync := lastSync.Add(period)
@@ -279,7 +280,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, cr *v1.Observability, s *v1.
 			return v1.ResultSuccess, nil
 		}
 	}
-	log.Info("token resync window elapsed, proceeding with re-fetch",
+	log.Info("operator resync window elapsed, proceeding with re-fetch",
 		"configured resync period", cr.Spec.ResyncPeriod)
 
 	list := &v12.ConfigMapList{}
