@@ -42,6 +42,15 @@ func GetPrometheusSubscription(cr *v1.Observability) *v1alpha1.Subscription {
 	}
 }
 
+func GetPrometheusCatalogSource(cr *v1.Observability) *v1alpha1.CatalogSource {
+	return &v1alpha1.CatalogSource{
+		ObjectMeta: v12.ObjectMeta{
+			Name:      "prometheus-catalogsource",
+			Namespace: cr.Namespace,
+		},
+	}
+}
+
 func GetPrometheusProxySecret(cr *v1.Observability) *v13.Secret {
 	return &v13.Secret{
 		ObjectMeta: v12.ObjectMeta{
