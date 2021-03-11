@@ -9,7 +9,7 @@ import (
 	"github.com/bf2fc6cc711aee1a0c2a/observability-operator/controllers/model"
 	"github.com/bf2fc6cc711aee1a0c2a/observability-operator/controllers/reconcilers"
 	"github.com/bf2fc6cc711aee1a0c2a/observability-operator/controllers/token"
-	prometheusv1 "github.com/coreos/prometheus-operator/pkg/apis/monitoring/v1"
+	prometheusv1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
 	"github.com/go-logr/logr"
 	"github.com/integr8ly/grafana-operator/v3/pkg/apis/integreatly/v1alpha1"
 	errors2 "github.com/pkg/errors"
@@ -398,13 +398,13 @@ func (r *Reconciler) Reconcile(ctx context.Context, cr *v1.Observability, s *v1.
 	// Alertmanager configuration
 	err = r.reconcileAlertmanagerSecret(ctx, cr, indexes)
 	if err != nil {
-		return v1.ResultFailed, err
+		return v1.ResultFailed, errors2.Wrap(err, "error reconciling alertmanager secret")
 	}
 
 	// Prometheus additional scrape configs
 	patterns, err := r.fetchFederationConfigs(indexes)
 	if err != nil {
-		return v1.ResultFailed, err
+		return v1.ResultFailed, errors2.Wrap(err, "error fetching federation config")
 	}
 	err = r.createAdditionalScrapeConfigSecret(cr, ctx, patterns)
 	if err != nil {
@@ -414,56 +414,56 @@ func (r *Reconciler) Reconcile(ctx context.Context, cr *v1.Observability, s *v1.
 	// Alertmanager CR
 	err = r.reconcileAlertmanager(ctx, cr)
 	if err != nil {
-		return v1.ResultFailed, err
+		return v1.ResultFailed, errors2.Wrap(err, "error reconciling alertmanager")
 	}
 
 	// Prometheus CR
 	err = r.reconcilePrometheus(ctx, cr, indexes)
 	if err != nil {
-		return v1.ResultFailed, err
+		return v1.ResultFailed, errors2.Wrap(err, "error reconciling prometheus")
 	}
 
 	// Manage dashboards
 	dashboards := getUniqueDashboards(indexes)
 	err = r.deleteUnrequestedDashboards(cr, ctx, dashboards)
 	if err != nil {
-		return v1.ResultFailed, err
+		return v1.ResultFailed, errors2.Wrap(err, "error deleting unrequested dashboards")
 	}
 
 	err = r.createRequestedDashboards(cr, ctx, dashboards)
 	if err != nil {
-		return v1.ResultFailed, err
+		return v1.ResultFailed, errors2.Wrap(err, "error creating requested dashboards")
 	}
 
 	// Manage prometheus rules
 	rules := getUniqueRules(indexes)
 	err = r.deleteUnrequestedRules(cr, ctx, rules)
 	if err != nil {
-		return v1.ResultFailed, err
+		return v1.ResultFailed, errors2.Wrap(err, "error deleting unrequested prometheus rules")
 	}
 
 	err = r.createRequestedRules(cr, ctx, rules)
 	if err != nil {
-		return v1.ResultFailed, err
+		return v1.ResultFailed, errors2.Wrap(err, "error creating requested prometheus rules")
 	}
 
 	// Manage pod monitors
 	monitors := getUniquePodMonitors(indexes)
 	err = r.deleteUnrequestedPodMonitors(cr, ctx, monitors)
 	if err != nil {
-		return v1.ResultFailed, err
+		return v1.ResultFailed, errors2.Wrap(err, "error deleting unrequested pod monitors")
 	}
 
 	err = r.createRequestedPodMonitors(cr, ctx, monitors)
 	if err != nil {
-		return v1.ResultFailed, err
+		return v1.ResultFailed, errors2.Wrap(err, "error creating requested pod monitors")
 	}
 
 	// Promtai instances
 	// First cleanup any no longer requested instances
 	err = r.deleteUnrequestedDaemonsets(ctx, cr, indexes)
 	if err != nil {
-		return v1.ResultFailed, err
+		return v1.ResultFailed, errors2.Wrap(err, "error deleting unrequested promtail daemon sets")
 	}
 
 	// Create requested promtail instances
@@ -471,7 +471,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, cr *v1.Observability, s *v1.
 	for _, index := range indexes {
 		err = r.createPromtailDaemonsetFor(ctx, cr, &index)
 		if err != nil {
-			return v1.ResultFailed, err
+			return v1.ResultFailed, errors2.Wrap(err, fmt.Sprintf("error creating promtail daemon set for %s", index.Id))
 		}
 	}
 
@@ -519,7 +519,7 @@ func (r *Reconciler) readIndexFile(repo *v1.RepositoryInfo) ([]byte, error) {
 func (r *Reconciler) fetchResource(path string, token string) ([]byte, error) {
 	resourceUrl, err := url.ParseRequestURI(path)
 	if err != nil {
-		return nil, err
+		return nil, errors2.Wrap(err, fmt.Sprintf("error parsing resource url: %s", path))
 	}
 
 	if token == "" {
@@ -528,14 +528,14 @@ func (r *Reconciler) fetchResource(path string, token string) ([]byte, error) {
 
 	req, err := http.NewRequest(http.MethodGet, resourceUrl.String(), nil)
 	if err != nil {
-		return nil, err
+		return nil, errors2.Wrap(err, "error creating http request")
 	}
 	req.Header.Set("Authorization", fmt.Sprintf("token %s", token))
 	req.Header.Set("Accept", "application/vnd.github.v3.raw")
 
 	resp, err := r.httpClient.Do(req)
 	if err != nil {
-		return nil, err
+		return nil, errors2.Wrap(err, fmt.Sprintf("error fetching resource from %s", path))
 	}
 	defer resp.Body.Close()
 
@@ -545,7 +545,7 @@ func (r *Reconciler) fetchResource(path string, token string) ([]byte, error) {
 
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		return nil, err
+		return nil, errors2.Wrap(err, "error reading response")
 	}
 
 	return body, nil

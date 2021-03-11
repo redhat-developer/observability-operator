@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	v1 "github.com/bf2fc6cc711aee1a0c2a/observability-operator/api/v1"
-	v12 "github.com/coreos/prometheus-operator/pkg/apis/monitoring/v1"
+	v12 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
 	routev1 "github.com/openshift/api/route/v1"
 	v13 "k8s.io/api/core/v1"
 	v14 "k8s.io/api/rbac/v1"

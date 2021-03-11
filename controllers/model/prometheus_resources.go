@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	v1 "github.com/bf2fc6cc711aee1a0c2a/observability-operator/api/v1"
-	prometheusv1 "github.com/coreos/prometheus-operator/pkg/apis/monitoring/v1"
+	prometheusv1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
 	routev1 "github.com/openshift/api/route/v1"
 	coreosv1 "github.com/operator-framework/api/pkg/operators/v1"
 	"github.com/operator-framework/api/pkg/operators/v1alpha1"
@@ -37,6 +37,15 @@ func GetPrometheusSubscription(cr *v1.Observability) *v1alpha1.Subscription {
 	return &v1alpha1.Subscription{
 		ObjectMeta: v12.ObjectMeta{
 			Name:      "prometheus-subscription",
+			Namespace: cr.Namespace,
+		},
+	}
+}
+
+func GetPrometheusCatalogSource(cr *v1.Observability) *v1alpha1.CatalogSource {
+	return &v1alpha1.CatalogSource{
+		ObjectMeta: v12.ObjectMeta{
+			Name:      "prometheus-catalogsource",
 			Namespace: cr.Namespace,
 		},
 	}

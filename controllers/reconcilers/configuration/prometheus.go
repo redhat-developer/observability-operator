@@ -7,9 +7,9 @@ import (
 	v1 "github.com/bf2fc6cc711aee1a0c2a/observability-operator/api/v1"
 	"github.com/bf2fc6cc711aee1a0c2a/observability-operator/controllers/model"
 	"github.com/bf2fc6cc711aee1a0c2a/observability-operator/controllers/utils"
-	prometheusv1 "github.com/coreos/prometheus-operator/pkg/apis/monitoring/v1"
 	"github.com/ghodss/yaml"
 	errors2 "github.com/pkg/errors"
+	prometheusv1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
 	kv1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	v12 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -19,6 +19,9 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"strings"
 )
+
+const PrometheusBaseImage = "quay.io/prometheus/prometheus"
+const PrometheusVersion = "v2.22.2"
 
 func (r *Reconciler) fetchFederationConfigs(indexes []v1.RepositoryIndex) ([]string, error) {
 	var result []string
@@ -188,7 +191,9 @@ func (r *Reconciler) getRemoteWriteSpec(index v1.RepositoryIndex, secrets []stri
 			WriteRelabelConfigs: remoteWrite.WriteRelabelConfigs,
 			BearerTokenFile:     fmt.Sprintf("/etc/prometheus/secrets/%s/token", indexToken),
 			TLSConfig: &prometheusv1.TLSConfig{
-				InsecureSkipVerify: true,
+				SafeTLSConfig: prometheusv1.SafeTLSConfig{
+					InsecureSkipVerify: true,
+				},
 			},
 			ProxyURL:    remoteWrite.ProxyUrl,
 			QueueConfig: remoteWrite.QueueConfig,
@@ -207,7 +212,9 @@ func (r *Reconciler) getRemoteWriteSpec(index v1.RepositoryIndex, secrets []stri
 			},
 			BearerTokenFile: fmt.Sprintf("/etc/prometheus/secrets/%s/token", indexToken),
 			TLSConfig: &prometheusv1.TLSConfig{
-				InsecureSkipVerify: true,
+				SafeTLSConfig: prometheusv1.SafeTLSConfig{
+					InsecureSkipVerify: true,
+				},
 			},
 		}, nil
 	}
@@ -225,8 +232,10 @@ func (r *Reconciler) getAlerting(cr *v1.Observability) *prometheusv1.AlertingSpe
 				Port:      intstr.FromString("web"),
 				Scheme:    "https",
 				TLSConfig: &prometheusv1.TLSConfig{
-					CAFile:     "/var/run/secrets/kubernetes.io/serviceaccount/service-ca.crt",
-					ServerName: fmt.Sprintf("%v.%v.svc", alertmanagerService.Name, cr.Namespace),
+					CAFile: "/var/run/secrets/kubernetes.io/serviceaccount/service-ca.crt",
+					SafeTLSConfig: prometheusv1.SafeTLSConfig{
+						ServerName: fmt.Sprintf("%v.%v.svc", alertmanagerService.Name, cr.Namespace),
+					},
 				},
 				BearerTokenFile: "/var/run/secrets/kubernetes.io/serviceaccount/token",
 			},
@@ -276,9 +285,16 @@ func (r *Reconciler) reconcilePrometheus(ctx context.Context, cr *v1.Observabili
 		remoteWrites = append(remoteWrites, *remoteWrite)
 	}
 
+	var image = fmt.Sprintf("%s:%s", PrometheusBaseImage, PrometheusVersion)
+
 	prometheus := model.GetPrometheus(cr)
 	_, err = controllerutil.CreateOrUpdate(ctx, r.client, prometheus, func() error {
 		prometheus.Spec = prometheusv1.PrometheusSpec{
+			// Custom Prometheus version
+			Image:   &image,
+			Version: PrometheusVersion,
+
+			// Spec
 			ServiceAccountName: sa.Name,
 			ExternalURL:        fmt.Sprintf("https://%v", host),
 			AdditionalScrapeConfigs: &kv1.SecretKeySelector{

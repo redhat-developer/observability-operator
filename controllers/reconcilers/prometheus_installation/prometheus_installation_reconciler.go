@@ -45,6 +45,13 @@ func (r *Reconciler) Cleanup(ctx context.Context, cr *v1.Observability) (v1.Obse
 		return v1.ResultFailed, err
 	}
 
+	// Delete catalog source
+	source := model.GetPrometheusCatalogSource(cr)
+	err = r.client.Delete(ctx, source)
+	if err != nil && !errors.IsNotFound(err) {
+		return v1.ResultFailed, err
+	}
+
 	// We have to remove the prometheus operator deployment manually
 	deployments := &v12.DeploymentList{}
 	opts := &client.ListOptions{
@@ -68,8 +75,14 @@ func (r *Reconciler) Cleanup(ctx context.Context, cr *v1.Observability) (v1.Obse
 }
 
 func (r *Reconciler) Reconcile(ctx context.Context, cr *v1.Observability, s *v1.ObservabilityStatus) (v1.ObservabilityStageStatus, error) {
+	// Catalog source
+	status, err := r.reconcileCatalogSource(ctx, cr)
+	if status != v1.ResultSuccess {
+		return status, err
+	}
+
 	// Prometheus subscription
-	status, err := r.reconcileSubscription(ctx, cr)
+	status, err = r.reconcileSubscription(ctx, cr)
 	if status != v1.ResultSuccess {
 		return status, err
 	}
@@ -109,15 +122,35 @@ func (r *Reconciler) waitForPrometheusOperator(ctx context.Context, cr *v1.Obser
 	return v1.ResultInProgress, nil
 }
 
+func (r *Reconciler) reconcileCatalogSource(ctx context.Context, cr *v1.Observability) (v1.ObservabilityStageStatus, error) {
+	source := model.GetPrometheusCatalogSource(cr)
+
+	_, err := controllerutil.CreateOrUpdate(ctx, r.client, source, func() error {
+		source.Spec = v1alpha1.CatalogSourceSpec{
+			SourceType: v1alpha1.SourceTypeGrpc,
+			Image:      "quay.io/integreatly/custom-prometheus-index:1.0.0",
+		}
+		return nil
+	})
+
+	if err != nil {
+		return v1.ResultFailed, err
+	}
+
+	return v1.ResultSuccess, nil
+}
+
 func (r *Reconciler) reconcileSubscription(ctx context.Context, cr *v1.Observability) (v1.ObservabilityStageStatus, error) {
 	subscription := model.GetPrometheusSubscription(cr)
+	source := model.GetPrometheusCatalogSource(cr)
 
 	_, err := controllerutil.CreateOrUpdate(ctx, r.client, subscription, func() error {
 		subscription.Spec = &v1alpha1.SubscriptionSpec{
-			CatalogSource:          "community-operators",
-			CatalogSourceNamespace: "openshift-marketplace",
+			CatalogSource:          source.Name,
+			CatalogSourceNamespace: cr.Namespace,
 			Package:                "prometheus",
-			Channel:                "beta",
+			Channel:                "preview",
+			InstallPlanApproval:    v1alpha1.ApprovalAutomatic,
 		}
 
 		return nil
