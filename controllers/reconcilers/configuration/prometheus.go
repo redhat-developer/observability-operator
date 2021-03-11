@@ -20,6 +20,9 @@ import (
 	"strings"
 )
 
+const PrometheusBaseImage = "quay.io/prometheus/prometheus"
+const PrometheusVersion = "v2.22.2"
+
 func (r *Reconciler) fetchFederationConfigs(indexes []v1.RepositoryIndex) ([]string, error) {
 	var result []string
 
@@ -184,8 +187,16 @@ func (r *Reconciler) getRemoteWriteSpec(index v1.RepositoryIndex, secrets []stri
 		return &prometheusv1.RemoteWriteSpec{
 			URL:                 fmt.Sprintf("%s/api/metrics/v1/%s/api/v1/receive", observatoriumConfig.Gateway, observatoriumConfig.Tenant),
 			Name:                index.Id,
+			RemoteTimeout:       remoteWrite.RemoteTimeout,
 			WriteRelabelConfigs: remoteWrite.WriteRelabelConfigs,
 			BearerTokenFile:     fmt.Sprintf("/etc/prometheus/secrets/%s/token", indexToken),
+			TLSConfig: &prometheusv1.TLSConfig{
+				SafeTLSConfig: prometheusv1.SafeTLSConfig{
+					InsecureSkipVerify: true,
+				},
+			},
+			ProxyURL:    remoteWrite.ProxyUrl,
+			QueueConfig: remoteWrite.QueueConfig,
 		}, nil
 	} else {
 		// for v2.0.0 backwards compatibility
@@ -274,9 +285,16 @@ func (r *Reconciler) reconcilePrometheus(ctx context.Context, cr *v1.Observabili
 		remoteWrites = append(remoteWrites, *remoteWrite)
 	}
 
+	var image = fmt.Sprintf("%s:%s", PrometheusBaseImage, PrometheusVersion)
+
 	prometheus := model.GetPrometheus(cr)
 	_, err = controllerutil.CreateOrUpdate(ctx, r.client, prometheus, func() error {
 		prometheus.Spec = prometheusv1.PrometheusSpec{
+			// Custom Prometheus version
+			Image:   &image,
+			Version: PrometheusVersion,
+
+			// Spec
 			ServiceAccountName: sa.Name,
 			ExternalURL:        fmt.Sprintf("https://%v", host),
 			AdditionalScrapeConfigs: &kv1.SecretKeySelector{
