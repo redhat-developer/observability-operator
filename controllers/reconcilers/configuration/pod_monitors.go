@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 	v1 "github.com/bf2fc6cc711aee1a0c2a/observability-operator/api/v1"
-	v12 "github.com/coreos/prometheus-operator/pkg/apis/monitoring/v1"
+	v12 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
 	"github.com/ghodss/yaml"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"

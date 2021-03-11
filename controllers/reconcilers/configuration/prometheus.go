@@ -7,9 +7,9 @@ import (
 	v1 "github.com/bf2fc6cc711aee1a0c2a/observability-operator/api/v1"
 	"github.com/bf2fc6cc711aee1a0c2a/observability-operator/controllers/model"
 	"github.com/bf2fc6cc711aee1a0c2a/observability-operator/controllers/utils"
-	prometheusv1 "github.com/coreos/prometheus-operator/pkg/apis/monitoring/v1"
 	"github.com/ghodss/yaml"
 	errors2 "github.com/pkg/errors"
+	prometheusv1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
 	kv1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	v12 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -184,14 +184,8 @@ func (r *Reconciler) getRemoteWriteSpec(index v1.RepositoryIndex, secrets []stri
 		return &prometheusv1.RemoteWriteSpec{
 			URL:                 fmt.Sprintf("%s/api/metrics/v1/%s/api/v1/receive", observatoriumConfig.Gateway, observatoriumConfig.Tenant),
 			Name:                index.Id,
-			RemoteTimeout:       remoteWrite.RemoteTimeout,
 			WriteRelabelConfigs: remoteWrite.WriteRelabelConfigs,
 			BearerTokenFile:     fmt.Sprintf("/etc/prometheus/secrets/%s/token", indexToken),
-			TLSConfig: &prometheusv1.TLSConfig{
-				InsecureSkipVerify: true,
-			},
-			ProxyURL:    remoteWrite.ProxyUrl,
-			QueueConfig: remoteWrite.QueueConfig,
 		}, nil
 	} else {
 		// for v2.0.0 backwards compatibility
@@ -207,7 +201,9 @@ func (r *Reconciler) getRemoteWriteSpec(index v1.RepositoryIndex, secrets []stri
 			},
 			BearerTokenFile: fmt.Sprintf("/etc/prometheus/secrets/%s/token", indexToken),
 			TLSConfig: &prometheusv1.TLSConfig{
-				InsecureSkipVerify: true,
+				SafeTLSConfig: prometheusv1.SafeTLSConfig{
+					InsecureSkipVerify: true,
+				},
 			},
 		}, nil
 	}
@@ -225,8 +221,10 @@ func (r *Reconciler) getAlerting(cr *v1.Observability) *prometheusv1.AlertingSpe
 				Port:      intstr.FromString("web"),
 				Scheme:    "https",
 				TLSConfig: &prometheusv1.TLSConfig{
-					CAFile:     "/var/run/secrets/kubernetes.io/serviceaccount/service-ca.crt",
-					ServerName: fmt.Sprintf("%v.%v.svc", alertmanagerService.Name, cr.Namespace),
+					CAFile: "/var/run/secrets/kubernetes.io/serviceaccount/service-ca.crt",
+					SafeTLSConfig: prometheusv1.SafeTLSConfig{
+						ServerName: fmt.Sprintf("%v.%v.svc", alertmanagerService.Name, cr.Namespace),
+					},
 				},
 				BearerTokenFile: "/var/run/secrets/kubernetes.io/serviceaccount/token",
 			},
