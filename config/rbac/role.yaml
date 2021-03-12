@@ -137,6 +137,7 @@ rules:
 - apiGroups:
   - operators.coreos.com
   resources:
+  - catalogsources
   - clusterserviceversions
   - operatorgroups
   - subscriptions
