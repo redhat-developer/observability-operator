@@ -9,10 +9,10 @@ import (
 	"github.com/bf2fc6cc711aee1a0c2a/observability-operator/controllers/model"
 	"github.com/bf2fc6cc711aee1a0c2a/observability-operator/controllers/reconcilers"
 	"github.com/bf2fc6cc711aee1a0c2a/observability-operator/controllers/token"
-	prometheusv1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
 	"github.com/go-logr/logr"
 	"github.com/integr8ly/grafana-operator/v3/pkg/apis/integreatly/v1alpha1"
 	errors2 "github.com/pkg/errors"
+	prometheusv1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
 	"io/ioutil"
 	v13 "k8s.io/api/apps/v1"
 	v12 "k8s.io/api/core/v1"
@@ -30,6 +30,7 @@ const (
 	RemoteRepository            = "repository"
 	RemoteAccessToken           = "access_token"
 	RemoteChannel               = "channel"
+	RemoteTag                   = "tag"
 	PrometheusRuleIdentifierKey = "observability"
 )
 
@@ -339,6 +340,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, cr *v1.Observability, s *v1.
 		repos = append(repos, v1.RepositoryInfo{
 			AccessToken: configMap.Data[RemoteAccessToken],
 			Channel:     configMap.Data[RemoteChannel],
+			Tag:         configMap.Data[RemoteTag],
 			Repository:  repoUrl,
 			MapSource:   &configMap,
 		})
@@ -355,6 +357,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, cr *v1.Observability, s *v1.
 		repos = append(repos, v1.RepositoryInfo{
 			AccessToken:  string(configSecret.Data[RemoteAccessToken]),
 			Channel:      string(configSecret.Data[RemoteChannel]),
+			Tag:          string(configSecret.Data[RemoteTag]),
 			Repository:   repoUrl,
 			SecretSource: &configSecret,
 		})
@@ -497,6 +500,12 @@ func (r *Reconciler) readIndexFile(repo *v1.RepositoryInfo) ([]byte, error) {
 
 	req.Header.Set("Authorization", fmt.Sprintf("token %s", repo.AccessToken))
 	req.Header.Set("Accept", "application/vnd.github.v3.raw")
+
+
+	if repo.Tag != "" {
+
+	}
+
 
 	resp, err := r.httpClient.Do(req)
 	if err != nil {

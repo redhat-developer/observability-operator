@@ -8,6 +8,7 @@ import (
 type RepositoryInfo struct {
 	Repository   string
 	Channel      string
+	Tag          string
 	AccessToken  string
 	MapSource    *v1.ConfigMap
 	SecretSource *v1.Secret
