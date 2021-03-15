@@ -45,7 +45,7 @@ func (r *Reconciler) fetchFederationConfigs(indexes []v1.RepositoryIndex) ([]str
 		}
 
 		federationConfigUrl := fmt.Sprintf("%s/%s", index.BaseUrl, index.Config.Prometheus.Federation)
-		bytes, err := r.fetchResource(federationConfigUrl, index.AccessToken)
+		bytes, err := r.fetchResource(federationConfigUrl, index.Tag, index.AccessToken)
 		if err != nil {
 			return nil, err
 		}
@@ -154,7 +154,7 @@ func (r *Reconciler) getTokenSecrets(ctx context.Context, cr *v1.Observability) 
 
 func (r *Reconciler) getRemoteWriteIndex(index v1.RepositoryIndex) (*v1.RemoteWriteIndex, error) {
 	patternUrl := fmt.Sprintf("%s/%s", index.BaseUrl, index.Config.Prometheus.RemoteWrite)
-	bytes, err := r.fetchResource(patternUrl, index.AccessToken)
+	bytes, err := r.fetchResource(patternUrl, index.Tag, index.AccessToken)
 	if err != nil {
 		return nil, err
 	}

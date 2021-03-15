@@ -28,6 +28,7 @@ type DashboardInfo struct {
 	Name        string
 	Url         string
 	AccessToken string
+	Tag         string
 }
 
 func getNameFromUrl(path string) string {
@@ -55,6 +56,7 @@ seek:
 				Name:        name,
 				Url:         fmt.Sprintf("%s/%s", index.BaseUrl, dashboard),
 				AccessToken: index.AccessToken,
+				Tag:         index.Tag,
 			})
 		}
 	}
@@ -100,7 +102,7 @@ func (r *Reconciler) createRequestedDashboards(cr *v1.Observability, ctx context
 	// in the CR
 	var requestedDashboards []*v1alpha1.GrafanaDashboard
 	for _, d := range dashboards {
-		sourceType, source, err := r.fetchDashboard(d.Url, d.AccessToken)
+		sourceType, source, err := r.fetchDashboard(d.Url, d.Tag, d.AccessToken)
 		if err != nil {
 			return err
 		}
@@ -198,7 +200,7 @@ func getFileType(path string) SourceType {
 	}
 }
 
-func (r *Reconciler) fetchDashboard(path string, token string) (SourceType, []byte, error) {
+func (r *Reconciler) fetchDashboard(path string, tag string, token string) (SourceType, []byte, error) {
 	url, err := url2.ParseRequestURI(path)
 	if err != nil {
 		return SourceTypeUnknown, nil, err
@@ -214,6 +216,12 @@ func (r *Reconciler) fetchDashboard(path string, token string) (SourceType, []by
 	}
 	req.Header.Set("Authorization", fmt.Sprintf("token %s", token))
 	req.Header.Set("Accept", "application/vnd.github.v3.raw")
+
+	if tag != "" {
+		q := req.URL.Query()
+		q.Add("ref", tag)
+		req.URL.RawQuery = q.Encode()
+	}
 
 	resp, err := r.httpClient.Do(req)
 	if err != nil {

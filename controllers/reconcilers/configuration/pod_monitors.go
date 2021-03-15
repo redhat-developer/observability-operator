@@ -4,8 +4,8 @@ import (
 	"context"
 	"fmt"
 	v1 "github.com/bf2fc6cc711aee1a0c2a/observability-operator/api/v1"
-	v12 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
 	"github.com/ghodss/yaml"
+	v12 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
@@ -40,6 +40,7 @@ func getUniquePodMonitors(indexes []v1.RepositoryIndex) []ResourceInfo {
 				Name:        name,
 				Url:         fmt.Sprintf("%s/%s", index.BaseUrl, monitor),
 				AccessToken: index.AccessToken,
+				Tag:         index.Tag,
 			})
 		}
 	}
@@ -82,7 +83,7 @@ func (r *Reconciler) deleteUnrequestedPodMonitors(cr *v1.Observability, ctx cont
 func (r *Reconciler) createRequestedPodMonitors(cr *v1.Observability, ctx context.Context, monitors []ResourceInfo) error {
 	// Sync requested pod monitors
 	for _, resource := range monitors {
-		bytes, err := r.fetchResource(resource.Url, resource.AccessToken)
+		bytes, err := r.fetchResource(resource.Url, resource.Tag, resource.AccessToken)
 		if err != nil {
 			return err
 		}

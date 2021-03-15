@@ -129,11 +129,13 @@ func (r *Reconciler) reconcileAlertmanagerSecret(ctx context.Context, cr *v1.Obs
 
 		pagerDutySecret, err := r.getPagerDutySecret(ctx, cr, index.Config.Alertmanager)
 		if err != nil {
+			r.logger.Error(err, fmt.Sprintf("pagerduty secret %v not found", index.Config.Alertmanager.PagerDutySecretName))
 			continue
 		}
 
 		deadmansSnitchUrl, err := r.getDeadMansSnitchUrl(ctx, cr, index.Config.Alertmanager)
 		if err != nil {
+			r.logger.Error(err, fmt.Sprintf("deadmanssnitch secret %v not found", index.Config.Alertmanager.DeadmansSnitchSecretName))
 			continue
 		}
 

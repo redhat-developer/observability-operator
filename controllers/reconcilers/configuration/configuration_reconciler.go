@@ -32,6 +32,7 @@ const (
 	RemoteChannel               = "channel"
 	RemoteTag                   = "tag"
 	PrometheusRuleIdentifierKey = "observability"
+	DefaultChannel              = "resources"
 )
 
 type Reconciler struct {
@@ -337,9 +338,14 @@ func (r *Reconciler) Reconcile(ctx context.Context, cr *v1.Observability, s *v1.
 			continue
 		}
 
+		channel := DefaultChannel
+		if val, ok := configMap.Data[RemoteChannel]; ok {
+			channel = val
+		}
+
 		repos = append(repos, v1.RepositoryInfo{
 			AccessToken: configMap.Data[RemoteAccessToken],
-			Channel:     configMap.Data[RemoteChannel],
+			Channel:     channel,
 			Tag:         configMap.Data[RemoteTag],
 			Repository:  repoUrl,
 			MapSource:   &configMap,
@@ -379,6 +385,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, cr *v1.Observability, s *v1.
 			return v1.ResultFailed, err
 		}
 		index.BaseUrl = fmt.Sprintf("%s/%s", repoInfo.Repository, repoInfo.Channel)
+		index.Tag = repoInfo.Tag
 		index.AccessToken = repoInfo.AccessToken
 		index.MapSource = repoInfo.MapSource
 		index.SecretSource = repoInfo.SecretSource
@@ -501,11 +508,11 @@ func (r *Reconciler) readIndexFile(repo *v1.RepositoryInfo) ([]byte, error) {
 	req.Header.Set("Authorization", fmt.Sprintf("token %s", repo.AccessToken))
 	req.Header.Set("Accept", "application/vnd.github.v3.raw")
 
-
 	if repo.Tag != "" {
-
+		q := req.URL.Query()
+		q.Add("ref", repo.Tag)
+		req.URL.RawQuery = q.Encode()
 	}
-
 
 	resp, err := r.httpClient.Do(req)
 	if err != nil {
@@ -514,7 +521,7 @@ func (r *Reconciler) readIndexFile(repo *v1.RepositoryInfo) ([]byte, error) {
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return nil, err
+		return nil, fmt.Errorf("unexpected status code when reading index file from %v: %v", req.URL.String(), resp.StatusCode)
 	}
 
 	bytes, err := ioutil.ReadAll(resp.Body)
@@ -525,7 +532,7 @@ func (r *Reconciler) readIndexFile(repo *v1.RepositoryInfo) ([]byte, error) {
 	return bytes, nil
 }
 
-func (r *Reconciler) fetchResource(path string, token string) ([]byte, error) {
+func (r *Reconciler) fetchResource(path string, tag string, token string) ([]byte, error) {
 	resourceUrl, err := url.ParseRequestURI(path)
 	if err != nil {
 		return nil, errors2.Wrap(err, fmt.Sprintf("error parsing resource url: %s", path))
@@ -542,6 +549,12 @@ func (r *Reconciler) fetchResource(path string, token string) ([]byte, error) {
 	req.Header.Set("Authorization", fmt.Sprintf("token %s", token))
 	req.Header.Set("Accept", "application/vnd.github.v3.raw")
 
+	if tag != "" {
+		q := req.URL.Query()
+		q.Add("ref", tag)
+		req.URL.RawQuery = q.Encode()
+	}
+
 	resp, err := r.httpClient.Do(req)
 	if err != nil {
 		return nil, errors2.Wrap(err, fmt.Sprintf("error fetching resource from %s", path))
@@ -549,7 +562,7 @@ func (r *Reconciler) fetchResource(path string, token string) ([]byte, error) {
 	defer resp.Body.Close()
 
 	if resp.StatusCode != 200 {
-		return nil, fmt.Errorf("unexpected status code: %v", resp.StatusCode)
+		return nil, fmt.Errorf("unexpected status code when resource from %v: %v", req.URL.String(), resp.StatusCode)
 	}
 
 	body, err := ioutil.ReadAll(resp.Body)
