@@ -392,6 +392,12 @@ func (r *Reconciler) Reconcile(ctx context.Context, cr *v1.Observability, s *v1.
 		indexes = append(indexes, index)
 	}
 
+	// Delete unrequested token secrets
+	err = r.deleteUnrequestedCredentialSecrets(ctx, cr, indexes)
+	if err != nil {
+		return v1.ResultFailed, err
+	}
+
 	// Refresh observatorium tokens
 	for _, index := range indexes {
 		if val, ok := tokensValid[index.Id]; !ok || !val {
@@ -488,6 +494,47 @@ func (r *Reconciler) Reconcile(ctx context.Context, cr *v1.Observability, s *v1.
 	// Next status: update timestamp
 	s.LastSynced = time.Now().Unix()
 	return v1.ResultSuccess, nil
+}
+
+func (r *Reconciler) deleteUnrequestedCredentialSecrets(ctx context.Context, cr *v1.Observability, indexes []v1.RepositoryIndex) error {
+	list := v12.SecretList{}
+
+	selector := labels.SelectorFromSet(map[string]string{
+		"managed-by": "observability-operator",
+		"purpose":    "observatorium-token-secret",
+	})
+	opts := &client.ListOptions{
+		Namespace:     cr.Namespace,
+		LabelSelector: selector,
+	}
+
+	r.client.List(ctx, &list, opts)
+
+	var expectedSecrets []string
+	for _, index := range indexes {
+		expectedSecretName := fmt.Sprintf("%s-%s", index.Id, "observatorium-credentials")
+		expectedSecrets = append(expectedSecrets, expectedSecretName)
+	}
+
+	secretExpected := func(name string) bool {
+		for _, secretName := range expectedSecrets {
+			if name == secretName {
+				return true
+			}
+		}
+		return false
+	}
+
+	for _, secret := range list.Items {
+		if secretExpected(secret.Name) == false {
+			err := r.client.Delete(ctx, &secret)
+			if err != nil {
+				return errors2.Wrap(err, fmt.Sprintf("error deleting unrequested token secret %v", secret.Name))
+			}
+		}
+	}
+
+	return nil
 }
 
 func (r *Reconciler) readIndexFile(repo *v1.RepositoryInfo) ([]byte, error) {
