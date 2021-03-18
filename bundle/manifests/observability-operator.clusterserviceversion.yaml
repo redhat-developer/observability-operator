@@ -60,7 +60,7 @@ metadata:
     capabilities: Basic Install
     operators.operatorframework.io/builder: operator-sdk-v1.2.0
     operators.operatorframework.io/project_layout: go.kubebuilder.io/v2
-  name: observability-operator.v2.0.0
+  name: observability-operator.v3.0.0
   namespace: placeholder
 spec:
   apiservicedefinitions: {}
@@ -211,6 +211,7 @@ spec:
         - apiGroups:
           - operators.coreos.com
           resources:
+          - catalogsources
           - clusterserviceversions
           - operatorgroups
           - subscriptions
@@ -295,7 +296,7 @@ spec:
                 - --enable-leader-election
                 command:
                 - /manager
-                image: quay.io/integreatly/observability-operator:v2.0.0
+                image: quay.io/integreatly/observability-operator:v3.0.0
                 name: manager
                 resources:
                   limits:
@@ -355,5 +356,5 @@ spec:
   maturity: alpha
   provider:
     name: Red Hat
-  replaces: observability-operator.v0.0.1
-  version: 2.0.0
+  replaces: observability-operator.v2.0.0
+  version: 3.0.0
