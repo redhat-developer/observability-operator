@@ -4,8 +4,8 @@ import (
 	"context"
 	"fmt"
 	v1 "github.com/bf2fc6cc711aee1a0c2a/observability-operator/api/v1"
-	v12 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
 	"github.com/ghodss/yaml"
+	v12 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
@@ -15,6 +15,7 @@ type ResourceInfo struct {
 	Name        string
 	Url         string
 	AccessToken string
+	Tag         string
 }
 
 func getUniqueRules(indexes []v1.RepositoryIndex) []ResourceInfo {
@@ -36,6 +37,7 @@ seek:
 				Name:        name,
 				Url:         fmt.Sprintf("%s/%s", index.BaseUrl, rule),
 				AccessToken: index.AccessToken,
+				Tag:         index.Tag,
 			})
 		}
 	}
@@ -79,7 +81,7 @@ func (r *Reconciler) deleteUnrequestedRules(cr *v1.Observability, ctx context.Co
 func (r *Reconciler) createRequestedRules(cr *v1.Observability, ctx context.Context, rules []ResourceInfo) error {
 	// Sync requested prometheus rules
 	for _, rule := range rules {
-		bytes, err := r.fetchResource(rule.Url, rule.AccessToken)
+		bytes, err := r.fetchResource(rule.Url, rule.Tag, rule.AccessToken)
 		if err != nil {
 			return err
 		}
