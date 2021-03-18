@@ -8,6 +8,7 @@ import (
 type RepositoryInfo struct {
 	Repository   string
 	Channel      string
+	Tag          string
 	AccessToken  string
 	MapSource    *v1.ConfigMap
 	SecretSource *v1.Secret
@@ -70,6 +71,7 @@ type RepositoryConfig struct {
 type RepositoryIndex struct {
 	BaseUrl      string            `json:"-"`
 	AccessToken  string            `json:"-"`
+	Tag          string            `json:"-"`
 	MapSource    *v1.ConfigMap     `json:"-"`
 	SecretSource *v1.Secret        `json:"-"`
 	Id           string            `json:"id"`

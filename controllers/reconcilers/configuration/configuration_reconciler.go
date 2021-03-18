@@ -9,10 +9,10 @@ import (
 	"github.com/bf2fc6cc711aee1a0c2a/observability-operator/controllers/model"
 	"github.com/bf2fc6cc711aee1a0c2a/observability-operator/controllers/reconcilers"
 	"github.com/bf2fc6cc711aee1a0c2a/observability-operator/controllers/token"
-	prometheusv1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
 	"github.com/go-logr/logr"
 	"github.com/integr8ly/grafana-operator/v3/pkg/apis/integreatly/v1alpha1"
 	errors2 "github.com/pkg/errors"
+	prometheusv1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
 	"io/ioutil"
 	v13 "k8s.io/api/apps/v1"
 	v12 "k8s.io/api/core/v1"
@@ -30,7 +30,9 @@ const (
 	RemoteRepository            = "repository"
 	RemoteAccessToken           = "access_token"
 	RemoteChannel               = "channel"
+	RemoteTag                   = "tag"
 	PrometheusRuleIdentifierKey = "observability"
+	DefaultChannel              = "resources"
 )
 
 type Reconciler struct {
@@ -336,9 +338,15 @@ func (r *Reconciler) Reconcile(ctx context.Context, cr *v1.Observability, s *v1.
 			continue
 		}
 
+		channel := DefaultChannel
+		if val, ok := configMap.Data[RemoteChannel]; ok {
+			channel = val
+		}
+
 		repos = append(repos, v1.RepositoryInfo{
 			AccessToken: configMap.Data[RemoteAccessToken],
-			Channel:     configMap.Data[RemoteChannel],
+			Channel:     channel,
+			Tag:         configMap.Data[RemoteTag],
 			Repository:  repoUrl,
 			MapSource:   &configMap,
 		})
@@ -355,6 +363,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, cr *v1.Observability, s *v1.
 		repos = append(repos, v1.RepositoryInfo{
 			AccessToken:  string(configSecret.Data[RemoteAccessToken]),
 			Channel:      string(configSecret.Data[RemoteChannel]),
+			Tag:          string(configSecret.Data[RemoteTag]),
 			Repository:   repoUrl,
 			SecretSource: &configSecret,
 		})
@@ -376,10 +385,17 @@ func (r *Reconciler) Reconcile(ctx context.Context, cr *v1.Observability, s *v1.
 			return v1.ResultFailed, err
 		}
 		index.BaseUrl = fmt.Sprintf("%s/%s", repoInfo.Repository, repoInfo.Channel)
+		index.Tag = repoInfo.Tag
 		index.AccessToken = repoInfo.AccessToken
 		index.MapSource = repoInfo.MapSource
 		index.SecretSource = repoInfo.SecretSource
 		indexes = append(indexes, index)
+	}
+
+	// Delete unrequested token secrets
+	err = r.deleteUnrequestedCredentialSecrets(ctx, cr, indexes)
+	if err != nil {
+		return v1.ResultFailed, err
 	}
 
 	// Refresh observatorium tokens
@@ -480,6 +496,47 @@ func (r *Reconciler) Reconcile(ctx context.Context, cr *v1.Observability, s *v1.
 	return v1.ResultSuccess, nil
 }
 
+func (r *Reconciler) deleteUnrequestedCredentialSecrets(ctx context.Context, cr *v1.Observability, indexes []v1.RepositoryIndex) error {
+	list := v12.SecretList{}
+
+	selector := labels.SelectorFromSet(map[string]string{
+		"managed-by": "observability-operator",
+		"purpose":    "observatorium-token-secret",
+	})
+	opts := &client.ListOptions{
+		Namespace:     cr.Namespace,
+		LabelSelector: selector,
+	}
+
+	r.client.List(ctx, &list, opts)
+
+	var expectedSecrets []string
+	for _, index := range indexes {
+		expectedSecretName := fmt.Sprintf("%s-%s", index.Id, "observatorium-credentials")
+		expectedSecrets = append(expectedSecrets, expectedSecretName)
+	}
+
+	secretExpected := func(name string) bool {
+		for _, secretName := range expectedSecrets {
+			if name == secretName {
+				return true
+			}
+		}
+		return false
+	}
+
+	for _, secret := range list.Items {
+		if secretExpected(secret.Name) == false {
+			err := r.client.Delete(ctx, &secret)
+			if err != nil {
+				return errors2.Wrap(err, fmt.Sprintf("error deleting unrequested token secret %v", secret.Name))
+			}
+		}
+	}
+
+	return nil
+}
+
 func (r *Reconciler) readIndexFile(repo *v1.RepositoryInfo) ([]byte, error) {
 	repoUrl, err := url.ParseRequestURI(fmt.Sprintf("%s/%s/index.json", repo.Repository, repo.Channel))
 	if err != nil {
@@ -498,6 +555,12 @@ func (r *Reconciler) readIndexFile(repo *v1.RepositoryInfo) ([]byte, error) {
 	req.Header.Set("Authorization", fmt.Sprintf("token %s", repo.AccessToken))
 	req.Header.Set("Accept", "application/vnd.github.v3.raw")
 
+	if repo.Tag != "" {
+		q := req.URL.Query()
+		q.Add("ref", repo.Tag)
+		req.URL.RawQuery = q.Encode()
+	}
+
 	resp, err := r.httpClient.Do(req)
 	if err != nil {
 		return nil, err
@@ -505,7 +568,7 @@ func (r *Reconciler) readIndexFile(repo *v1.RepositoryInfo) ([]byte, error) {
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return nil, err
+		return nil, fmt.Errorf("unexpected status code when reading index file from %v: %v", req.URL.String(), resp.StatusCode)
 	}
 
 	bytes, err := ioutil.ReadAll(resp.Body)
@@ -516,7 +579,7 @@ func (r *Reconciler) readIndexFile(repo *v1.RepositoryInfo) ([]byte, error) {
 	return bytes, nil
 }
 
-func (r *Reconciler) fetchResource(path string, token string) ([]byte, error) {
+func (r *Reconciler) fetchResource(path string, tag string, token string) ([]byte, error) {
 	resourceUrl, err := url.ParseRequestURI(path)
 	if err != nil {
 		return nil, errors2.Wrap(err, fmt.Sprintf("error parsing resource url: %s", path))
@@ -533,6 +596,12 @@ func (r *Reconciler) fetchResource(path string, token string) ([]byte, error) {
 	req.Header.Set("Authorization", fmt.Sprintf("token %s", token))
 	req.Header.Set("Accept", "application/vnd.github.v3.raw")
 
+	if tag != "" {
+		q := req.URL.Query()
+		q.Add("ref", tag)
+		req.URL.RawQuery = q.Encode()
+	}
+
 	resp, err := r.httpClient.Do(req)
 	if err != nil {
 		return nil, errors2.Wrap(err, fmt.Sprintf("error fetching resource from %s", path))
@@ -540,7 +609,7 @@ func (r *Reconciler) fetchResource(path string, token string) ([]byte, error) {
 	defer resp.Body.Close()
 
 	if resp.StatusCode != 200 {
-		return nil, fmt.Errorf("unexpected status code: %v", resp.StatusCode)
+		return nil, fmt.Errorf("unexpected status code when resource from %v: %v", req.URL.String(), resp.StatusCode)
 	}
 
 	body, err := ioutil.ReadAll(resp.Body)
