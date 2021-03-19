@@ -6,6 +6,7 @@ import (
 	"fmt"
 	v1 "github.com/bf2fc6cc711aee1a0c2a/observability-operator/api/v1"
 	"github.com/bf2fc6cc711aee1a0c2a/observability-operator/controllers/model"
+	"github.com/bf2fc6cc711aee1a0c2a/observability-operator/controllers/reconcilers/token"
 	"github.com/bf2fc6cc711aee1a0c2a/observability-operator/controllers/utils"
 	"github.com/ghodss/yaml"
 	errors2 "github.com/pkg/errors"
@@ -168,7 +169,16 @@ func (r *Reconciler) getRemoteWriteIndex(index v1.RepositoryIndex) (*v1.RemoteWr
 }
 
 func (r *Reconciler) getRemoteWriteSpec(index v1.RepositoryIndex, secrets []string, remoteWrite *v1.RemoteWriteIndex) (*prometheusv1.RemoteWriteSpec, error) {
-	indexToken := fmt.Sprintf("%s-observatorium-credentials", index.Id)
+	if index.Config == nil || index.Config.Prometheus == nil || index.Config.Prometheus.Observatorium == "" {
+		return nil, fmt.Errorf("no observatorium config found for %v / prometheus", index.Id)
+	}
+
+	observatoriumIndex := token.GetObservatoriumConfig(&index, index.Config.Prometheus.Observatorium)
+	indexToken, err := token.GetObservatoriumTokenSecretName(observatoriumIndex)
+	if err != nil {
+		return nil, errors2.Wrap(err, "unable to find observatorium config")
+	}
+
 	// sanity check that secret we require for current index exists
 	found := false
 	for _, secret := range secrets {
@@ -181,7 +191,10 @@ func (r *Reconciler) getRemoteWriteSpec(index v1.RepositoryIndex, secrets []stri
 		return nil, errors.NewNotFound(kv1.Resource("secret"), indexToken)
 	}
 
-	observatoriumConfig := index.Config.Prometheus.Observatorium
+	observatoriumConfig := token.GetObservatoriumConfig(&index, index.Config.Prometheus.Observatorium)
+	if observatoriumConfig == nil {
+		return nil, fmt.Errorf("no observatorium config found for %v", index.Config.Prometheus.Observatorium)
+	}
 
 	if remoteWrite.Patterns == nil {
 		return &prometheusv1.RemoteWriteSpec{
