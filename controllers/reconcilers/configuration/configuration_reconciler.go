@@ -429,9 +429,8 @@ func (r *Reconciler) deleteUnrequestedCredentialSecrets(ctx context.Context, cr 
 		}
 
 		for _, observatorium := range index.Config.Observatoria {
-			secretName, _ := token2.GetObservatoriumTokenSecretName(&observatorium)
-			expectedSecretName := secretName
-			expectedSecrets = append(expectedSecrets, expectedSecretName)
+			secretName := token2.GetObservatoriumTokenSecretName(&observatorium)
+			expectedSecrets = append(expectedSecrets, secretName)
 		}
 	}
 

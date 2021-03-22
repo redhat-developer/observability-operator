@@ -20,12 +20,20 @@ const (
 	RemoteTokenLifetime = "lifetime"
 )
 
-func GetObservatoriumTokenSecretName(config *v1.ObservatoriumIndex) (string, error) {
-	if config == nil {
-		return "", fmt.Errorf("unknown observatorium index")
-	}
+func GetObservatoriumTokenSecretName(config *v1.ObservatoriumIndex) string {
+	return fmt.Sprintf("obs-token-%v", config.Id)
+}
 
-	return fmt.Sprintf("obs-token-%v", config.Id), nil
+func GetObservatoriumPrometheusSecretName(index *v1.RepositoryIndex) string {
+	id := index.Config.Prometheus.Observatorium
+	config := GetObservatoriumConfig(index, id)
+	return GetObservatoriumTokenSecretName(config)
+}
+
+func GetObservatoriumPromtailSecretName(index *v1.RepositoryIndex) string {
+	id := index.Config.Promtail.Observatorium
+	config := GetObservatoriumConfig(index, id)
+	return GetObservatoriumTokenSecretName(config)
 }
 
 func GetObservatoriumConfig(index *v1.RepositoryIndex, id string) *v1.ObservatoriumIndex {
@@ -43,10 +51,7 @@ func GetObservatoriumConfig(index *v1.RepositoryIndex, id string) *v1.Observator
 }
 
 func findToken(ctx context.Context, c client.Client, cr *v1.Observability, config *v1.ObservatoriumIndex) (string, int64, error) {
-	secretName, err := GetObservatoriumTokenSecretName(config)
-	if err != nil {
-		return "", 0, err
-	}
+	secretName := GetObservatoriumTokenSecretName(config)
 
 	secret := &v12.Secret{}
 	selector := client.ObjectKey{
@@ -54,7 +59,7 @@ func findToken(ctx context.Context, c client.Client, cr *v1.Observability, confi
 		Name:      secretName,
 	}
 
-	err = c.Get(ctx, selector, secret)
+	err := c.Get(ctx, selector, secret)
 	if err != nil {
 		if errors.IsNotFound(err) {
 			return "", 0, nil
@@ -86,10 +91,7 @@ func refreshToken(ctx context.Context, c client.Client, config *v1.Observatorium
 }
 
 func saveToken(ctx context.Context, c client.Client, config *v1.ObservatoriumIndex, cr *v1.Observability, token string, lifetime int64) error {
-	secretName, err := GetObservatoriumTokenSecretName(config)
-	if err != nil {
-		return fmt.Errorf("unknown observatorium config")
-	}
+	secretName := GetObservatoriumTokenSecretName(config)
 
 	secret := &v12.Secret{
 		ObjectMeta: metav1.ObjectMeta{
@@ -98,7 +100,7 @@ func saveToken(ctx context.Context, c client.Client, config *v1.ObservatoriumInd
 		},
 	}
 
-	_, err = controllerutil.CreateOrUpdate(ctx, c, secret, func() error {
+	_, err := controllerutil.CreateOrUpdate(ctx, c, secret, func() error {
 		secret.Labels = map[string]string{
 			"managed-by": "observability-operator",
 			"purpose":    "observatorium-token-secret",

@@ -11,6 +11,7 @@ import (
 	"github.com/ghodss/yaml"
 	errors2 "github.com/pkg/errors"
 	prometheusv1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
+	"github.com/sirupsen/logrus"
 	kv1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	v12 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -168,33 +169,17 @@ func (r *Reconciler) getRemoteWriteIndex(index v1.RepositoryIndex) (*v1.RemoteWr
 	return &remoteWrite, nil
 }
 
-func (r *Reconciler) getRemoteWriteSpec(index v1.RepositoryIndex, secrets []string, remoteWrite *v1.RemoteWriteIndex) (*prometheusv1.RemoteWriteSpec, error) {
+func (r *Reconciler) getRemoteWriteSpec(index v1.RepositoryIndex, remoteWrite *v1.RemoteWriteIndex) (*prometheusv1.RemoteWriteSpec, string, error) {
 	if index.Config == nil || index.Config.Prometheus == nil || index.Config.Prometheus.Observatorium == "" {
-		return nil, fmt.Errorf("no observatorium config found for %v / prometheus", index.Id)
-	}
-
-	observatoriumIndex := token.GetObservatoriumConfig(&index, index.Config.Prometheus.Observatorium)
-	indexToken, err := token.GetObservatoriumTokenSecretName(observatoriumIndex)
-	if err != nil {
-		return nil, errors2.Wrap(err, "unable to find observatorium config")
-	}
-
-	// sanity check that secret we require for current index exists
-	found := false
-	for _, secret := range secrets {
-		if secret == indexToken {
-			found = true
-			break
-		}
-	}
-	if !found {
-		return nil, errors.NewNotFound(kv1.Resource("secret"), indexToken)
+		return nil, "", fmt.Errorf("no observatorium config found for %v / prometheus", index.Id)
 	}
 
 	observatoriumConfig := token.GetObservatoriumConfig(&index, index.Config.Prometheus.Observatorium)
 	if observatoriumConfig == nil {
-		return nil, fmt.Errorf("no observatorium config found for %v", index.Config.Prometheus.Observatorium)
+		return nil, "", fmt.Errorf("no observatorium config found for %v", index.Config.Prometheus.Observatorium)
 	}
+
+	tokenSecret := token.GetObservatoriumPrometheusSecretName(&index)
 
 	if remoteWrite.Patterns == nil {
 		return &prometheusv1.RemoteWriteSpec{
@@ -202,7 +187,7 @@ func (r *Reconciler) getRemoteWriteSpec(index v1.RepositoryIndex, secrets []stri
 			Name:                index.Id,
 			RemoteTimeout:       remoteWrite.RemoteTimeout,
 			WriteRelabelConfigs: remoteWrite.WriteRelabelConfigs,
-			BearerTokenFile:     fmt.Sprintf("/etc/prometheus/secrets/%s/token", indexToken),
+			BearerTokenFile:     fmt.Sprintf("/etc/prometheus/secrets/%s/token", tokenSecret),
 			TLSConfig: &prometheusv1.TLSConfig{
 				SafeTLSConfig: prometheusv1.SafeTLSConfig{
 					InsecureSkipVerify: true,
@@ -210,7 +195,7 @@ func (r *Reconciler) getRemoteWriteSpec(index v1.RepositoryIndex, secrets []stri
 			},
 			ProxyURL:    remoteWrite.ProxyUrl,
 			QueueConfig: remoteWrite.QueueConfig,
-		}, nil
+		}, tokenSecret, nil
 	} else {
 		// for v2.0.0 backwards compatibility
 		// if patterns are provided, use them instead of the new config options
@@ -223,13 +208,13 @@ func (r *Reconciler) getRemoteWriteSpec(index v1.RepositoryIndex, secrets []stri
 					Action:       "keep",
 				},
 			},
-			BearerTokenFile: fmt.Sprintf("/etc/prometheus/secrets/%s/token", indexToken),
+			BearerTokenFile: fmt.Sprintf("/etc/prometheus/secrets/%s/token", tokenSecret),
 			TLSConfig: &prometheusv1.TLSConfig{
 				SafeTLSConfig: prometheusv1.SafeTLSConfig{
 					InsecureSkipVerify: true,
 				},
 			},
-		}, nil
+		}, tokenSecret, nil
 	}
 }
 
@@ -257,11 +242,6 @@ func (r *Reconciler) getAlerting(cr *v1.Observability) *prometheusv1.AlertingSpe
 }
 
 func (r *Reconciler) reconcilePrometheus(ctx context.Context, cr *v1.Observability, indexes []v1.RepositoryIndex) error {
-	secrets, err := r.getTokenSecrets(ctx, cr)
-	if err != nil {
-		return err
-	}
-
 	proxySecret := model.GetPrometheusProxySecret(cr)
 	sa := model.GetPrometheusServiceAccount(cr)
 
@@ -271,7 +251,7 @@ func (r *Reconciler) reconcilePrometheus(ctx context.Context, cr *v1.Observabili
 		Name:      route.Name,
 	}
 
-	err = r.client.Get(ctx, selector, route)
+	err := r.client.Get(ctx, selector, route)
 	if err != nil && !errors.IsNotFound(err) {
 		return err
 	}
@@ -281,6 +261,7 @@ func (r *Reconciler) reconcilePrometheus(ctx context.Context, cr *v1.Observabili
 		host = route.Spec.Host
 	}
 
+	var secrets []string
 	secrets = append(secrets, proxySecret.Name)
 	secrets = append(secrets, "prometheus-k8s-tls")
 
@@ -291,11 +272,13 @@ func (r *Reconciler) reconcilePrometheus(ctx context.Context, cr *v1.Observabili
 			return err
 		}
 
-		remoteWrite, err := r.getRemoteWriteSpec(index, secrets, rw)
+		remoteWrite, tokenSecret, err := r.getRemoteWriteSpec(index, rw)
 		if err != nil {
-			return err
+			logrus.Error(err)
+			continue
 		}
 		remoteWrites = append(remoteWrites, *remoteWrite)
+		secrets = append(secrets, tokenSecret)
 	}
 
 	var image = fmt.Sprintf("%s:%s", PrometheusBaseImage, PrometheusVersion)
