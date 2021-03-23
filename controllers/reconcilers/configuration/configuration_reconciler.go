@@ -8,7 +8,7 @@ import (
 	v1 "github.com/bf2fc6cc711aee1a0c2a/observability-operator/api/v1"
 	"github.com/bf2fc6cc711aee1a0c2a/observability-operator/controllers/model"
 	"github.com/bf2fc6cc711aee1a0c2a/observability-operator/controllers/reconcilers"
-	"github.com/bf2fc6cc711aee1a0c2a/observability-operator/controllers/token"
+	token2 "github.com/bf2fc6cc711aee1a0c2a/observability-operator/controllers/reconcilers/token"
 	"github.com/go-logr/logr"
 	"github.com/integr8ly/grafana-operator/v3/pkg/apis/integreatly/v1alpha1"
 	errors2 "github.com/pkg/errors"
@@ -16,13 +16,10 @@ import (
 	"io/ioutil"
 	v13 "k8s.io/api/apps/v1"
 	v12 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/labels"
 	"net/http"
 	"net/url"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
-	"strconv"
 	"time"
 )
 
@@ -149,67 +146,14 @@ func (r *Reconciler) Cleanup(ctx context.Context, cr *v1.Observability) (v1.Obse
 	return v1.ResultSuccess, nil
 }
 
-func (r *Reconciler) refreshToken(ctx context.Context, cr *v1.Observability, index *v1.RepositoryIndex, lifetimeStorage *v12.ConfigMap) error {
-	log := r.logger.WithValues("observability", cr.Name)
-	if index == nil || index.Config == nil || index.Config.Prometheus == nil || index.Config.Prometheus.Observatorium == nil {
-		return nil
-	}
-
-	secretName := fmt.Sprintf("%s-%s", index.Id, "observatorium-credentials")
-	secret := model.GetTokenSecret(cr, secretName)
-	selector := client.ObjectKey{
-		Namespace: cr.Namespace,
-		Name:      secretName,
-	}
-
-	err := r.client.Get(ctx, selector, secret)
-	if err != nil && !errors.IsNotFound(err) {
-		return err
-	}
-
-	oldToken := secret.StringData["token"]
-	fetcher := token.GetTokenFetcher(index.Config.Prometheus.Observatorium, ctx, r.client)
-	newToken, expires, err := fetcher.Fetch(cr, index.Config.Prometheus.Observatorium, oldToken)
-	if err != nil {
-		log.Error(err, "failed to fetch auth token")
-		return err
-	} else {
-		log.Info("new observatorium token expiry", "epoch", expires)
-	}
-
-	// Write token secret
-	_, err = controllerutil.CreateOrUpdate(ctx, r.client, secret, func() error {
-		secret.Labels = map[string]string{
-			"managed-by": "observability-operator",
-			"purpose":    "observatorium-token-secret",
-		}
-		secret.StringData = map[string]string{
-			"token": newToken,
-		}
-		return nil
-	})
-
-	if err != nil {
-		return err
-	}
-
-	// Write expiration info
-	if lifetimeStorage.Data == nil {
-		lifetimeStorage.Data = map[string]string{}
-	}
-	lifetimeStorage.Data[index.Id] = strconv.FormatInt(expires, 10)
-	err = r.client.Update(ctx, lifetimeStorage)
-	if err != nil {
-		return err
-	}
-
+func (r *Reconciler) stampConfigSource(ctx context.Context, index *v1.RepositoryIndex) error {
 	if index.MapSource != nil {
 		// Update source configmap
 		if index.MapSource.Annotations == nil {
 			index.MapSource.Annotations = map[string]string{}
 		}
 		index.MapSource.Annotations["observability-operator/status"] = "accepted"
-		err = r.client.Update(ctx, index.MapSource)
+		err := r.client.Update(ctx, index.MapSource)
 		if err != nil {
 			return err
 		}
@@ -219,12 +163,10 @@ func (r *Reconciler) refreshToken(ctx context.Context, cr *v1.Observability, ind
 			index.SecretSource.Annotations = map[string]string{}
 		}
 		index.SecretSource.Annotations["observability-operator/status"] = "accepted"
-		err = r.client.Update(ctx, index.SecretSource)
+		err := r.client.Update(ctx, index.SecretSource)
 		if err != nil {
 			return err
 		}
-	} else {
-		log.Info("skipping update to repositoryIndex source, unknown source type")
 	}
 
 	return nil
@@ -248,41 +190,15 @@ func (r *Reconciler) getTokenLifetimeStorage(ctx context.Context, cr *v1.Observa
 func (r *Reconciler) Reconcile(ctx context.Context, cr *v1.Observability, s *v1.ObservabilityStatus) (v1.ObservabilityStageStatus, error) {
 	log := r.logger.WithValues("observability", cr.Name)
 	if cr.Spec.ConfigurationSelector == nil {
-		log.Info("warning: configuration label selector present, dynamic configuration will be skipped")
+		log.Info("warning: configuration label selector not present, dynamic configuration will be skipped")
 		return v1.ResultSuccess, nil
 	}
 
-	tokensValid := map[string]bool{}
+	// Force a sync if one of the tokens has expired
 	overrideLastSync := false
-
-	tokenLifetimes, err := r.getTokenLifetimeStorage(ctx, cr)
+	overrideLastSync, err := token2.TokensExpired(ctx, r.client, cr)
 	if err != nil {
-		return v1.ResultFailed, errors2.Wrap(err, "error finding or creating token lifetime cache")
-	}
-
-	// First check if any of the tokens have expired
-	for id, lifetime := range tokenLifetimes.Data {
-		if lifetime == "" {
-			tokensValid[id] = false
-			overrideLastSync = true
-			log.Info("token expired, overriding lastSync for re-fetch")
-			continue
-		}
-
-		expires, err := strconv.ParseInt(lifetime, 10, 64)
-		if err != nil {
-			log.Error(err, "unknown expiration format, int64 expected")
-			continue
-		}
-
-		if token.AuthTokenExpires(expires) {
-			tokensValid[id] = false
-			overrideLastSync = true
-			log.Info("auth token expired, overriding lastSync for re-fetch")
-			continue
-		}
-
-		tokensValid[id] = true
+		return v1.ResultFailed, errors2.Wrap(err, "error checking observatorium token lifetimes")
 	}
 
 	// Then check if the next sync is due
@@ -398,17 +314,14 @@ func (r *Reconciler) Reconcile(ctx context.Context, cr *v1.Observability, s *v1.
 		return v1.ResultFailed, err
 	}
 
-	// Refresh observatorium tokens
+	//
 	for _, index := range indexes {
-		if val, ok := tokensValid[index.Id]; !ok || !val {
-			if index.Config != nil && index.Config.Prometheus != nil {
-				log.Info("observatorium token missing or expired, refreshing")
-				err = r.refreshToken(ctx, cr, &index, tokenLifetimes)
-				if err != nil {
-					log.Error(err, "failed to refresh observatorium token")
-				}
-			}
+		err = token2.ReconcileObservatoria(ctx, r.client, cr, &index)
+		if err != nil {
+			log.Error(err, "error configuring observatorium")
+			continue
 		}
+		r.stampConfigSource(ctx, &index)
 	}
 
 	// Alertmanager configuration
@@ -498,7 +411,6 @@ func (r *Reconciler) Reconcile(ctx context.Context, cr *v1.Observability, s *v1.
 
 func (r *Reconciler) deleteUnrequestedCredentialSecrets(ctx context.Context, cr *v1.Observability, indexes []v1.RepositoryIndex) error {
 	list := v12.SecretList{}
-
 	selector := labels.SelectorFromSet(map[string]string{
 		"managed-by": "observability-operator",
 		"purpose":    "observatorium-token-secret",
@@ -512,8 +424,14 @@ func (r *Reconciler) deleteUnrequestedCredentialSecrets(ctx context.Context, cr 
 
 	var expectedSecrets []string
 	for _, index := range indexes {
-		expectedSecretName := fmt.Sprintf("%s-%s", index.Id, "observatorium-credentials")
-		expectedSecrets = append(expectedSecrets, expectedSecretName)
+		if index.Config == nil || index.Config.Observatoria == nil {
+			continue
+		}
+
+		for _, observatorium := range index.Config.Observatoria {
+			secretName := token2.GetObservatoriumTokenSecretName(&observatorium)
+			expectedSecrets = append(expectedSecrets, secretName)
+		}
 	}
 
 	secretExpected := func(name string) bool {

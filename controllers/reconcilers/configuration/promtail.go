@@ -6,6 +6,7 @@ import (
 	"fmt"
 	v1 "github.com/bf2fc6cc711aee1a0c2a/observability-operator/api/v1"
 	"github.com/bf2fc6cc711aee1a0c2a/observability-operator/controllers/model"
+	"github.com/bf2fc6cc711aee1a0c2a/observability-operator/controllers/reconcilers/token"
 	"io"
 	v13 "k8s.io/api/apps/v1"
 	v12 "k8s.io/api/core/v1"
@@ -42,14 +43,14 @@ func (r *Reconciler) getScrapeNamespacesFor(ctx context.Context, cr *v1.Observab
 }
 
 // Create an index-specific Promtail config
-func (r *Reconciler) createPromtailConfigFor(ctx context.Context, cr *v1.Observability, index *v1.RepositoryIndex) (*v12.ConfigMap, []byte, error) {
+func (r *Reconciler) createPromtailConfigFor(ctx context.Context, cr *v1.Observability, index *v1.RepositoryIndex, observatorium *v1.ObservatoriumIndex) (*v12.ConfigMap, []byte, error) {
 	namespaces, err := r.getScrapeNamespacesFor(ctx, cr, index)
 	if err != nil {
 		return nil, nil, err
 	}
 
 	configMap := model.GetPromtailConfigmap(cr, index.Id)
-	config, err := model.GetPromtailConfig(index.Config.Prometheus.Observatorium, cr.Status.ClusterID, index.Id, namespaces)
+	config, err := model.GetPromtailConfig(observatorium, cr.Status.ClusterID, index.Id, namespaces)
 
 	_, err = controllerutil.CreateOrUpdate(ctx, r.client, configMap, func() error {
 		configMap.Labels = map[string]string{
@@ -87,7 +88,17 @@ func (r *Reconciler) deleteUnrequestedDaemonsets(ctx context.Context, cr *v1.Obs
 		for _, index := range indexes {
 			expectedName := fmt.Sprintf("promtail-%s", index.Id)
 			if name == expectedName {
-				if index.Config == nil || index.Config.Promtail == nil || index.Config.Promtail.Enabled == false {
+				// No promtail configuration
+				if index.Config == nil || index.Config.Promtail == nil {
+					return false
+				}
+				// Promtail disabled
+				if index.Config.Promtail.Enabled == false {
+					return false
+				}
+				// No observatorium config: it does not make sense to run a promtail
+				// instance when the logs are not written anywhere
+				if index.Config.Promtail.Observatorium == "" {
 					return false
 				}
 				return true
@@ -114,10 +125,21 @@ func (r *Reconciler) createPromtailDaemonsetFor(ctx context.Context, cr *v1.Obse
 		return nil
 	}
 
+	if index.Config.Promtail.Observatorium == "" {
+		r.logger.Info(fmt.Sprintf("skip creating promtail daemonset for %v because observatorium config is missing", index.Id))
+		return nil
+	}
+
+	observatoriumConfig := token.GetObservatoriumConfig(index, index.Config.Promtail.Observatorium)
+	if observatoriumConfig == nil {
+		r.logger.Info(fmt.Sprintf("skip creating promtail daemonset for %v because observatorium config is missing", index.Id))
+		return nil
+	}
+
 	daemonset := model.GetPromtailDaemonSet(cr, index.Id)
 	sa := model.GetPromtailServiceAccount(cr)
 
-	config, hash, err := r.createPromtailConfigFor(ctx, cr, index)
+	config, hash, err := r.createPromtailConfigFor(ctx, cr, index, observatoriumConfig)
 	if err != nil {
 		return err
 	}
@@ -164,14 +186,16 @@ func (r *Reconciler) createPromtailDaemonsetFor(ctx context.Context, cr *v1.Obse
 								},
 							},
 						},
-						{
-							Name: "token",
-							VolumeSource: v12.VolumeSource{
-								Secret: &v12.SecretVolumeSource{
-									SecretName: fmt.Sprintf("%s-%s", index.Id, "observatorium-credentials"),
+						/*
+							{
+								Name: "token",
+								VolumeSource: v12.VolumeSource{
+									Secret: &v12.SecretVolumeSource{
+										SecretName: observatoriumSecretName,
+									},
 								},
 							},
-						},
+						*/
 						{
 							Name: "logs",
 							VolumeSource: v12.VolumeSource{
@@ -211,10 +235,12 @@ func (r *Reconciler) createPromtailDaemonsetFor(ctx context.Context, cr *v1.Obse
 									Name:      "config",
 									MountPath: "/opt/config",
 								},
-								{
-									Name:      "token",
-									MountPath: "/opt/secrets",
-								},
+								/*
+									{
+										Name:      "token",
+										MountPath: "/opt/secrets",
+									},
+								*/
 								{
 									Name:      "logs",
 									MountPath: "/var/log/pods",
@@ -234,6 +260,24 @@ func (r *Reconciler) createPromtailDaemonsetFor(ctx context.Context, cr *v1.Obse
 				},
 			},
 		}
+
+		if index.Config.Promtail.Observatorium != "" {
+			observatoriumSecretName := token.GetObservatoriumPromtailSecretName(index)
+			daemonset.Spec.Template.Spec.Volumes = append(daemonset.Spec.Template.Spec.Volumes, v12.Volume{
+				Name: "token",
+				VolumeSource: v12.VolumeSource{
+					Secret: &v12.SecretVolumeSource{
+						SecretName: observatoriumSecretName,
+					},
+				},
+			})
+
+			daemonset.Spec.Template.Spec.Containers[0].VolumeMounts = append(daemonset.Spec.Template.Spec.Containers[0].VolumeMounts, v12.VolumeMount{
+				Name:      "token",
+				MountPath: "/opt/secrets",
+			})
+		}
+
 		return nil
 	})
 

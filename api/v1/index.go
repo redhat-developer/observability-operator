@@ -25,6 +25,7 @@ type DexIndex struct {
 }
 
 type ObservatoriumIndex struct {
+	Id        string                `json:"id"`
 	Gateway   string                `json:"gateway"`
 	Tenant    string                `json:"tenant"`
 	AuthType  ObservabilityAuthType `json:"authType"`
@@ -49,23 +50,25 @@ type AlertmanagerIndex struct {
 }
 
 type PrometheusIndex struct {
-	Rules         []string            `json:"rules"`
-	PodMonitors   []string            `json:"pod_monitors"`
-	Federation    string              `json:"federation,omitempty"`
-	Observatorium *ObservatoriumIndex `json:"observatorium,omitempty"`
-	RemoteWrite   string              `json:"remoteWrite,omitempty"`
+	Rules         []string `json:"rules"`
+	PodMonitors   []string `json:"pod_monitors"`
+	Federation    string   `json:"federation,omitempty"`
+	Observatorium string   `json:"observatorium,omitempty"`
+	RemoteWrite   string   `json:"remoteWrite,omitempty"`
 }
 
 type PromtailIndex struct {
 	Enabled                bool              `json:"enabled,omitempty"`
 	NamespaceLabelSelector map[string]string `json:"namespaceLabelSelector,omitempty"`
+	Observatorium          string            `json:"observatorium,omitempty"`
 }
 
 type RepositoryConfig struct {
-	Grafana      *GrafanaIndex      `json:"grafana,omitempty"`
-	Prometheus   *PrometheusIndex   `json:"prometheus,omitempty"`
-	Alertmanager *AlertmanagerIndex `json:"alertmanager,omitempty"`
-	Promtail     *PromtailIndex     `json:"promtail,omitempty"`
+	Grafana      *GrafanaIndex        `json:"grafana,omitempty"`
+	Prometheus   *PrometheusIndex     `json:"prometheus,omitempty"`
+	Alertmanager *AlertmanagerIndex   `json:"alertmanager,omitempty"`
+	Promtail     *PromtailIndex       `json:"promtail,omitempty"`
+	Observatoria []ObservatoriumIndex `json:"observatoria,omitempty"`
 }
 
 type RepositoryIndex struct {
