@@ -5,6 +5,7 @@ import (
 	"fmt"
 	v1 "github.com/bf2fc6cc711aee1a0c2a/observability-operator/api/v1"
 	"github.com/bf2fc6cc711aee1a0c2a/observability-operator/controllers/token"
+	"github.com/go-logr/logr"
 	errors2 "github.com/pkg/errors"
 	v12 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -153,14 +154,13 @@ func TokensExpired(ctx context.Context, c client.Client, cr *v1.Observability) (
 	return false, nil
 }
 
-func ReconcileObservatoria(ctx context.Context, c client.Client, cr *v1.Observability, index *v1.RepositoryIndex) error {
+func ReconcileObservatoria(log logr.Logger, ctx context.Context, c client.Client, cr *v1.Observability, index *v1.RepositoryIndex) error {
 	if index == nil || index.Config == nil || index.Config.Observatoria == nil {
 		return nil
 	}
 
 	for _, observatorium := range index.Config.Observatoria {
 		t, lifetime, err := findToken(ctx, c, cr, &observatorium)
-
 		if err != nil {
 			return errors2.Wrap(err, fmt.Sprintf("error checking existing observatorium token for %v", observatorium.Id))
 		}
@@ -169,12 +169,14 @@ func ReconcileObservatoria(ctx context.Context, c client.Client, cr *v1.Observab
 		if t == "" || token.AuthTokenExpires(lifetime) {
 			t, lifetime, err := refreshToken(ctx, c, &observatorium, cr, t)
 			if err != nil {
-				return err
+				log.Error(err, "error fetching token for observatorium %v", observatorium.Id)
+				continue
 			}
 
 			err = saveToken(ctx, c, &observatorium, cr, t, lifetime)
 			if err != nil {
-				return err
+				log.Error(err, "error storing token for observatorium %v", observatorium.Id)
+				continue
 			}
 		}
 

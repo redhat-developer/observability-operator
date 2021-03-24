@@ -316,7 +316,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, cr *v1.Observability, s *v1.
 
 	//
 	for _, index := range indexes {
-		err = token2.ReconcileObservatoria(ctx, r.client, cr, &index)
+		err = token2.ReconcileObservatoria(r.logger, ctx, r.client, cr, &index)
 		if err != nil {
 			log.Error(err, "error configuring observatorium")
 			continue
