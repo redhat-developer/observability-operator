@@ -229,6 +229,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, cr *v1.Observability, s *v1.
 		return v1.ResultFailed, err
 	}
 
+	// Get all configuration secret sets as well
 	configSecretList := &v12.SecretList{}
 	err = r.client.List(ctx, configSecretList, opts)
 	if err != nil {
@@ -245,7 +246,32 @@ func (r *Reconciler) Reconcile(ctx context.Context, cr *v1.Observability, s *v1.
 	// Extract repository info
 	log.Info("configurations found, resync initiated", "map count", len(configMapList.Items),
 		"secret count", len(configSecretList.Items))
-	var repos []v1.RepositoryInfo
+	repos := make(map[string]v1.RepositoryInfo)
+
+	// pull all config repo indices from secrets first
+	for _, configSecret := range configSecretList.Items {
+		repoUrl := string(configSecret.Data[RemoteRepository])
+		_, err := url.Parse(repoUrl)
+		if err != nil {
+			log.Error(err, "failed to resync configuration from secret, invalid repository url specified")
+			continue
+		}
+
+		// take note if we hit any secrets with duplicate names and only keep the 1st one
+		if _, found := repos[configSecret.Name]; found {
+			log.Info("skipping duplicate configuration secret", "namespace", configSecret.Namespace,
+				"name", configSecret.Name)
+		} else {
+			repos[configSecret.Name] = v1.RepositoryInfo{
+				AccessToken:  string(configSecret.Data[RemoteAccessToken]),
+				Channel:      string(configSecret.Data[RemoteChannel]),
+				Tag:          string(configSecret.Data[RemoteTag]),
+				Repository:   repoUrl,
+				SecretSource: &configSecret,
+			}
+		}
+	}
+
 	for _, configMap := range configMapList.Items {
 		repoUrl := configMap.Data[RemoteRepository]
 		_, err := url.Parse(repoUrl)
@@ -259,30 +285,19 @@ func (r *Reconciler) Reconcile(ctx context.Context, cr *v1.Observability, s *v1.
 			channel = val
 		}
 
-		repos = append(repos, v1.RepositoryInfo{
-			AccessToken: configMap.Data[RemoteAccessToken],
-			Channel:     channel,
-			Tag:         configMap.Data[RemoteTag],
-			Repository:  repoUrl,
-			MapSource:   &configMap,
-		})
-	}
-
-	for _, configSecret := range configSecretList.Items {
-		repoUrl := string(configSecret.Data[RemoteRepository])
-		_, err := url.Parse(repoUrl)
-		if err != nil {
-			log.Error(err, "failed to resync configuration from secret, invalid repository url specified")
-			continue
+		// take note if we hit any duplicates or configMaps that would override a secret and only keep the secret
+		if _, found := repos[configMap.Name]; found {
+			log.Info("skipping duplicate configuration configMap", "namespace", configMap.Namespace,
+				"name", configMap.Name)
+		} else {
+			repos[configMap.Name] = v1.RepositoryInfo{
+				AccessToken: configMap.Data[RemoteAccessToken],
+				Channel:     channel,
+				Tag:         configMap.Data[RemoteTag],
+				Repository:  repoUrl,
+				MapSource:   &configMap,
+			}
 		}
-
-		repos = append(repos, v1.RepositoryInfo{
-			AccessToken:  string(configSecret.Data[RemoteAccessToken]),
-			Channel:      string(configSecret.Data[RemoteChannel]),
-			Tag:          string(configSecret.Data[RemoteTag]),
-			Repository:   repoUrl,
-			SecretSource: &configSecret,
-		})
 	}
 
 	// Collect index files
