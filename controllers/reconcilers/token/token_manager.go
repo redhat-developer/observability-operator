@@ -169,13 +169,13 @@ func ReconcileObservatoria(log logr.Logger, ctx context.Context, c client.Client
 		if t == "" || token.AuthTokenExpires(lifetime) {
 			t, lifetime, err := refreshToken(ctx, c, &observatorium, cr, t)
 			if err != nil {
-				log.Error(err, "error fetching token for observatorium %v", observatorium.Id)
+				log.Error(err, fmt.Sprintf("error fetching token for observatorium %v", observatorium.Id))
 				continue
 			}
 
 			err = saveToken(ctx, c, &observatorium, cr, t, lifetime)
 			if err != nil {
-				log.Error(err, "error storing token for observatorium %v", observatorium.Id)
+				log.Error(err, fmt.Sprintf("error storing token for observatorium %v", observatorium.Id))
 				continue
 			}
 		}
