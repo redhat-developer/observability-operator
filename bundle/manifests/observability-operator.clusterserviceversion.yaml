@@ -297,6 +297,7 @@ spec:
                 command:
                 - /manager
                 image: quay.io/integreatly/observability-operator:v3.0.0
+                imagePullPolicy: Always
                 name: manager
                 resources:
                   limits:

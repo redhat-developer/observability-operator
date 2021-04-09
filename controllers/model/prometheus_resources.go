@@ -127,7 +127,8 @@ func GetFederationConfig(user, pass string, patterns []string) ([]byte, error) {
       namespaces:
         names:
           - openshift-monitoring
-  scrape_interval: 30s
+  scrape_interval: 120s
+  scrape_timeout: 60s
   metrics_path: /federate
   relabel_configs:
     - action: keep
