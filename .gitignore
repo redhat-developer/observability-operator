@@ -11,6 +11,7 @@
 
 # prevent accidental check-ins of auth token
 config/samples/secrets/observability_secret.yaml
+config/samples/observability_secret.yaml
 
 # VS Code
 .factorypath
