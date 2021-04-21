@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"fmt"
 	v1 "github.com/bf2fc6cc711aee1a0c2a/observability-operator/api/v1"
-	"github.com/bf2fc6cc711aee1a0c2a/observability-operator/controllers/model"
 	"github.com/bf2fc6cc711aee1a0c2a/observability-operator/controllers/reconcilers"
 	token2 "github.com/bf2fc6cc711aee1a0c2a/observability-operator/controllers/reconcilers/token"
 	"github.com/go-logr/logr"
@@ -170,21 +169,6 @@ func (r *Reconciler) stampConfigSource(ctx context.Context, index *v1.Repository
 	}
 
 	return nil
-}
-
-func (r *Reconciler) getTokenLifetimeStorage(ctx context.Context, cr *v1.Observability) (*v12.ConfigMap, error) {
-	storage := model.GetPrometheusAuthTokenLifetimes(cr)
-	selector := client.ObjectKey{
-		Namespace: cr.Namespace,
-		Name:      storage.Name,
-	}
-
-	err := r.client.Get(ctx, selector, storage)
-	if err != nil {
-		return nil, err
-	}
-
-	return storage, err
 }
 
 func (r *Reconciler) Reconcile(ctx context.Context, cr *v1.Observability, s *v1.ObservabilityStatus) (v1.ObservabilityStageStatus, error) {

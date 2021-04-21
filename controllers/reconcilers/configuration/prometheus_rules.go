@@ -114,6 +114,9 @@ func (r *Reconciler) createRequestedRules(cr *v1.Observability, ctx context.Cont
 func injectIdLabel(rule *v12.PrometheusRule, id string) {
 	for i := 0; i < len(rule.Spec.Groups); i++ {
 		for j := 0; j < len(rule.Spec.Groups[i].Rules); j++ {
+			if rule.Spec.Groups[i].Rules[j].Labels == nil {
+				rule.Spec.Groups[i].Rules[j].Labels = make(map[string]string)
+			}
 			rule.Spec.Groups[i].Rules[j].Labels[PrometheusRuleIdentifierKey] = id
 		}
 	}
