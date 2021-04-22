@@ -296,7 +296,7 @@ spec:
                 - --enable-leader-election
                 command:
                 - /manager
-                image: quay.io/integreatly/observability-operator:v3.0.0
+                image: quay.io/integreatly/observability-operator:v3.0.1
                 imagePullPolicy: Always
                 name: manager
                 resources:
