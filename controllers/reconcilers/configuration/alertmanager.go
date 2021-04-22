@@ -169,7 +169,8 @@ func (r *Reconciler) reconcileAlertmanagerSecret(ctx context.Context, cr *v1.Obs
 		})
 
 		root.Routes = append(root.Routes, v1.AlertmanagerConfigRoute{
-			Receiver: deadMansSnitchReceiver,
+			Receiver:       deadMansSnitchReceiver,
+			RepeatInterval: "5m",
 			Match: map[string]string{
 				"alertname":                 "DeadMansSwitch",
 				PrometheusRuleIdentifierKey: index.Id,
