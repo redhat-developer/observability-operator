@@ -6,7 +6,7 @@
 ## What Is It?
 
 The Observability Operator deploys & maintains a common platform for Application Services to share and utilize to aid in monitoring & reporting on their service components.
-It integrates with the [Observatorium](https://github.com/observatorium) project for pushing metrics and logs to a centra location.
+It integrates with the [Observatorium](https://github.com/observatorium) project for pushing metrics and logs to a central location.
 
 
 ## What's included?    
