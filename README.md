@@ -5,8 +5,8 @@
 
 ## What Is It?
 
-The Observability Operator deploys & maintains a common platform for Application Services to share and utilize 
-to aid in monitoring & reporting on their service components.
+The Observability Operator deploys & maintains a common platform for Application Services to share and utilize to aid in monitoring & reporting on their service components.
+It integrates with the [Observatorium](https://github.com/observatorium) project for pushing metrics and logs to a centra location.
 
 
 ## What's included?    
@@ -28,11 +28,10 @@ It also takes care of silencing and inhibition of alerts.
 application. When configured with supported data sources, Grafana provides charts, graphs, and other visualizations 
 via UI dashboards.
 
-## Why not use User Workload/OpenShift Monitoring?
+### Promtail
 
-At current, [UWM](https://docs.openshift.com/container-platform/4.6/monitoring/enabling-monitoring-for-user-defined-projects.html) 
-is missing key features that we require, meaning our operator is more or less a stop-gap solution while 
-planning/development proceeds on UWM (or similar) to support Application Services' various needs.
+[Promtail](https://grafana.com/docs/loki/latest/clients/promtail/) is a log aggregator for Loki, Grafana's platform for collecting and analyzing logs.
+Loki is the logging backend used in Observatorium.
 
 ## How do we integrate our service with Observability?
 
@@ -47,12 +46,11 @@ operator needs in order to read from it. At current, it's expected that configur
 within our organization for access. 
 
 As an example, first take a look at the [configuration repository](https://github.com/bf2fc6cc711aee1a0c2a/observability-resources-mk) 
-for the first service we've onboarded, Managed Kafka. There you'll find a few different 'channel' folders, each 
-containing an index file and various configuration files referenced from within. In order to use this config 
-repo, the Observability Operator must be told about it via ConfigMap:
+for the first service we've onboarded, Managed Kafka. There you'll find an index file and various configuration files referenced from within. In order to use this config 
+repo, the Observability Operator must be told about it via a `Secret`:
 
 ```yaml
-kind: ConfigMap
+kind: Secret
 apiVersion: v1
 metadata:
   name: kafka-observability-configuration
@@ -61,12 +59,13 @@ metadata:
     configures: observability-operator
 data:
   access_token: '<token here>'
-  channel: development
+  channel: <directory inside the config repo. Optional, defaults to resources>
   repository: 'https://api.github.com/repos/bf2fc6cc711aee1a0c2a/observability-resources-mk/contents'
+  tag: <tag or branch>
 ```
 
-The Observability Operator doesn't care too much about what namespace the ConfigMap resides in (that's not to say that 
-we won't have an opinion, though!). Instead, it scans all namespaces for any ConfigMaps matching a particular label set 
+The Observability Operator doesn't care too much about what namespace the Secret resides in (that's not to say that 
+we won't have an opinion, though!). Instead, it scans all namespaces for any Secrets matching a particular label set 
 as specified in the Observability CR (more on that in a bit):
 ```yaml
   configurationSelector:
@@ -76,7 +75,7 @@ as specified in the Observability CR (more on that in a bit):
 
 ## What's supported via external config?
 
-Within a given channel folder an [index.json file](https://github.com/bf2fc6cc711aee1a0c2a/observability-resources-mk/blob/main/development/index.json) 
+Within a given resources folder an [index.json file](https://github.com/bf2fc6cc711aee1a0c2a/observability-resources-mk/blob/main/development/index.json) 
 containing, at a minimum, `id` and `config` fields must exist:
  ```yaml 
  {
@@ -102,12 +101,14 @@ Dashboard YAML definition file:
 * `config.promtail` specifies whether Promtail should be used and, if so, a namespace label selector for matching:
   ```yaml
     "promtail": {
+      "observatorium": "default"
       "enabled": true,
       "namespaceLabelSelector": {
         "app": "strimzi"
       }
     },
   ``` 
+* `config.promtail.observatorium` specifies the `id` of the Observatorium config to forward logs to 
 * `config.alertmanager` indicates the name of two prerequisite secrets assumed to pre-exist on the cluster for configuration 
 of Prometheus PagerDuty & Alertmanager integrations:
   ```yaml
@@ -140,24 +141,28 @@ array of regex patterns to be concatenated & used in instantiating a Prometheus 
   "federation": "prometheus/federation-config.yaml",
   ```
 
-* `config.prometheus.observatorium` specifies a list of configuration info needed for connecting to the target centralized
-Observatorium system for forwarding:
-  ```yaml
-  "observatorium": {
-          "gateway": "https://your.gateway.url",
-          "tenant": "test",
-          "authType": "dex",
-          "dexConfig": {
-            "url": "http://your.dex.url",
-            "credentialSecretName": "observatorium-dex-credentials"
-          }
-        },
-  ```
+* `config.prometheus.observatorium` specifies the `id` of the Observatorium config to forward metrics to
 
 * `config.prometheus.remoteWrite` expects a single `subdirectory/file.json` location pointing to a file containing an 
 array of regex patterns to be concatenated & used in instantiating the Prometheus operand (CR): 
   ```yaml
     "remoteWrite": "prometheus/remote-write.json"
+  ```
+
+* `config.observatoria` expects an array of Observatorium configs. Usually there will only be one target Observatorium, but in some cases you might want to send logs and metrics to different targets.
+  ```yaml
+    "observatoria": [
+      {
+        "id": "default",
+        "gateway": "<observatorium gateway url>",
+        "tenant": "<observatorium tenant>",
+        "authType": "dex",
+        "dexConfig": {
+          "url": "<dex server url>",
+          "credentialSecretName": "<dex credentials secret on cluster>"
+        }
+      }
+    ]  
   ```
 
 ## What's required in the Observability operand (CR)?
@@ -254,15 +259,15 @@ review the content of each!
   oc apply -f config/samples/secrets/observatorium-dex-credentials.yaml
   ```
 
-* External config repo ConfigMap:
+* External config repo Secret:
     * The Observability stack requires a Personal Access Token to read externalized configuration from within the bf2 organization. For development cycles, you will need to generate a personal token for your own GitHub user (with bf2 access) and place the value in the ConfigMap. 
     * To generate a new token:
         * Follow the steps [found here](https://docs.github.com/en/github/authenticating-to-github/creating-a-personal-access-token), making sure to check **ONLY** the `repo` box at the top of the scopes/permissions list (which will check each of the subcategory boxes beneath it).
         * Copy the value of your Personal Access Token to a secure private location. Once you leave the page, you cannot access the value again & you will be forced to reset the token to receive a new value should you lose the original.
         * Take care not to push your PAT to any repository as if you do, GitHub will automatically revoke your token as soon as you push and you'll need to follow this process again to generate a new token.
-    * Apply the ConfigMap with token value substituted in:
+    * Apply the Secret with token value substituted in:
       ```
-      oc apply -f config/samples/observability_config_map.yaml
+      oc apply -f config/samples/observability_secret.yaml
       ```
 
 
