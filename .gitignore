@@ -10,7 +10,7 @@
 *.iml
 
 # prevent accidental check-ins of auth token
-config/samples/observability_config_map.yaml
+config/samples/secrets/observability_secret.yaml
 
 # VS Code
 .factorypath
