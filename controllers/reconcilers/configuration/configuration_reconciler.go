@@ -146,28 +146,17 @@ func (r *Reconciler) Cleanup(ctx context.Context, cr *v1.Observability) (v1.Obse
 }
 
 func (r *Reconciler) stampConfigSource(ctx context.Context, index *v1.RepositoryIndex) error {
-	if index.MapSource != nil {
-		// Update source configmap
-		if index.MapSource.Annotations == nil {
-			index.MapSource.Annotations = map[string]string{}
-		}
-		index.MapSource.Annotations["observability-operator/status"] = "accepted"
-		err := r.client.Update(ctx, index.MapSource)
-		if err != nil {
-			return err
-		}
-	} else if index.SecretSource != nil {
+	if index.Source != nil {
 		// Update source secret
-		if index.SecretSource.Annotations == nil {
-			index.SecretSource.Annotations = map[string]string{}
+		if index.Source.Annotations == nil {
+			index.Source.Annotations = map[string]string{}
 		}
-		index.SecretSource.Annotations["observability-operator/status"] = "accepted"
-		err := r.client.Update(ctx, index.SecretSource)
+		index.Source.Annotations["observability-operator/status"] = "accepted"
+		err := r.client.Update(ctx, index.Source)
 		if err != nil {
 			return err
 		}
 	}
-
 	return nil
 }
 
@@ -202,15 +191,8 @@ func (r *Reconciler) Reconcile(ctx context.Context, cr *v1.Observability, s *v1.
 	log.Info("operator resync window elapsed, proceeding with re-fetch",
 		"configured resync period", cr.Spec.ResyncPeriod)
 
-	configMapList := &v12.ConfigMapList{}
 	opts := &client.ListOptions{
 		LabelSelector: labels.SelectorFromSet(cr.Spec.ConfigurationSelector.MatchLabels),
-	}
-
-	// Get all configuration configMap sets
-	err = r.client.List(ctx, configMapList, opts)
-	if err != nil {
-		return v1.ResultFailed, err
 	}
 
 	// Get all configuration secret sets as well
@@ -221,15 +203,14 @@ func (r *Reconciler) Reconcile(ctx context.Context, cr *v1.Observability, s *v1.
 	}
 
 	// No configurations yet? Keep reconciling and don't wait for the resync period
-	if len(configMapList.Items) == 0 && len(configSecretList.Items) == 0 {
+	if len(configSecretList.Items) == 0 {
 		s.LastSynced = 0
 		log.Info("no configurations found, resync window disabled awaiting initial config")
 		return v1.ResultInProgress, nil
 	}
 
 	// Extract repository info
-	log.Info("configurations found, resync initiated", "map count", len(configMapList.Items),
-		"secret count", len(configSecretList.Items))
+	log.Info("configurations found, resync initiated", "sources count", len(configSecretList.Items))
 	repos := make(map[string]v1.RepositoryInfo)
 
 	// pull all config repo indices from secrets first
@@ -247,39 +228,11 @@ func (r *Reconciler) Reconcile(ctx context.Context, cr *v1.Observability, s *v1.
 				"name", configSecret.Name)
 		} else {
 			repos[configSecret.Name] = v1.RepositoryInfo{
-				AccessToken:  string(configSecret.Data[RemoteAccessToken]),
-				Channel:      string(configSecret.Data[RemoteChannel]),
-				Tag:          string(configSecret.Data[RemoteTag]),
-				Repository:   repoUrl,
-				SecretSource: &configSecret,
-			}
-		}
-	}
-
-	for _, configMap := range configMapList.Items {
-		repoUrl := configMap.Data[RemoteRepository]
-		_, err := url.Parse(repoUrl)
-		if err != nil {
-			log.Error(err, "failed to resync configuration from map, invalid repository url specified")
-			continue
-		}
-
-		channel := DefaultChannel
-		if val, ok := configMap.Data[RemoteChannel]; ok {
-			channel = val
-		}
-
-		// take note if we hit any duplicates or configMaps that would override a secret and only keep the secret
-		if _, found := repos[configMap.Name]; found {
-			log.Info("skipping duplicate configuration configMap", "namespace", configMap.Namespace,
-				"name", configMap.Name)
-		} else {
-			repos[configMap.Name] = v1.RepositoryInfo{
-				AccessToken: configMap.Data[RemoteAccessToken],
-				Channel:     channel,
-				Tag:         configMap.Data[RemoteTag],
+				AccessToken: string(configSecret.Data[RemoteAccessToken]),
+				Channel:     string(configSecret.Data[RemoteChannel]),
+				Tag:         string(configSecret.Data[RemoteTag]),
 				Repository:  repoUrl,
-				MapSource:   &configMap,
+				Source:      &configSecret,
 			}
 		}
 	}
@@ -302,8 +255,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, cr *v1.Observability, s *v1.
 		index.BaseUrl = fmt.Sprintf("%s/%s", repoInfo.Repository, repoInfo.Channel)
 		index.Tag = repoInfo.Tag
 		index.AccessToken = repoInfo.AccessToken
-		index.MapSource = repoInfo.MapSource
-		index.SecretSource = repoInfo.SecretSource
+		index.Source = repoInfo.Source
 		indexes = append(indexes, index)
 	}
 

@@ -59,7 +59,7 @@ metadata:
     configures: observability-operator
 data:
   access_token: '<token here>'
-  channel: <directory inside the config repo. Optional, defaults to resources>
+  channel: '<optional, defaults to resources>'
   repository: 'https://api.github.com/repos/bf2fc6cc711aee1a0c2a/observability-resources-mk/contents'
   tag: <tag or branch>
 ```
@@ -117,6 +117,7 @@ of Prometheus PagerDuty & Alertmanager integrations:
       "deadmansSnitchSecretName": "deadmanssnitch"
     },
   ```
+* `config.promtail.observatorium` specifies the id of an observatorium config where the logs are written to
 * `config.prometheus.pod_monitors` expects an array list of `sub/directory/file.yaml` entries, each pointing to a complete 
 Prometheus [PodMonitor YAML definition](https://docs.openshift.com/container-platform/4.6/rest_api/monitoring_apis/podmonitor-monitoring-coreos-com-v1.html) 
 file:
@@ -149,20 +150,18 @@ array of regex patterns to be concatenated & used in instantiating the Prometheu
     "remoteWrite": "prometheus/remote-write.json"
   ```
 
-* `config.observatoria` expects an array of Observatorium configs. Usually there will only be one target Observatorium, but in some cases you might want to send logs and metrics to different targets.
+* `config.observatoria` an array of observatorium configs, each with an id referenced by prometheus and/or promtail:
   ```yaml
-    "observatoria": [
-      {
-        "id": "default",
-        "gateway": "<observatorium gateway url>",
-        "tenant": "<observatorium tenant>",
-        "authType": "dex",
-        "dexConfig": {
-          "url": "<dex server url>",
-          "credentialSecretName": "<dex credentials secret on cluster>"
-        }
+    [{
+      "id": "default"
+      "gateway": "https://your.gateway.url",
+      "tenant": "test",
+      "authType": "dex",
+      "dexConfig": {
+        "url": "http://your.dex.url",
+        "credentialSecretName": "observatorium-dex-credentials"
       }
-    ]  
+    }, ...]
   ```
 
 ## What's required in the Observability operand (CR)?
@@ -259,12 +258,12 @@ review the content of each!
   oc apply -f config/samples/secrets/observatorium-dex-credentials.yaml
   ```
 
-* External config repo Secret:
-    * The Observability stack requires a Personal Access Token to read externalized configuration from within the bf2 organization. For development cycles, you will need to generate a personal token for your own GitHub user (with bf2 access) and place the value in the ConfigMap. 
+* External config repo secret:
+    * The Observability stack requires a Personal Access Token to read externalized configuration from within the bf2 organization. For development cycles, you will need to generate a personal token for your own GitHub user (with bf2 access) and place the value in the Secret. 
     * To generate a new token:
         * Follow the steps [found here](https://docs.github.com/en/github/authenticating-to-github/creating-a-personal-access-token), making sure to check **ONLY** the `repo` box at the top of the scopes/permissions list (which will check each of the subcategory boxes beneath it).
         * Copy the value of your Personal Access Token to a secure private location. Once you leave the page, you cannot access the value again & you will be forced to reset the token to receive a new value should you lose the original.
-        * Take care not to push your PAT to any repository as if you do, GitHub will automatically revoke your token as soon as you push and you'll need to follow this process again to generate a new token.
+        * Take care not to push your PAT to any repository as if you do, GitHub will automatically revoke your token as soon as you push, and you'll need to follow this process again to generate a new token.
     * Apply the Secret with token value substituted in:
       ```
       oc apply -f config/samples/observability_secret.yaml
