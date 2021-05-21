@@ -660,6 +660,15 @@ spec:
               type: object
             resyncPeriod:
               type: string
+            selfContained:
+              properties:
+                disableRepoSync:
+                  type: boolean
+                federatedMetrics:
+                  items:
+                    type: string
+                  type: array
+              type: object
             storage:
               properties:
                 prometheus:

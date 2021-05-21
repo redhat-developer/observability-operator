@@ -25,7 +25,7 @@ import (
 const PrometheusBaseImage = "quay.io/prometheus/prometheus"
 const PrometheusVersion = "v2.22.2"
 
-func (r *Reconciler) fetchFederationConfigs(indexes []v1.RepositoryIndex) ([]string, error) {
+func (r *Reconciler) fetchFederationConfigs(cr *v1.Observability, indexes []v1.RepositoryIndex) ([]string, error) {
 	var result []string
 
 	type federationPatterns struct {
@@ -39,6 +39,11 @@ func (r *Reconciler) fetchFederationConfigs(indexes []v1.RepositoryIndex) ([]str
 			}
 		}
 		return false
+	}
+
+	// Allow to specify federated metrics in CR when external repo sync is disabled
+	if cr.ExternalSyncDisabled() {
+		return cr.Spec.SelfContained.FederatedMetrics, nil
 	}
 
 	for _, index := range indexes {

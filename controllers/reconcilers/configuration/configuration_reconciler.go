@@ -86,45 +86,48 @@ func (r *Reconciler) Cleanup(ctx context.Context, cr *v1.Observability) (v1.Obse
 		}
 	}
 
-	dashboardList := &v1alpha1.GrafanaDashboardList{}
-	err = r.client.List(ctx, dashboardList, opts)
-	if err != nil {
-		return v1.ResultFailed, err
-	}
+	if !cr.ExternalSyncDisabled() {
 
-	// Delete all managed grafana dashboards
-	for _, dashboard := range dashboardList.Items {
-		err := r.client.Delete(ctx, &dashboard)
+		dashboardList := &v1alpha1.GrafanaDashboardList{}
+		err = r.client.List(ctx, dashboardList, opts)
 		if err != nil {
 			return v1.ResultFailed, err
 		}
-	}
 
-	prometheusRuleList := &prometheusv1.PrometheusRuleList{}
-	err = r.client.List(ctx, prometheusRuleList, opts)
-	if err != nil {
-		return v1.ResultFailed, err
-	}
+		// Delete all managed grafana dashboards
+		for _, dashboard := range dashboardList.Items {
+			err := r.client.Delete(ctx, &dashboard)
+			if err != nil {
+				return v1.ResultFailed, err
+			}
+		}
 
-	// Delete all managed prometheus rules
-	for _, rule := range prometheusRuleList.Items {
-		err := r.client.Delete(ctx, rule)
+		prometheusRuleList := &prometheusv1.PrometheusRuleList{}
+		err = r.client.List(ctx, prometheusRuleList, opts)
 		if err != nil {
 			return v1.ResultFailed, err
 		}
-	}
 
-	podMonitorList := &prometheusv1.PodMonitorList{}
-	err = r.client.List(ctx, podMonitorList, opts)
-	if err != nil {
-		return v1.ResultFailed, err
-	}
+		// Delete all managed prometheus rules
+		for _, rule := range prometheusRuleList.Items {
+			err := r.client.Delete(ctx, rule)
+			if err != nil {
+				return v1.ResultFailed, err
+			}
+		}
 
-	// Delete all managed pod monitors
-	for _, monitor := range podMonitorList.Items {
-		err := r.client.Delete(ctx, monitor)
+		podMonitorList := &prometheusv1.PodMonitorList{}
+		err = r.client.List(ctx, podMonitorList, opts)
 		if err != nil {
 			return v1.ResultFailed, err
+		}
+
+		// Delete all managed pod monitors
+		for _, monitor := range podMonitorList.Items {
+			err := r.client.Delete(ctx, monitor)
+			if err != nil {
+				return v1.ResultFailed, err
+			}
 		}
 	}
 
@@ -162,7 +165,7 @@ func (r *Reconciler) stampConfigSource(ctx context.Context, index *v1.Repository
 
 func (r *Reconciler) Reconcile(ctx context.Context, cr *v1.Observability, s *v1.ObservabilityStatus) (v1.ObservabilityStageStatus, error) {
 	log := r.logger.WithValues("observability", cr.Name)
-	if cr.Spec.ConfigurationSelector == nil {
+	if cr.Spec.ConfigurationSelector == nil && !cr.ExternalSyncDisabled() {
 		log.Info("warning: configuration label selector not present, dynamic configuration will be skipped")
 		return v1.ResultSuccess, nil
 	}
@@ -172,6 +175,11 @@ func (r *Reconciler) Reconcile(ctx context.Context, cr *v1.Observability, s *v1.
 	overrideLastSync, err := token2.TokensExpired(ctx, r.client, cr)
 	if err != nil {
 		return v1.ResultFailed, errors2.Wrap(err, "error checking observatorium token lifetimes")
+	}
+
+	// Always react to CR updates when external repo sync is disabled
+	if cr.ExternalSyncDisabled() {
+		overrideLastSync = true
 	}
 
 	// Then check if the next sync is due
@@ -188,7 +196,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, cr *v1.Observability, s *v1.
 			return v1.ResultSuccess, nil
 		}
 	}
-	log.Info("operator resync window elapsed, proceeding with re-fetch",
+	log.Info("operator resync window elapsed",
 		"configured resync period", cr.Spec.ResyncPeriod)
 
 	opts := &client.ListOptions{
@@ -203,14 +211,15 @@ func (r *Reconciler) Reconcile(ctx context.Context, cr *v1.Observability, s *v1.
 	}
 
 	// No configurations yet? Keep reconciling and don't wait for the resync period
-	if len(configSecretList.Items) == 0 {
+	if len(configSecretList.Items) == 0 && !cr.ExternalSyncDisabled() {
 		s.LastSynced = 0
 		log.Info("no configurations found, resync window disabled awaiting initial config")
 		return v1.ResultInProgress, nil
 	}
 
 	// Extract repository info
-	log.Info("configurations found, resync initiated", "sources count", len(configSecretList.Items))
+	log.Info("configurations found, resync initiated",
+		"secret count", len(configSecretList.Items), "self contained", cr.ExternalSyncDisabled())
 	repos := make(map[string]v1.RepositoryInfo)
 
 	// pull all config repo indices from secrets first
@@ -265,7 +274,6 @@ func (r *Reconciler) Reconcile(ctx context.Context, cr *v1.Observability, s *v1.
 		return v1.ResultFailed, err
 	}
 
-	//
 	for _, index := range indexes {
 		err = token2.ReconcileObservatoria(r.logger, ctx, r.client, cr, &index)
 		if err != nil {
@@ -276,13 +284,16 @@ func (r *Reconciler) Reconcile(ctx context.Context, cr *v1.Observability, s *v1.
 	}
 
 	// Alertmanager configuration
-	err = r.reconcileAlertmanagerSecret(ctx, cr, indexes)
-	if err != nil {
-		return v1.ResultFailed, errors2.Wrap(err, "error reconciling alertmanager secret")
+	// When external sync is disabled, allow to create secret
+	if !cr.ExternalSyncDisabled() {
+		err = r.reconcileAlertmanagerSecret(ctx, cr, indexes)
+		if err != nil {
+			return v1.ResultFailed, errors2.Wrap(err, "error reconciling alertmanager secret")
+		}
 	}
 
 	// Prometheus additional scrape configs
-	patterns, err := r.fetchFederationConfigs(indexes)
+	patterns, err := r.fetchFederationConfigs(cr, indexes)
 	if err != nil {
 		return v1.ResultFailed, errors2.Wrap(err, "error fetching federation config")
 	}
@@ -303,40 +314,42 @@ func (r *Reconciler) Reconcile(ctx context.Context, cr *v1.Observability, s *v1.
 		return v1.ResultFailed, errors2.Wrap(err, "error reconciling prometheus")
 	}
 
-	// Manage dashboards
-	dashboards := getUniqueDashboards(indexes)
-	err = r.deleteUnrequestedDashboards(cr, ctx, dashboards)
-	if err != nil {
-		return v1.ResultFailed, errors2.Wrap(err, "error deleting unrequested dashboards")
-	}
+	// Manage monitoring resources
+	if !cr.ExternalSyncDisabled() {
+		dashboards := getUniqueDashboards(indexes)
+		err = r.deleteUnrequestedDashboards(cr, ctx, dashboards)
+		if err != nil {
+			return v1.ResultFailed, errors2.Wrap(err, "error deleting unrequested dashboards")
+		}
 
-	err = r.createRequestedDashboards(cr, ctx, dashboards)
-	if err != nil {
-		return v1.ResultFailed, errors2.Wrap(err, "error creating requested dashboards")
-	}
+		err = r.createRequestedDashboards(cr, ctx, dashboards)
+		if err != nil {
+			return v1.ResultFailed, errors2.Wrap(err, "error creating requested dashboards")
+		}
 
-	// Manage prometheus rules
-	rules := getUniqueRules(indexes)
-	err = r.deleteUnrequestedRules(cr, ctx, rules)
-	if err != nil {
-		return v1.ResultFailed, errors2.Wrap(err, "error deleting unrequested prometheus rules")
-	}
+		// Manage prometheus rules
+		rules := getUniqueRules(indexes)
+		err = r.deleteUnrequestedRules(cr, ctx, rules)
+		if err != nil {
+			return v1.ResultFailed, errors2.Wrap(err, "error deleting unrequested prometheus rules")
+		}
 
-	err = r.createRequestedRules(cr, ctx, rules)
-	if err != nil {
-		return v1.ResultFailed, errors2.Wrap(err, "error creating requested prometheus rules")
-	}
+		err = r.createRequestedRules(cr, ctx, rules)
+		if err != nil {
+			return v1.ResultFailed, errors2.Wrap(err, "error creating requested prometheus rules")
+		}
 
-	// Manage pod monitors
-	monitors := getUniquePodMonitors(indexes)
-	err = r.deleteUnrequestedPodMonitors(cr, ctx, monitors)
-	if err != nil {
-		return v1.ResultFailed, errors2.Wrap(err, "error deleting unrequested pod monitors")
-	}
+		// Manage pod monitors
+		monitors := getUniquePodMonitors(indexes)
+		err = r.deleteUnrequestedPodMonitors(cr, ctx, monitors)
+		if err != nil {
+			return v1.ResultFailed, errors2.Wrap(err, "error deleting unrequested pod monitors")
+		}
 
-	err = r.createRequestedPodMonitors(cr, ctx, monitors)
-	if err != nil {
-		return v1.ResultFailed, errors2.Wrap(err, "error creating requested pod monitors")
+		err = r.createRequestedPodMonitors(cr, ctx, monitors)
+		if err != nil {
+			return v1.ResultFailed, errors2.Wrap(err, "error creating requested pod monitors")
+		}
 	}
 
 	// Promtai instances

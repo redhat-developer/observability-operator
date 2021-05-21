@@ -94,6 +94,11 @@ type Storage struct {
 	PrometheusStorageSpec *prometheusv1.StorageSpec `json:"prometheus,omitempty"`
 }
 
+type SelfContained struct {
+	DisableRepoSync  *bool    `json:"disableRepoSync,omitempty"`
+	FederatedMetrics []string `json:"federatedMetrics,omitempty"`
+}
+
 // ObservabilitySpec defines the desired state of Observability
 type ObservabilitySpec struct {
 	// Cluster ID. If not provided, the operator tries to obtain it.
@@ -103,6 +108,7 @@ type ObservabilitySpec struct {
 	Storage               *Storage              `json:"storage,omitempty"`
 	Tolerations           []v1.Toleration       `json:"tolerations,omitempty"`
 	Affinity              *v1.Affinity          `json:"affinity,omitempty"`
+	SelfContained         *SelfContained        `json:"selfContained,omitempty"`
 }
 
 // ObservabilityStatus defines the observed state of Observability
@@ -134,6 +140,10 @@ type ObservabilityList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
 	Items           []Observability `json:"items"`
+}
+
+func (in *Observability) ExternalSyncDisabled() bool {
+	return in.Spec.SelfContained != nil && in.Spec.SelfContained.DisableRepoSync != nil && *in.Spec.SelfContained.DisableRepoSync
 }
 
 func init() {
