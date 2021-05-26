@@ -588,6 +588,16 @@ func (in *SelfContained) DeepCopyInto(out *SelfContained) {
 		*out = new(bool)
 		**out = **in
 	}
+	if in.DisablePagerDuty != nil {
+		in, out := &in.DisablePagerDuty, &out.DisablePagerDuty
+		*out = new(bool)
+		**out = **in
+	}
+	if in.DisableDeadmansSnitch != nil {
+		in, out := &in.DisableDeadmansSnitch, &out.DisableDeadmansSnitch
+		*out = new(bool)
+		**out = **in
+	}
 	if in.FederatedMetrics != nil {
 		in, out := &in.FederatedMetrics, &out.FederatedMetrics
 		*out = make([]string, len(*in))

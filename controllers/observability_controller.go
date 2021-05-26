@@ -4,16 +4,16 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/bf2fc6cc711aee1a0c2a/observability-operator/controllers/reconcilers"
-	"github.com/bf2fc6cc711aee1a0c2a/observability-operator/controllers/reconcilers/alertmanager_installation"
-	"github.com/bf2fc6cc711aee1a0c2a/observability-operator/controllers/reconcilers/configuration"
-	"github.com/bf2fc6cc711aee1a0c2a/observability-operator/controllers/reconcilers/csv"
-	"github.com/bf2fc6cc711aee1a0c2a/observability-operator/controllers/reconcilers/grafana_configuration"
-	"github.com/bf2fc6cc711aee1a0c2a/observability-operator/controllers/reconcilers/grafana_installation"
-	"github.com/bf2fc6cc711aee1a0c2a/observability-operator/controllers/reconcilers/prometheus_configuration"
-	"github.com/bf2fc6cc711aee1a0c2a/observability-operator/controllers/reconcilers/prometheus_installation"
-	"github.com/bf2fc6cc711aee1a0c2a/observability-operator/controllers/reconcilers/promtail_installation"
-	"github.com/bf2fc6cc711aee1a0c2a/observability-operator/controllers/reconcilers/token"
+	"github.com/bf2fc6cc711aee1a0c2a/observability-operator/v3/controllers/reconcilers"
+	"github.com/bf2fc6cc711aee1a0c2a/observability-operator/v3/controllers/reconcilers/alertmanager_installation"
+	"github.com/bf2fc6cc711aee1a0c2a/observability-operator/v3/controllers/reconcilers/configuration"
+	"github.com/bf2fc6cc711aee1a0c2a/observability-operator/v3/controllers/reconcilers/csv"
+	"github.com/bf2fc6cc711aee1a0c2a/observability-operator/v3/controllers/reconcilers/grafana_configuration"
+	"github.com/bf2fc6cc711aee1a0c2a/observability-operator/v3/controllers/reconcilers/grafana_installation"
+	"github.com/bf2fc6cc711aee1a0c2a/observability-operator/v3/controllers/reconcilers/prometheus_configuration"
+	"github.com/bf2fc6cc711aee1a0c2a/observability-operator/v3/controllers/reconcilers/prometheus_installation"
+	"github.com/bf2fc6cc711aee1a0c2a/observability-operator/v3/controllers/reconcilers/promtail_installation"
+	"github.com/bf2fc6cc711aee1a0c2a/observability-operator/v3/controllers/reconcilers/token"
 	"github.com/go-logr/logr"
 	"io/ioutil"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -26,7 +26,7 @@ import (
 	"strings"
 	"time"
 
-	apiv1 "github.com/bf2fc6cc711aee1a0c2a/observability-operator/api/v1"
+	apiv1 "github.com/bf2fc6cc711aee1a0c2a/observability-operator/v3/api/v1"
 )
 
 const (
@@ -192,8 +192,6 @@ func (r *ObservabilityReconciler) InitializeOperand(mgr ctrl.Manager) error {
 	mgrClient := mgr.GetClient()
 	apiReader := mgr.GetAPIReader()
 
-	selfContained := true
-
 	instance := apiv1.Observability{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "observability-stack",
@@ -202,11 +200,6 @@ func (r *ObservabilityReconciler) InitializeOperand(mgr ctrl.Manager) error {
 		},
 		Spec: apiv1.ObservabilitySpec{
 			ResyncPeriod: "1h",
-			SelfContained: &apiv1.SelfContained{
-				DisableObservatorium:  &selfContained,
-				DisableDeadmansSnitch: &selfContained,
-				DisablePagerDuty:      &selfContained,
-			},
 			ConfigurationSelector: &metav1.LabelSelector{
 				MatchLabels: map[string]string{
 					"configures": "observability-operator",

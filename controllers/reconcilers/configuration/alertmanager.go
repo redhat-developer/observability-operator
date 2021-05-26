@@ -3,9 +3,9 @@ package configuration
 import (
 	"context"
 	"fmt"
-	v1 "github.com/bf2fc6cc711aee1a0c2a/observability-operator/api/v1"
-	"github.com/bf2fc6cc711aee1a0c2a/observability-operator/controllers/model"
-	"github.com/bf2fc6cc711aee1a0c2a/observability-operator/controllers/utils"
+	v1 "github.com/bf2fc6cc711aee1a0c2a/observability-operator/v3/api/v1"
+	"github.com/bf2fc6cc711aee1a0c2a/observability-operator/v3/controllers/model"
+	"github.com/bf2fc6cc711aee1a0c2a/observability-operator/v3/controllers/utils"
 	"github.com/ghodss/yaml"
 	v12 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"

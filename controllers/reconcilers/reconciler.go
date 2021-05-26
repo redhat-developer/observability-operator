@@ -2,7 +2,7 @@ package reconcilers
 
 import (
 	"context"
-	v1 "github.com/bf2fc6cc711aee1a0c2a/observability-operator/api/v1"
+	v1 "github.com/bf2fc6cc711aee1a0c2a/observability-operator/v3/api/v1"
 )
 
 type ObservabilityReconciler interface {

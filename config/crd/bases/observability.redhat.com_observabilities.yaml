@@ -662,7 +662,11 @@ spec:
               type: string
             selfContained:
               properties:
+                disableDeadmansSnitch:
+                  type: boolean
                 disableObservatorium:
+                  type: boolean
+                disablePagerDuty:
                   type: boolean
                 disableRepoSync:
                   type: boolean
