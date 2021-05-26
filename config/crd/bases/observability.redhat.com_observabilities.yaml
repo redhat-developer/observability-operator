@@ -662,6 +662,8 @@ spec:
               type: string
             selfContained:
               properties:
+                disableObservatorium:
+                  type: boolean
                 disableRepoSync:
                   type: boolean
                 federatedMetrics:

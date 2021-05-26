@@ -583,6 +583,11 @@ func (in *SelfContained) DeepCopyInto(out *SelfContained) {
 		*out = new(bool)
 		**out = **in
 	}
+	if in.DisableObservatorium != nil {
+		in, out := &in.DisableObservatorium, &out.DisableObservatorium
+		*out = new(bool)
+		**out = **in
+	}
 	if in.FederatedMetrics != nil {
 		in, out := &in.FederatedMetrics, &out.FederatedMetrics
 		*out = make([]string, len(*in))

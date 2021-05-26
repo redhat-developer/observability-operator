@@ -127,55 +127,60 @@ func (r *Reconciler) reconcileAlertmanagerSecret(ctx context.Context, cr *v1.Obs
 			continue
 		}
 
-		pagerDutySecret, err := r.getPagerDutySecret(ctx, cr, index.Config.Alertmanager)
-		if err != nil {
-			r.logger.Error(err, fmt.Sprintf("pagerduty secret %v not found", index.Config.Alertmanager.PagerDutySecretName))
-			continue
+		if !cr.PagerDutyDisabled() {
+			pagerDutySecret, err := r.getPagerDutySecret(ctx, cr, index.Config.Alertmanager)
+			if err != nil {
+				r.logger.Error(err, fmt.Sprintf("pagerduty secret %v not found", index.Config.Alertmanager.PagerDutySecretName))
+				continue
+			}
+
+			pagerDutyReceiver := fmt.Sprintf("%s-%s", index.Id, "pagerduty")
+
+			config.Receivers = append(config.Receivers, v1.AlertmanagerConfigReceiver{
+				Name: pagerDutyReceiver,
+				PagerDutyConfigs: []v1.PagerDutyConfig{
+					{
+						ServiceKey: string(pagerDutySecret),
+					},
+				},
+			})
+
+			root.Routes = append(root.Routes, v1.AlertmanagerConfigRoute{
+				Receiver: pagerDutyReceiver,
+				Match: map[string]string{
+					"severity":                  "critical",
+					PrometheusRuleIdentifierKey: index.Id,
+				},
+			})
 		}
 
-		deadmansSnitchUrl, err := r.getDeadMansSnitchUrl(ctx, cr, index.Config.Alertmanager)
-		if err != nil {
-			r.logger.Error(err, fmt.Sprintf("deadmanssnitch secret %v not found", index.Config.Alertmanager.DeadmansSnitchSecretName))
-			continue
+		if !cr.DeadMansSnitchDisabled() {
+			deadmansSnitchUrl, err := r.getDeadMansSnitchUrl(ctx, cr, index.Config.Alertmanager)
+			if err != nil {
+				r.logger.Error(err, fmt.Sprintf("deadmanssnitch secret %v not found", index.Config.Alertmanager.DeadmansSnitchSecretName))
+				continue
+			}
+
+			deadMansSnitchReceiver := fmt.Sprintf("%s-%s", index.Id, "deadmanssnitch")
+
+			config.Receivers = append(config.Receivers, v1.AlertmanagerConfigReceiver{
+				Name: deadMansSnitchReceiver,
+				WebhookConfigs: []v1.WebhookConfig{
+					{
+						Url: string(deadmansSnitchUrl),
+					},
+				},
+			})
+
+			root.Routes = append(root.Routes, v1.AlertmanagerConfigRoute{
+				Receiver:       deadMansSnitchReceiver,
+				RepeatInterval: "5m",
+				Match: map[string]string{
+					"alertname":                 "DeadMansSwitch",
+					PrometheusRuleIdentifierKey: index.Id,
+				},
+			})
 		}
-
-		pagerDutyReceiver := fmt.Sprintf("%s-%s", index.Id, "pagerduty")
-		deadMansSnitchReceiver := fmt.Sprintf("%s-%s", index.Id, "deadmanssnitch")
-
-		config.Receivers = append(config.Receivers, v1.AlertmanagerConfigReceiver{
-			Name: pagerDutyReceiver,
-			PagerDutyConfigs: []v1.PagerDutyConfig{
-				{
-					ServiceKey: string(pagerDutySecret),
-				},
-			},
-		})
-
-		config.Receivers = append(config.Receivers, v1.AlertmanagerConfigReceiver{
-			Name: deadMansSnitchReceiver,
-			WebhookConfigs: []v1.WebhookConfig{
-				{
-					Url: string(deadmansSnitchUrl),
-				},
-			},
-		})
-
-		root.Routes = append(root.Routes, v1.AlertmanagerConfigRoute{
-			Receiver: pagerDutyReceiver,
-			Match: map[string]string{
-				"severity":                  "critical",
-				PrometheusRuleIdentifierKey: index.Id,
-			},
-		})
-
-		root.Routes = append(root.Routes, v1.AlertmanagerConfigRoute{
-			Receiver:       deadMansSnitchReceiver,
-			RepeatInterval: "5m",
-			Match: map[string]string{
-				"alertname":                 "DeadMansSwitch",
-				PrometheusRuleIdentifierKey: index.Id,
-			},
-		})
 	}
 
 	configBytes, err := yaml.Marshal(&config)

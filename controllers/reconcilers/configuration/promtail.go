@@ -125,6 +125,12 @@ func (r *Reconciler) createPromtailDaemonsetFor(ctx context.Context, cr *v1.Obse
 		return nil
 	}
 
+	// Without Observatorium there is no need to install Promtail, because we're not
+	// running on cluster Loki
+	if cr.ObservatoriumDisabled() || cr.ExternalSyncDisabled() {
+		return nil
+	}
+
 	if index.Config.Promtail.Observatorium == "" {
 		r.logger.Info(fmt.Sprintf("skip creating promtail daemonset for %v because observatorium config is missing", index.Id))
 		return nil

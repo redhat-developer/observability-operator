@@ -192,6 +192,8 @@ func (r *ObservabilityReconciler) InitializeOperand(mgr ctrl.Manager) error {
 	mgrClient := mgr.GetClient()
 	apiReader := mgr.GetAPIReader()
 
+	selfContained := true
+
 	instance := apiv1.Observability{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "observability-stack",
@@ -200,6 +202,11 @@ func (r *ObservabilityReconciler) InitializeOperand(mgr ctrl.Manager) error {
 		},
 		Spec: apiv1.ObservabilitySpec{
 			ResyncPeriod: "1h",
+			SelfContained: &apiv1.SelfContained{
+				DisableObservatorium:  &selfContained,
+				DisableDeadmansSnitch: &selfContained,
+				DisablePagerDuty:      &selfContained,
+			},
 			ConfigurationSelector: &metav1.LabelSelector{
 				MatchLabels: map[string]string{
 					"configures": "observability-operator",

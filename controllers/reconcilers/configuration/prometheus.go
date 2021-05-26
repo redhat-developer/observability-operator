@@ -271,19 +271,23 @@ func (r *Reconciler) reconcilePrometheus(ctx context.Context, cr *v1.Observabili
 	secrets = append(secrets, "prometheus-k8s-tls")
 
 	var remoteWrites []prometheusv1.RemoteWriteSpec
-	for _, index := range indexes {
-		rw, err := r.getRemoteWriteIndex(index)
-		if err != nil {
-			return err
-		}
 
-		remoteWrite, tokenSecret, err := r.getRemoteWriteSpec(index, rw)
-		if err != nil {
-			logrus.Error(err)
-			continue
+	// If Observatorium is disabled, we won't create any remote write targets
+	if !cr.ObservatoriumDisabled() {
+		for _, index := range indexes {
+			rw, err := r.getRemoteWriteIndex(index)
+			if err != nil {
+				return err
+			}
+
+			remoteWrite, tokenSecret, err := r.getRemoteWriteSpec(index, rw)
+			if err != nil {
+				logrus.Error(err)
+				continue
+			}
+			remoteWrites = append(remoteWrites, *remoteWrite)
+			secrets = append(secrets, tokenSecret)
 		}
-		remoteWrites = append(remoteWrites, *remoteWrite)
-		secrets = append(secrets, tokenSecret)
 	}
 
 	var image = fmt.Sprintf("%s:%s", PrometheusBaseImage, PrometheusVersion)

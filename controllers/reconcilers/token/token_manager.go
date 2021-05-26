@@ -159,6 +159,10 @@ func ReconcileObservatoria(log logr.Logger, ctx context.Context, c client.Client
 		return nil
 	}
 
+	if cr.ObservatoriumDisabled() {
+		return nil
+	}
+
 	for _, observatorium := range index.Config.Observatoria {
 		t, lifetime, err := findToken(ctx, c, cr, &observatorium)
 		if err != nil {
