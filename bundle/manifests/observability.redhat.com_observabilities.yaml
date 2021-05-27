@@ -406,6 +406,21 @@ spec:
               type: object
             resyncPeriod:
               type: string
+            selfContained:
+              properties:
+                disableDeadmansSnitch:
+                  type: boolean
+                disableObservatorium:
+                  type: boolean
+                disablePagerDuty:
+                  type: boolean
+                disableRepoSync:
+                  type: boolean
+                federatedMetrics:
+                  items:
+                    type: string
+                  type: array
+              type: object
             storage:
               properties:
                 prometheus:

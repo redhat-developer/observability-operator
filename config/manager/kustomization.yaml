@@ -5,4 +5,4 @@ kind: Kustomization
 images:
 - name: controller
   newName: quay.io/integreatly/observability-operator
-  newTag: v3.0.1
+  newTag: 3.0.2
