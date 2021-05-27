@@ -312,7 +312,7 @@ Please refer to our [JIRA epic](https://issues.redhat.com/browse/MGDSTRM-717) fo
 
 ## Issues
 
-If you'd like to report an issue, feel free to use our [project Issues page](https://github.com/bf2fc6cc711aee1a0c2a/observability-operator/issues) - just remember that we're not fully tracking ongoing work there, but in [JIRA](https://issues.redhat.com/browse/MGDSTRM-717) instead.  
+If you'd like to report an issue, feel free to use our [project Issues page](https://github.com/bf2fc6cc711aee1a0c2a/observability-operator/v3/issues) - just remember that we're not fully tracking ongoing work there, but in [JIRA](https://issues.redhat.com/browse/MGDSTRM-717) instead.  
 
 
 ## Contact

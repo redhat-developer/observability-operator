@@ -3,8 +3,8 @@ package token
 import (
 	"context"
 	"fmt"
-	v1 "github.com/bf2fc6cc711aee1a0c2a/observability-operator/api/v1"
-	"github.com/bf2fc6cc711aee1a0c2a/observability-operator/controllers/token"
+	v1 "github.com/bf2fc6cc711aee1a0c2a/observability-operator/v3/api/v1"
+	"github.com/bf2fc6cc711aee1a0c2a/observability-operator/v3/controllers/token"
 	"github.com/go-logr/logr"
 	errors2 "github.com/pkg/errors"
 	v12 "k8s.io/api/core/v1"
@@ -156,6 +156,10 @@ func TokensExpired(ctx context.Context, c client.Client, cr *v1.Observability) (
 
 func ReconcileObservatoria(log logr.Logger, ctx context.Context, c client.Client, cr *v1.Observability, index *v1.RepositoryIndex) error {
 	if index == nil || index.Config == nil || index.Config.Observatoria == nil {
+		return nil
+	}
+
+	if cr.ObservatoriumDisabled() {
 		return nil
 	}
 

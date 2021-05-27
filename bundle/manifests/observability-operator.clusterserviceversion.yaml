@@ -58,9 +58,9 @@ metadata:
         }
       ]
     capabilities: Basic Install
-    operators.operatorframework.io/builder: operator-sdk-v1.2.0
+    operators.operatorframework.io/builder: operator-sdk-v1.3.0
     operators.operatorframework.io/project_layout: go.kubebuilder.io/v2
-  name: observability-operator.v3.0.1
+  name: observability-operator.v3.0.2
   namespace: placeholder
 spec:
   apiservicedefinitions: {}
@@ -296,8 +296,7 @@ spec:
                 - --enable-leader-election
                 command:
                 - /manager
-                image: quay.io/integreatly/observability-operator:v3.0.1
-                imagePullPolicy: Always
+                image: quay.io/bf2fc6cc711aee1a0c2a82e312df7f2e6b37baa12bd9b1f2fd752e260d93a6f8144ac730947f25caa2bfe6ad0f410da360940ee6d28d6c1688d3822c4055650e/observability-operator:v3.0.2
                 name: manager
                 resources:
                   limits:
@@ -357,6 +356,4 @@ spec:
   maturity: alpha
   provider:
     name: Red Hat
-  version: 3.0.1
-  replaces: observability-operator.v3.0.0
-
+  version: 3.0.2

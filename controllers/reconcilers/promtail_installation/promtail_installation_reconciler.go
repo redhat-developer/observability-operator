@@ -2,9 +2,9 @@ package promtail_installation
 
 import (
 	"context"
-	v1 "github.com/bf2fc6cc711aee1a0c2a/observability-operator/api/v1"
-	"github.com/bf2fc6cc711aee1a0c2a/observability-operator/controllers/model"
-	"github.com/bf2fc6cc711aee1a0c2a/observability-operator/controllers/reconcilers"
+	v1 "github.com/bf2fc6cc711aee1a0c2a/observability-operator/v3/api/v1"
+	"github.com/bf2fc6cc711aee1a0c2a/observability-operator/v3/controllers/model"
+	"github.com/bf2fc6cc711aee1a0c2a/observability-operator/v3/controllers/reconcilers"
 	"github.com/go-logr/logr"
 	rbacv1 "k8s.io/api/rbac/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -25,6 +25,12 @@ func NewReconciler(client client.Client, logger logr.Logger) reconcilers.Observa
 }
 
 func (r *Reconciler) Cleanup(ctx context.Context, cr *v1.Observability) (v1.ObservabilityStageStatus, error) {
+	// Without Observatorium there is no need to install Promtail, because we're not
+	// running on cluster Loki
+	if cr.ObservatoriumDisabled() || cr.ExternalSyncDisabled() {
+		return v1.ResultSuccess, nil
+	}
+
 	rolebinding := model.GetPromtailClusterRoleBinding(cr)
 	err := r.client.Delete(ctx, rolebinding)
 	if err != nil && !errors.IsNotFound(err) {
@@ -47,6 +53,12 @@ func (r *Reconciler) Cleanup(ctx context.Context, cr *v1.Observability) (v1.Obse
 }
 
 func (r *Reconciler) Reconcile(ctx context.Context, cr *v1.Observability, s *v1.ObservabilityStatus) (v1.ObservabilityStageStatus, error) {
+	// Without Observatorium there is no need to install Promtail, because we're not
+	// running on cluster Loki
+	if cr.ObservatoriumDisabled() || cr.ExternalSyncDisabled() {
+		return v1.ResultSuccess, nil
+	}
+
 	status, err := r.reconcilePromtailServiceAccount(ctx, cr)
 	if status != v1.ResultSuccess {
 		return status, err

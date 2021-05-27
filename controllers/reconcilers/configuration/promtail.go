@@ -4,9 +4,9 @@ import (
 	"context"
 	"crypto/sha256"
 	"fmt"
-	v1 "github.com/bf2fc6cc711aee1a0c2a/observability-operator/api/v1"
-	"github.com/bf2fc6cc711aee1a0c2a/observability-operator/controllers/model"
-	"github.com/bf2fc6cc711aee1a0c2a/observability-operator/controllers/reconcilers/token"
+	v1 "github.com/bf2fc6cc711aee1a0c2a/observability-operator/v3/api/v1"
+	"github.com/bf2fc6cc711aee1a0c2a/observability-operator/v3/controllers/model"
+	"github.com/bf2fc6cc711aee1a0c2a/observability-operator/v3/controllers/reconcilers/token"
 	"io"
 	v13 "k8s.io/api/apps/v1"
 	v12 "k8s.io/api/core/v1"
@@ -122,6 +122,12 @@ func (r *Reconciler) deleteUnrequestedDaemonsets(ctx context.Context, cr *v1.Obs
 // Create an index-specific daemonset
 func (r *Reconciler) createPromtailDaemonsetFor(ctx context.Context, cr *v1.Observability, index *v1.RepositoryIndex) error {
 	if index.Config == nil || index.Config.Promtail == nil || index.Config.Promtail.Enabled == false {
+		return nil
+	}
+
+	// Without Observatorium there is no need to install Promtail, because we're not
+	// running on cluster Loki
+	if cr.ObservatoriumDisabled() || cr.ExternalSyncDisabled() {
 		return nil
 	}
 

@@ -2,10 +2,10 @@ package prometheus_installation
 
 import (
 	"context"
-	v1 "github.com/bf2fc6cc711aee1a0c2a/observability-operator/api/v1"
-	"github.com/bf2fc6cc711aee1a0c2a/observability-operator/controllers/model"
-	"github.com/bf2fc6cc711aee1a0c2a/observability-operator/controllers/reconcilers"
-	"github.com/bf2fc6cc711aee1a0c2a/observability-operator/controllers/utils"
+	v1 "github.com/bf2fc6cc711aee1a0c2a/observability-operator/v3/api/v1"
+	"github.com/bf2fc6cc711aee1a0c2a/observability-operator/v3/controllers/model"
+	"github.com/bf2fc6cc711aee1a0c2a/observability-operator/v3/controllers/reconcilers"
+	"github.com/bf2fc6cc711aee1a0c2a/observability-operator/v3/controllers/utils"
 	"github.com/go-logr/logr"
 	coreosv1 "github.com/operator-framework/api/pkg/operators/v1"
 	"github.com/operator-framework/api/pkg/operators/v1alpha1"

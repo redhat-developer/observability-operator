@@ -4,10 +4,10 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	v1 "github.com/bf2fc6cc711aee1a0c2a/observability-operator/api/v1"
-	"github.com/bf2fc6cc711aee1a0c2a/observability-operator/controllers/model"
-	"github.com/bf2fc6cc711aee1a0c2a/observability-operator/controllers/reconcilers/token"
-	"github.com/bf2fc6cc711aee1a0c2a/observability-operator/controllers/utils"
+	v1 "github.com/bf2fc6cc711aee1a0c2a/observability-operator/v3/api/v1"
+	"github.com/bf2fc6cc711aee1a0c2a/observability-operator/v3/controllers/model"
+	"github.com/bf2fc6cc711aee1a0c2a/observability-operator/v3/controllers/reconcilers/token"
+	"github.com/bf2fc6cc711aee1a0c2a/observability-operator/v3/controllers/utils"
 	"github.com/ghodss/yaml"
 	errors2 "github.com/pkg/errors"
 	prometheusv1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
@@ -25,7 +25,7 @@ import (
 const PrometheusBaseImage = "quay.io/prometheus/prometheus"
 const PrometheusVersion = "v2.22.2"
 
-func (r *Reconciler) fetchFederationConfigs(indexes []v1.RepositoryIndex) ([]string, error) {
+func (r *Reconciler) fetchFederationConfigs(cr *v1.Observability, indexes []v1.RepositoryIndex) ([]string, error) {
 	var result []string
 
 	type federationPatterns struct {
@@ -39,6 +39,11 @@ func (r *Reconciler) fetchFederationConfigs(indexes []v1.RepositoryIndex) ([]str
 			}
 		}
 		return false
+	}
+
+	// Allow to specify federated metrics in CR when external repo sync is disabled
+	if cr.ExternalSyncDisabled() {
+		return cr.Spec.SelfContained.FederatedMetrics, nil
 	}
 
 	for _, index := range indexes {
@@ -266,19 +271,23 @@ func (r *Reconciler) reconcilePrometheus(ctx context.Context, cr *v1.Observabili
 	secrets = append(secrets, "prometheus-k8s-tls")
 
 	var remoteWrites []prometheusv1.RemoteWriteSpec
-	for _, index := range indexes {
-		rw, err := r.getRemoteWriteIndex(index)
-		if err != nil {
-			return err
-		}
 
-		remoteWrite, tokenSecret, err := r.getRemoteWriteSpec(index, rw)
-		if err != nil {
-			logrus.Error(err)
-			continue
+	// If Observatorium is disabled, we won't create any remote write targets
+	if !cr.ObservatoriumDisabled() {
+		for _, index := range indexes {
+			rw, err := r.getRemoteWriteIndex(index)
+			if err != nil {
+				return err
+			}
+
+			remoteWrite, tokenSecret, err := r.getRemoteWriteSpec(index, rw)
+			if err != nil {
+				logrus.Error(err)
+				continue
+			}
+			remoteWrites = append(remoteWrites, *remoteWrite)
+			secrets = append(secrets, tokenSecret)
 		}
-		remoteWrites = append(remoteWrites, *remoteWrite)
-		secrets = append(secrets, tokenSecret)
 	}
 
 	var image = fmt.Sprintf("%s:%s", PrometheusBaseImage, PrometheusVersion)
