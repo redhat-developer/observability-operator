@@ -85,6 +85,12 @@ func (r *Reconciler) deleteUnrequestedDaemonsets(ctx context.Context, cr *v1.Obs
 	}
 
 	shouldExist := func(name string) bool {
+		// Always remove promtail if observatorium or external sync is disabled
+		// Without observatorium we have no place to send the logs
+		if cr.ExternalSyncDisabled() || cr.ObservatoriumDisabled() {
+			return false
+		}
+
 		for _, index := range indexes {
 			expectedName := fmt.Sprintf("promtail-%s", index.Id)
 			if name == expectedName {

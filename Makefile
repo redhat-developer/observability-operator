@@ -1,7 +1,5 @@
 # Current Operator version
 VERSION ?= 3.0.2
-# Default bundle image tag
-BUNDLE_IMG ?= controller-bundle:$(VERSION)
 # Options for 'bundle-build'
 ifneq ($(origin CHANNELS), undefined)
 BUNDLE_CHANNELS := --channels=$(CHANNELS)
@@ -11,8 +9,17 @@ BUNDLE_DEFAULT_CHANNEL := --default-channel=$(DEFAULT_CHANNEL)
 endif
 BUNDLE_METADATA_OPTS ?= $(BUNDLE_CHANNELS) $(BUNDLE_DEFAULT_CHANNEL)
 
+# Default image registry
+REG ?= bf2fc6cc711aee1a0c2a82e312df7f2e6b37baa12bd9b1f2fd752e260d93a6f8144ac730947f25caa2bfe6ad0f410da360940ee6d28d6c1688d3822c4055650e
+
 # Image URL to use all building/pushing image targets
-IMG ?= quay.io/bf2fc6cc711aee1a0c2a82e312df7f2e6b37baa12bd9b1f2fd752e260d93a6f8144ac730947f25caa2bfe6ad0f410da360940ee6d28d6c1688d3822c4055650e/observability-operator:v$(VERSION)
+IMG ?= quay.io/$(REG)/observability-operator:v$(VERSION)
+
+# Default bundle image tag
+BUNDLE_IMG ?= quay.io/$(REG)/observability-operator-bundle:v$(VERSION)
+
+# Default index image tag
+INDEX_IMG ?= quay.io/$(REG)/observability-operator-index:v$(VERSION)
 
 # Produce CRDs that work back to Kubernetes 1.11 (no version conversion)
 CRD_OPTIONS ?= "crd:trivialVersions=true"
@@ -70,14 +77,6 @@ vet:
 generate: controller-gen
 	$(CONTROLLER_GEN) object:headerFile="hack/boilerplate.go.txt" paths="./..."
 
-# Build the docker image
-docker-build:
-	docker build . -t ${IMG}
-
-# Push the docker image
-docker-push:
-	docker push ${IMG}
-
 # find or download controller-gen
 # download controller-gen if necessary
 controller-gen:
@@ -118,7 +117,28 @@ bundle: manifests
 	$(KUSTOMIZE) build config/manifests | operator-sdk generate bundle -q --overwrite --version $(VERSION) $(BUNDLE_METADATA_OPTS)
 	operator-sdk bundle validate ./bundle
 
+# Build the docker image
+.PHONY: docker-build
+docker-build:
+	docker build . -t ${IMG}
+
+# Push the docker image
+.PHONY: docker-push
+docker-push:
+	docker login -u "${QUAY_USER}" -p "${QUAY_TOKEN}" quay.io
+	docker push ${IMG}
+
 # Build the bundle image.
 .PHONY: bundle-build
 bundle-build:
 	docker build -f bundle.Dockerfile -t $(BUNDLE_IMG) .
+
+.PHONY: bundle-push
+bundle-push:
+	docker login -u "${QUAY_USER}" -p "${QUAY_TOKEN}" quay.io
+	docker push $(BUNDLE_IMG)
+
+.PHONY: index-push
+index-push:
+	docker login -u "${QUAY_USER}" -p "${QUAY_TOKEN}" quay.io
+	docker push $(INDEX_IMG)
