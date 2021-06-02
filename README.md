@@ -266,7 +266,7 @@ review the content of each!
         * Take care not to push your PAT to any repository as if you do, GitHub will automatically revoke your token as soon as you push, and you'll need to follow this process again to generate a new token.
     * Apply the Secret with token value substituted in:
       ```
-      oc apply -f config/samples/observability_secret.yaml
+      oc apply -f config/samples/secrets/observability_secret.yaml
       ```
 
 
@@ -294,6 +294,28 @@ make deploy
   ```
   oc delete ValidatingWebhookConfiguration prometheusrules.openshift.io
   ```
+
+### Running via VS Code
+Add the following into your `launch.json` file to enable running and debugging.
+
+```     
+"version": "0.2.0",
+    "configurations": [{
+      "name": "Observability Operator",
+      "type": "go",
+      "request": "launch",
+      "mode": "auto",
+      "program": "${workspaceFolder}/main.go",
+      "env": {
+        "WATCH_NAMESPACE": "kafka-observability",
+        "KUBERNETES_CONFIG": "~/.kube/config",
+        "OPERATOR_NAME": "observability-operator"
+      },
+      "cwd": "${workspaceFolder}",
+      "args": []
+    }]
+  }
+```
 
   
 ## Roadmap
