@@ -95,11 +95,12 @@ type Storage struct {
 }
 
 type SelfContained struct {
-	DisableRepoSync       *bool    `json:"disableRepoSync,omitempty"`
-	DisableObservatorium  *bool    `json:"disableObservatorium,omitempty"`
-	DisablePagerDuty      *bool    `json:"disablePagerDuty,omitempty"`
-	DisableDeadmansSnitch *bool    `json:"disableDeadmansSnitch,omitempty"`
-	FederatedMetrics      []string `json:"federatedMetrics,omitempty"`
+	DisableRepoSync        *bool                 `json:"disableRepoSync,omitempty"`
+	DisableObservatorium   *bool                 `json:"disableObservatorium,omitempty"`
+	DisablePagerDuty       *bool                 `json:"disablePagerDuty,omitempty"`
+	DisableDeadmansSnitch  *bool                 `json:"disableDeadmansSnitch,omitempty"`
+	FederatedMetrics       []string              `json:"federatedMetrics,omitempty"`
+	NamespaceLabelSelector *metav1.LabelSelector `json:"namespaceLabelSelector,omitempty"`
 }
 
 // ObservabilitySpec defines the desired state of Observability

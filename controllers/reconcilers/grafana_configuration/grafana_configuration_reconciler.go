@@ -323,6 +323,9 @@ func (r *Reconciler) reconcileGrafanaCr(ctx context.Context, cr *v1.Observabilit
 		if cr.Spec.Affinity != nil {
 			grafana.Spec.Deployment.Affinity = cr.Spec.Affinity
 		}
+		if cr.Spec.SelfContained != nil && cr.Spec.SelfContained.NamespaceLabelSelector != nil {
+			grafana.Spec.DashboardNamespaceSelector = cr.Spec.SelfContained.NamespaceLabelSelector
+		}
 		return nil
 	})
 

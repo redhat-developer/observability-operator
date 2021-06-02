@@ -383,6 +383,10 @@ func (r *Reconciler) reconcilePrometheus(ctx context.Context, cr *v1.Observabili
 		if cr.Spec.Affinity != nil {
 			prometheus.Spec.Affinity = cr.Spec.Affinity
 		}
+		if cr.Spec.SelfContained != nil && cr.Spec.SelfContained.NamespaceLabelSelector != nil {
+			prometheus.Spec.ServiceMonitorNamespaceSelector = cr.Spec.SelfContained.NamespaceLabelSelector
+			prometheus.Spec.RuleNamespaceSelector = cr.Spec.SelfContained.NamespaceLabelSelector
+		}
 		return nil
 	})
 
