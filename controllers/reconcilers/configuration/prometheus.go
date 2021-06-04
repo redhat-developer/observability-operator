@@ -19,7 +19,6 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
-	"strings"
 )
 
 const PrometheusBaseImage = "quay.io/prometheus/prometheus"
@@ -174,7 +173,46 @@ func (r *Reconciler) getRemoteWriteIndex(index v1.RepositoryIndex) (*v1.RemoteWr
 	return &remoteWrite, nil
 }
 
-func (r *Reconciler) getRemoteWriteSpec(index v1.RepositoryIndex, remoteWrite *v1.RemoteWriteIndex) (*prometheusv1.RemoteWriteSpec, string, error) {
+// Send requests directly to observatorium
+func (r *Reconciler) getRemoteWriteSpecForDex(index v1.RepositoryIndex, observatoriumConfig *v1.ObservatoriumIndex, remoteWrite *v1.RemoteWriteIndex) (*prometheusv1.RemoteWriteSpec, string, error) {
+	tokenSecret := token.GetObservatoriumPrometheusSecretName(&index)
+	return &prometheusv1.RemoteWriteSpec{
+		URL:                 fmt.Sprintf("%s/api/metrics/v1/%s/api/v1/receive", observatoriumConfig.Gateway, observatoriumConfig.Tenant),
+		Name:                index.Id,
+		RemoteTimeout:       remoteWrite.RemoteTimeout,
+		WriteRelabelConfigs: remoteWrite.WriteRelabelConfigs,
+		BearerTokenFile:     fmt.Sprintf("/etc/prometheus/secrets/%s/token", tokenSecret),
+		TLSConfig: &prometheusv1.TLSConfig{
+			SafeTLSConfig: prometheusv1.SafeTLSConfig{
+				InsecureSkipVerify: true,
+			},
+		},
+		ProxyURL:    remoteWrite.ProxyUrl,
+		QueueConfig: remoteWrite.QueueConfig,
+	}, tokenSecret, nil
+}
+
+// Proxy requests through the token refresher
+func (r *Reconciler) getRemoteWriteSpecForRedHat(cr *v1.Observability, index v1.RepositoryIndex, observatoriumConfig *v1.ObservatoriumIndex, remoteWrite *v1.RemoteWriteIndex) (*prometheusv1.RemoteWriteSpec, string, error) {
+	tokenRefresherName := model.GetTokenRefresherName(observatoriumConfig.Id, model.MetricsTokenRefresher)
+	tokenRefresherUrl := fmt.Sprintf("http://%v.%v.svc.cluster.local", tokenRefresherName, cr.Namespace)
+
+	return &prometheusv1.RemoteWriteSpec{
+		URL:                 tokenRefresherUrl,
+		Name:                index.Id,
+		RemoteTimeout:       remoteWrite.RemoteTimeout,
+		WriteRelabelConfigs: remoteWrite.WriteRelabelConfigs,
+		TLSConfig: &prometheusv1.TLSConfig{
+			SafeTLSConfig: prometheusv1.SafeTLSConfig{
+				InsecureSkipVerify: true,
+			},
+		},
+		ProxyURL:    remoteWrite.ProxyUrl,
+		QueueConfig: remoteWrite.QueueConfig,
+	}, "", nil
+}
+
+func (r *Reconciler) getRemoteWriteSpec(cr *v1.Observability, index v1.RepositoryIndex, remoteWrite *v1.RemoteWriteIndex) (*prometheusv1.RemoteWriteSpec, string, error) {
 	if index.Config == nil || index.Config.Prometheus == nil || index.Config.Prometheus.Observatorium == "" {
 		return nil, "", fmt.Errorf("no observatorium config found for %v / prometheus", index.Id)
 	}
@@ -184,42 +222,13 @@ func (r *Reconciler) getRemoteWriteSpec(index v1.RepositoryIndex, remoteWrite *v
 		return nil, "", fmt.Errorf("no observatorium config found for %v", index.Config.Prometheus.Observatorium)
 	}
 
-	tokenSecret := token.GetObservatoriumPrometheusSecretName(&index)
-
-	if remoteWrite.Patterns == nil {
-		return &prometheusv1.RemoteWriteSpec{
-			URL:                 fmt.Sprintf("%s/api/metrics/v1/%s/api/v1/receive", observatoriumConfig.Gateway, observatoriumConfig.Tenant),
-			Name:                index.Id,
-			RemoteTimeout:       remoteWrite.RemoteTimeout,
-			WriteRelabelConfigs: remoteWrite.WriteRelabelConfigs,
-			BearerTokenFile:     fmt.Sprintf("/etc/prometheus/secrets/%s/token", tokenSecret),
-			TLSConfig: &prometheusv1.TLSConfig{
-				SafeTLSConfig: prometheusv1.SafeTLSConfig{
-					InsecureSkipVerify: true,
-				},
-			},
-			ProxyURL:    remoteWrite.ProxyUrl,
-			QueueConfig: remoteWrite.QueueConfig,
-		}, tokenSecret, nil
-	} else {
-		// for v2.0.0 backwards compatibility
-		// if patterns are provided, use them instead of the new config options
-		return &prometheusv1.RemoteWriteSpec{
-			URL: fmt.Sprintf("%s/api/metrics/v1/%s/api/v1/receive", observatoriumConfig.Gateway, observatoriumConfig.Tenant),
-			WriteRelabelConfigs: []prometheusv1.RelabelConfig{
-				{
-					SourceLabels: []string{"__name__"},
-					Regex:        fmt.Sprintf("(%s)", strings.Join(remoteWrite.Patterns, "|")),
-					Action:       "keep",
-				},
-			},
-			BearerTokenFile: fmt.Sprintf("/etc/prometheus/secrets/%s/token", tokenSecret),
-			TLSConfig: &prometheusv1.TLSConfig{
-				SafeTLSConfig: prometheusv1.SafeTLSConfig{
-					InsecureSkipVerify: true,
-				},
-			},
-		}, tokenSecret, nil
+	switch observatoriumConfig.AuthType {
+	case v1.AuthTypeDex:
+		return r.getRemoteWriteSpecForDex(index, observatoriumConfig, remoteWrite)
+	case v1.AuthTypeRedhat:
+		return r.getRemoteWriteSpecForRedHat(cr, index, observatoriumConfig, remoteWrite)
+	default:
+		return nil, "", errors2.New(fmt.Sprintf("unknown auth type %v", observatoriumConfig.AuthType))
 	}
 }
 
@@ -271,6 +280,7 @@ func (r *Reconciler) reconcilePrometheus(ctx context.Context, cr *v1.Observabili
 	secrets = append(secrets, "prometheus-k8s-tls")
 
 	var remoteWrites []prometheusv1.RemoteWriteSpec
+	var sidecars []kv1.Container
 
 	// If Observatorium is disabled, we won't create any remote write targets
 	if !cr.ObservatoriumDisabled() {
@@ -280,17 +290,69 @@ func (r *Reconciler) reconcilePrometheus(ctx context.Context, cr *v1.Observabili
 				return err
 			}
 
-			remoteWrite, tokenSecret, err := r.getRemoteWriteSpec(index, rw)
+			remoteWrite, tokenSecret, err := r.getRemoteWriteSpec(cr, index, rw)
 			if err != nil {
 				logrus.Error(err)
 				continue
 			}
+
 			remoteWrites = append(remoteWrites, *remoteWrite)
-			secrets = append(secrets, tokenSecret)
+			if tokenSecret != "" {
+				secrets = append(secrets, tokenSecret)
+			}
 		}
 	}
 
 	var image = fmt.Sprintf("%s:%s", PrometheusBaseImage, PrometheusVersion)
+
+	sidecars = append(sidecars, kv1.Container{
+		Name:  "oauth-proxy",
+		Image: "quay.io/openshift/origin-oauth-proxy:4.2",
+		Args: []string{
+			"-provider=openshift",
+			"-https-address=:9091",
+			"-http-address=",
+			"-email-domain=*",
+			"-upstream=http://localhost:9090",
+			fmt.Sprintf("-openshift-service-account=%v", sa.Name),
+			"-openshift-sar={\"resource\": \"namespaces\", \"verb\": \"get\"}",
+			"-openshift-delegate-urls={\"/\": {\"resource\": \"namespaces\", \"verb\": \"get\"}}",
+			"-tls-cert=/etc/tls/private/tls.crt",
+			"-tls-key=/etc/tls/private/tls.key",
+			"-client-secret-file=/var/run/secrets/kubernetes.io/serviceaccount/token",
+			"-cookie-secret-file=/etc/proxy/secrets/session_secret",
+			"-openshift-ca=/etc/pki/tls/cert.pem",
+			"-openshift-ca=/var/run/secrets/kubernetes.io/serviceaccount/ca.crt",
+			"-skip-auth-regex=^/metrics",
+		},
+		Env: []kv1.EnvVar{
+			{
+				Name: "HTTP_PROXY",
+			},
+			{
+				Name: "HTTPS_PROXY",
+			},
+			{
+				Name: "NO_PROXY",
+			},
+		},
+		Ports: []kv1.ContainerPort{
+			{
+				Name:          "proxy",
+				ContainerPort: 9091,
+			},
+		},
+		VolumeMounts: []kv1.VolumeMount{
+			{
+				Name:      "secret-prometheus-k8s-tls",
+				MountPath: "/etc/tls/private",
+			},
+			{
+				Name:      fmt.Sprintf("secret-%v", proxySecret.Name),
+				MountPath: "/etc/proxy/secrets",
+			},
+		},
+	})
 
 	prometheus := model.GetPrometheus(cr)
 	_, err = controllerutil.CreateOrUpdate(ctx, r.client, prometheus, func() error {
@@ -323,56 +385,7 @@ func (r *Reconciler) reconcilePrometheus(ctx context.Context, cr *v1.Observabili
 			RemoteWrite: remoteWrites,
 			Alerting:    r.getAlerting(cr),
 			Secrets:     secrets,
-			Containers: []kv1.Container{
-				{
-					Name:  "oauth-proxy",
-					Image: "quay.io/openshift/origin-oauth-proxy:4.2",
-					Args: []string{
-						"-provider=openshift",
-						"-https-address=:9091",
-						"-http-address=",
-						"-email-domain=*",
-						"-upstream=http://localhost:9090",
-						fmt.Sprintf("-openshift-service-account=%v", sa.Name),
-						"-openshift-sar={\"resource\": \"namespaces\", \"verb\": \"get\"}",
-						"-openshift-delegate-urls={\"/\": {\"resource\": \"namespaces\", \"verb\": \"get\"}}",
-						"-tls-cert=/etc/tls/private/tls.crt",
-						"-tls-key=/etc/tls/private/tls.key",
-						"-client-secret-file=/var/run/secrets/kubernetes.io/serviceaccount/token",
-						"-cookie-secret-file=/etc/proxy/secrets/session_secret",
-						"-openshift-ca=/etc/pki/tls/cert.pem",
-						"-openshift-ca=/var/run/secrets/kubernetes.io/serviceaccount/ca.crt",
-						"-skip-auth-regex=^/metrics",
-					},
-					Env: []kv1.EnvVar{
-						{
-							Name: "HTTP_PROXY",
-						},
-						{
-							Name: "HTTPS_PROXY",
-						},
-						{
-							Name: "NO_PROXY",
-						},
-					},
-					Ports: []kv1.ContainerPort{
-						{
-							Name:          "proxy",
-							ContainerPort: 9091,
-						},
-					},
-					VolumeMounts: []kv1.VolumeMount{
-						{
-							Name:      "secret-prometheus-k8s-tls",
-							MountPath: "/etc/tls/private",
-						},
-						{
-							Name:      fmt.Sprintf("secret-%v", proxySecret.Name),
-							MountPath: "/etc/proxy/secrets",
-						},
-					},
-				},
-			},
+			Containers:  sidecars,
 		}
 		if cr.Spec.Storage != nil && cr.Spec.Storage.PrometheusStorageSpec != nil {
 			prometheus.Spec.Storage = cr.Spec.Storage.PrometheusStorageSpec

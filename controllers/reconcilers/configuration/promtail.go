@@ -198,16 +198,6 @@ func (r *Reconciler) createPromtailDaemonsetFor(ctx context.Context, cr *v1.Obse
 								},
 							},
 						},
-						/*
-							{
-								Name: "token",
-								VolumeSource: v12.VolumeSource{
-									Secret: &v12.SecretVolumeSource{
-										SecretName: observatoriumSecretName,
-									},
-								},
-							},
-						*/
 						{
 							Name: "logs",
 							VolumeSource: v12.VolumeSource{
@@ -247,12 +237,6 @@ func (r *Reconciler) createPromtailDaemonsetFor(ctx context.Context, cr *v1.Obse
 									Name:      "config",
 									MountPath: "/opt/config",
 								},
-								/*
-									{
-										Name:      "token",
-										MountPath: "/opt/secrets",
-									},
-								*/
 								{
 									Name:      "logs",
 									MountPath: "/var/log/pods",

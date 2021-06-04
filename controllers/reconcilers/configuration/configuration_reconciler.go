@@ -145,6 +145,26 @@ func (r *Reconciler) Cleanup(ctx context.Context, cr *v1.Observability) (v1.Obse
 		}
 	}
 
+	// Delete token refresher deployments
+	tokenRefreshers := &v13.DeploymentList{}
+	opts = &client.ListOptions{
+		LabelSelector: labels.SelectorFromSet(map[string]string{
+			"app.kubernetes.io/component": "authentication-proxy",
+		}),
+		Namespace: cr.Namespace,
+	}
+	err = r.client.List(ctx, tokenRefreshers, opts)
+	if err != nil {
+		return v1.ResultFailed, err
+	}
+
+	for _, deployment := range tokenRefreshers.Items {
+		err := r.client.Delete(ctx, &deployment)
+		if err != nil {
+			return v1.ResultFailed, err
+		}
+	}
+
 	return v1.ResultSuccess, nil
 }
 
@@ -205,11 +225,13 @@ func (r *Reconciler) Reconcile(ctx context.Context, cr *v1.Observability, s *v1.
 
 	// Get all configuration secret sets as well
 	configSecretList := &v12.SecretList{}
-	err = r.client.List(ctx, configSecretList, opts)
-	if err != nil {
-		return v1.ResultFailed, err
-	}
 
+	if !cr.ExternalSyncDisabled() {
+		err = r.client.List(ctx, configSecretList, opts)
+		if err != nil {
+			return v1.ResultFailed, err
+		}
+	}
 	// No configurations yet? Keep reconciling and don't wait for the resync period
 	if len(configSecretList.Items) == 0 && !cr.ExternalSyncDisabled() {
 		s.LastSynced = 0
@@ -281,6 +303,13 @@ func (r *Reconciler) Reconcile(ctx context.Context, cr *v1.Observability, s *v1.
 			continue
 		}
 		r.stampConfigSource(ctx, &index)
+	}
+
+	if !cr.ObservatoriumDisabled() {
+		err = r.reconcileTokenRefresher(ctx, cr, indexes)
+		if err != nil {
+			return v1.ResultFailed, errors2.Wrap(err, "error reconciling token refresher")
+		}
 	}
 
 	// Alertmanager configuration
