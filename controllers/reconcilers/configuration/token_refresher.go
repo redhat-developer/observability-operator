@@ -19,7 +19,7 @@ const (
 
 // Return a set of credentials and configuration for either logs or metrics
 func getTokenRefresherConfigSetFor(t model.TokenRefresherType, observatorium *v1.ObservatoriumIndex) *model.TokenRefresherConfigSet {
-	if observatorium.RedhatSsoConfig.Url == "" || observatorium.RedhatSsoConfig.Realm == "" || observatorium.Tenant == "" || observatorium.Gateway == "" {
+	if observatorium.RedhatSsoConfig == nil {
 		return nil
 	}
 
@@ -30,16 +30,18 @@ func getTokenRefresherConfigSetFor(t model.TokenRefresherType, observatorium *v1
 	result.Tenant = observatorium.Tenant
 	switch t {
 	case model.MetricsTokenRefresher:
-		if observatorium.RedhatSsoConfig.MetricsClient == "" || observatorium.RedhatSsoConfig.MetricsSecret == "" {
+		if !observatorium.RedhatSsoConfig.HasMetrics() {
 			return nil
 		}
+
 		result.ObservatoriumUrl = fmt.Sprintf("%v/api/metrics/v1/%v/api/v1/receive", observatorium.Gateway, observatorium.Tenant)
 		result.Secret = observatorium.RedhatSsoConfig.MetricsSecret
 		result.Client = observatorium.RedhatSsoConfig.MetricsClient
 	case model.LogsTokenRefresher:
-		if observatorium.RedhatSsoConfig.LogsClient == "" || observatorium.RedhatSsoConfig.LogsSecret == "" {
+		if !observatorium.RedhatSsoConfig.HasLogs() {
 			return nil
 		}
+
 		result.ObservatoriumUrl = fmt.Sprintf("%v/api/logs/v1/%v/loki/api/v1/push", observatorium.Gateway, observatorium.Tenant)
 		result.Secret = observatorium.RedhatSsoConfig.LogsSecret
 		result.Client = observatorium.RedhatSsoConfig.LogsClient
@@ -139,6 +141,7 @@ func (r *Reconciler) createDeploymentFor(ctx context.Context, cr *v1.Observabili
 							Image: fmt.Sprintf("quay.io/observatorium/token-refresher:%v", TokenRefresherImageTag),
 							Args: []string{
 								"--oidc.audience=observatorium-telemeter",
+								"--log.level=debug",
 								fmt.Sprintf("--oidc.client-id=%v", config.Client),
 								fmt.Sprintf("--oidc.client-secret=%v", config.Secret),
 								fmt.Sprintf("--oidc.issuer-url=%v", config.AuthUrl),
@@ -162,8 +165,8 @@ func (r *Reconciler) createDeploymentFor(ctx context.Context, cr *v1.Observabili
 }
 
 func (r *Reconciler) reconcileTokenRefresherFor(ctx context.Context, cr *v1.Observability, observatorium *v1.ObservatoriumIndex, logsDisabled bool) error {
-	if observatorium.RedhatSsoConfig == nil || observatorium.RedhatSsoConfig.Url == "" || observatorium.RedhatSsoConfig.Realm == "" {
-		return errors2.New(fmt.Sprintf("sso config for %v is missing or incomplete", observatorium.Id))
+	if !observatorium.IsValid() {
+		return errors2.New(fmt.Sprintf("incomplete observatorium config, tenant or gateway missing for %v", observatorium.Id))
 	}
 
 	for _, t := range []model.TokenRefresherType{model.MetricsTokenRefresher, model.LogsTokenRefresher} {
@@ -205,6 +208,7 @@ func (r *Reconciler) reconcileTokenRefresher(ctx context.Context, cr *v1.Observa
 		}
 
 		for _, observatorium := range index.Config.Observatoria {
+			// token-refresher is only used for sso.redhat.com authentication
 			if observatorium.AuthType == v1.AuthTypeRedhat {
 				err := r.reconcileTokenRefresherFor(ctx, cr, &observatorium, promtailDisabled)
 				if err != nil {

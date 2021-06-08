@@ -38,6 +38,18 @@ type RedhatSsoConfig struct {
 	LogsSecret    string `json:"logsSecret"`
 }
 
+func (in *RedhatSsoConfig) HasAuthServer() bool {
+	return in.Url != "" && in.Realm != ""
+}
+
+func (in *RedhatSsoConfig) HasMetrics() bool {
+	return in.HasAuthServer() && in.MetricsClient != "" && in.MetricsSecret != ""
+}
+
+func (in *RedhatSsoConfig) HasLogs() bool {
+	return in.HasAuthServer() && in.LogsClient != "" && in.LogsSecret != ""
+}
+
 type ObservatoriumIndex struct {
 	Id              string                `json:"id"`
 	SecretName      string                `json:"secretName,omitempty"`
@@ -46,6 +58,10 @@ type ObservatoriumIndex struct {
 	AuthType        ObservabilityAuthType `json:"authType"`
 	DexConfig       *DexConfig            `json:"dexConfig,omitempty"`
 	RedhatSsoConfig *RedhatSsoConfig      `json:"redhatSsoConfig,omitempty"`
+}
+
+func (in *ObservatoriumIndex) IsValid() bool {
+	return in.Gateway != "" && in.Tenant != ""
 }
 
 type RemoteWriteIndex struct {

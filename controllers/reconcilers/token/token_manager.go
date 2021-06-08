@@ -31,8 +31,8 @@ const (
 	ObservatoriumSecretKeyRedhatSsoRealm = "redHatSsoRealm"
 	ObservatoriumSecretKeyMetricsClient  = "metricsClient"
 	ObservatoriumSecretKeyMetricsSecret  = "metricsSecret"
-	ObservatoriumSecretKeyLogsClient     = "metricsClient"
-	ObservatoriumSecretKeyLogsSecret     = "metricsSecret"
+	ObservatoriumSecretKeyLogsClient     = "logsClient"
+	ObservatoriumSecretKeyLogsSecret     = "logsSecret"
 )
 
 func GetObservatoriumTokenSecretName(config *v1.ObservatoriumIndex) string {
