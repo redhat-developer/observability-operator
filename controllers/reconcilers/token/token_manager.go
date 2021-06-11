@@ -263,6 +263,30 @@ func ReconcileObservatoria(log logr.Logger, ctx context.Context, c client.Client
 			}
 		}
 
+		if observatorium.AuthType == v1.AuthTypeDex && observatorium.DexConfig != nil && observatorium.DexConfig.CredentialSecretName != "" {
+			// By default look for the dex secret in the same namespace as the CR
+			namespace := cr.Namespace
+			if observatorium.DexConfig.CredentialSecretNamespace != "" {
+				namespace = observatorium.DexConfig.CredentialSecretNamespace
+			}
+
+			// Get credential secret
+			secret := &v12.Secret{}
+			selector := client.ObjectKey{
+				Namespace: namespace,
+				Name:      observatorium.DexConfig.CredentialSecretName,
+			}
+
+			err := c.Get(ctx, selector, secret)
+			if err != nil {
+				return err
+			}
+
+			observatorium.DexConfig.Username = string(secret.Data["username"])
+			observatorium.DexConfig.Password = string(secret.Data["password"])
+			observatorium.DexConfig.Secret = string(secret.Data["secret"])
+		}
+
 		copy := v1.ObservatoriumIndex{}
 		observatorium.DeepCopyInto(&copy)
 		transformed = append(transformed, copy)

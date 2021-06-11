@@ -9,7 +9,9 @@ import (
 	v13 "k8s.io/api/apps/v1"
 	v12 "k8s.io/api/core/v1"
 	v14 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/intstr"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
 
@@ -51,44 +53,6 @@ func getTokenRefresherConfigSetFor(t model.TokenRefresherType, observatorium *v1
 	return result
 }
 
-/*
-func (r *Reconciler) createNetworkPolicyFor(ctx context.Context, cr *v1.Observability, config *model.TokenRefresherConfigSet) error {
-	policy := model.GetTokenRefresherNetworkPolicy(cr, config.Name)
-
-	_, err := controllerutil.CreateOrUpdate(ctx, r.client, policy, func() error {
-		policy.Labels = map[string]string{
-			"app.kubernetes.io/component": "authentication-proxy",
-			"app.kubernetes.io/name":      config.Name,
-		}
-		policy.Spec = v15.NetworkPolicySpec{
-			PodSelector: v14.LabelSelector{
-				MatchLabels: map[string]string{
-					"app.kubernetes.io/component": "authentication-proxy",
-					"app.kubernetes.io/name":      config.Name,
-				},
-			},
-			PolicyTypes: []v15.PolicyType{v15.PolicyTypeIngress},
-			Ingress: []v15.NetworkPolicyIngressRule{
-				{
-					From: []v15.NetworkPolicyPeer{
-						{
-							PodSelector: &v14.LabelSelector{
-								MatchLabels: map[string]string{
-									"": "",
-								},
-							},
-						},
-					},
-				},
-			},
-		}
-		return nil
-	})
-
-	return err
-}
-*/
-
 func (r *Reconciler) createServiceFor(ctx context.Context, cr *v1.Observability, config *model.TokenRefresherConfigSet) error {
 	service := model.GetTokenRefresherService(cr, config.Name)
 
@@ -119,6 +83,10 @@ func (r *Reconciler) createDeploymentFor(ctx context.Context, cr *v1.Observabili
 	deployment := model.GetTokenRefresherDeployment(cr, config.Name)
 
 	_, err := controllerutil.CreateOrUpdate(ctx, r.client, deployment, func() error {
+		deployment.Labels = map[string]string{
+			"app.kubernetes.io/component": "authentication-proxy",
+			"app.kubernetes.io/name":      config.Name,
+		}
 		deployment.Spec = v13.DeploymentSpec{
 			Selector: &v14.LabelSelector{
 				MatchLabels: map[string]string{
@@ -141,7 +109,6 @@ func (r *Reconciler) createDeploymentFor(ctx context.Context, cr *v1.Observabili
 							Image: fmt.Sprintf("quay.io/observatorium/token-refresher:%v", TokenRefresherImageTag),
 							Args: []string{
 								"--oidc.audience=observatorium-telemeter",
-								"--log.level=debug",
 								fmt.Sprintf("--oidc.client-id=%v", config.Client),
 								fmt.Sprintf("--oidc.client-secret=%v", config.Secret),
 								fmt.Sprintf("--oidc.issuer-url=%v", config.AuthUrl),
@@ -214,6 +181,63 @@ func (r *Reconciler) reconcileTokenRefresher(ctx context.Context, cr *v1.Observa
 				if err != nil {
 					return err
 				}
+			}
+		}
+	}
+
+	return nil
+}
+
+func (r *Reconciler) deleteUnrequestedTokenRefreshers(ctx context.Context, cr *v1.Observability, indexes []v1.RepositoryIndex) error {
+	list := &v13.DeploymentList{}
+	selector := labels.SelectorFromSet(map[string]string{
+		"app.kubernetes.io/component": "authentication-proxy",
+	})
+	opts := &client.ListOptions{
+		Namespace:     cr.Namespace,
+		LabelSelector: selector,
+	}
+
+	err := r.client.List(ctx, list, opts)
+	if err != nil {
+		return err
+	}
+
+	shouldExist := func(name string) bool {
+		if cr.ExternalSyncDisabled() || cr.ObservatoriumDisabled() {
+			return false
+		}
+
+		for _, index := range indexes {
+			if index.Config == nil {
+				return false
+			}
+
+			for _, observatorium := range index.Config.Observatoria {
+				if !observatorium.IsValid() || observatorium.RedhatSsoConfig == nil {
+					return false
+				}
+
+				for _, t := range []model.TokenRefresherType{model.MetricsTokenRefresher, model.LogsTokenRefresher} {
+					if t == model.LogsTokenRefresher && (index.Config.Promtail == nil || !index.Config.Promtail.Enabled) {
+						return false
+					}
+
+					configSet := getTokenRefresherConfigSetFor(t, &observatorium)
+					if name == configSet.Name {
+						return true
+					}
+				}
+			}
+		}
+		return false
+	}
+
+	for _, deployment := range list.Items {
+		if !shouldExist(deployment.Name) {
+			err = r.client.Delete(ctx, &deployment)
+			if err != nil {
+				return err
 			}
 		}
 	}

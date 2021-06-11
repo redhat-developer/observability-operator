@@ -305,6 +305,11 @@ func (r *Reconciler) Reconcile(ctx context.Context, cr *v1.Observability, s *v1.
 		r.stampConfigSource(ctx, &index)
 	}
 
+	err = r.deleteUnrequestedTokenRefreshers(ctx, cr, indexes)
+	if err != nil {
+		return v1.ResultFailed, errors2.Wrap(err, "error deleting unrequested token refreshers")
+	}
+
 	if !cr.ObservatoriumDisabled() {
 		err = r.reconcileTokenRefresher(ctx, cr, indexes)
 		if err != nil {
