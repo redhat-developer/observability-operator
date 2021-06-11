@@ -8,7 +8,6 @@ import (
 	_ "github.com/bf2fc6cc711aee1a0c2a/observability-operator/v3/api/v1"
 	v1 "github.com/bf2fc6cc711aee1a0c2a/observability-operator/v3/api/v1"
 	"io/ioutil"
-	v12 "k8s.io/api/core/v1"
 	"net/http"
 	"net/url"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -85,31 +84,13 @@ func (r *DexTokenFetcher) Fetch(cr *v1.Observability, config *v1.ObservatoriumIn
 		return oldToken, 0, nil
 	}
 
-	// By default look for the dex secret in the same namespace as the CR
-	namespace := cr.Namespace
-	if config.DexConfig.CredentialSecretNamespace != "" {
-		namespace = config.DexConfig.CredentialSecretNamespace
-	}
-
-	// Get credential secret
-	secret := &v12.Secret{}
-	selector := client.ObjectKey{
-		Namespace: namespace,
-		Name:      config.DexConfig.CredentialSecretName,
-	}
-
-	err := r.Client.Get(r.Context, selector, secret)
-	if err != nil {
-		return oldToken, cr.Status.TokenExpires, err
-	}
-
 	tokenEndpoint := fmt.Sprintf("%s/dex/token", config.DexConfig.Url)
 	formData := url.Values{
 		"grant_type":    {"password"},
-		"username":      {string(secret.Data["username"])},
-		"password":      {string(secret.Data["password"])},
+		"username":      {config.DexConfig.Username},
+		"password":      {config.DexConfig.Password},
 		"client_id":     {config.Tenant},
-		"client_secret": {string(secret.Data["secret"])},
+		"client_secret": {config.DexConfig.Secret},
 		"scope":         {"openid email"},
 	}
 

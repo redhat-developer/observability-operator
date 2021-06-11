@@ -17,8 +17,22 @@ import (
 )
 
 const (
-	RemoteTokenValue    = "token"
-	RemoteTokenLifetime = "lifetime"
+	RemoteTokenValue                  = "token"
+	RemoteTokenLifetime               = "lifetime"
+	ObservatoriumSecretKeyDexPassword = "dexPassword"
+	ObservatoriumSecretKeyDexSecret   = "dexSecret"
+	ObservatoriumSecretKeyDexUsername = "dexUsername"
+	ObservatoriumSecretKeyDexUrl      = "dexUrl"
+	ObservatoriumSecretKeyTenant      = "tenant"
+	ObservatoriumSecretKeyGateway     = "gateway"
+	ObservatoriumSecretKeyAuthType    = "authType"
+
+	ObservatoriumSecretKeyRedhatSsoUrl   = "redHatSsoUrl"
+	ObservatoriumSecretKeyRedhatSsoRealm = "redHatSsoRealm"
+	ObservatoriumSecretKeyMetricsClient  = "metricsClient"
+	ObservatoriumSecretKeyMetricsSecret  = "metricsSecret"
+	ObservatoriumSecretKeyLogsClient     = "logsClient"
+	ObservatoriumSecretKeyLogsSecret     = "logsSecret"
 )
 
 func GetObservatoriumTokenSecretName(config *v1.ObservatoriumIndex) string {
@@ -154,6 +168,81 @@ func TokensExpired(ctx context.Context, c client.Client, cr *v1.Observability) (
 	return false, nil
 }
 
+func assignDexCredentialsFromSecret(ctx context.Context, c client.Client, cr *v1.Observability, index *v1.ObservatoriumIndex) error {
+	// Get credential secret
+	secret := &v12.Secret{}
+	selector := client.ObjectKey{
+		Namespace: index.DexConfig.CredentialSecretNamespace,
+		Name:      index.DexConfig.CredentialSecretName,
+	}
+
+	err := c.Get(ctx, selector, secret)
+	if err != nil {
+		return err
+	}
+
+	index.DexConfig.Username = string(secret.Data["username"])
+	index.DexConfig.Password = string(secret.Data["password"])
+	index.DexConfig.Secret = string(secret.Data["secret"])
+
+	return nil
+}
+
+func assignFromSecret(ctx context.Context, c client.Client, cr *v1.Observability, index *v1.ObservatoriumIndex) error {
+	targetSecret := &v12.Secret{}
+	selector := client.ObjectKey{
+		Namespace: cr.Namespace,
+		Name:      index.SecretName,
+	}
+
+	err := c.Get(ctx, selector, targetSecret)
+	if err != nil {
+		return err
+	}
+
+	if index.AuthType == "" {
+		index.AuthType = v1.ObservabilityAuthType(targetSecret.Data[ObservatoriumSecretKeyAuthType])
+	}
+
+	if index.Gateway == "" {
+		index.Gateway = string(targetSecret.Data[ObservatoriumSecretKeyGateway])
+	}
+
+	if index.Tenant == "" {
+		index.Tenant = string(targetSecret.Data[ObservatoriumSecretKeyTenant])
+	}
+
+	switch index.AuthType {
+	case v1.AuthTypeDex:
+		// This not being nil means the configuration was given via the repository. This is still
+		// supported for backwards compatibility, however the prefered way is by secret.
+		if index.DexConfig != nil {
+			return assignFromSecret(ctx, c, cr, index)
+		}
+
+		// Dex configuration is part of the config secret created by the KAS Fleet Manager
+		index.DexConfig = new(v1.DexConfig)
+		index.DexConfig.Url = string(targetSecret.Data[ObservatoriumSecretKeyDexUrl])
+		index.DexConfig.Secret = string(targetSecret.Data[ObservatoriumSecretKeyDexSecret])
+		index.DexConfig.Password = string(targetSecret.Data[ObservatoriumSecretKeyDexPassword])
+		index.DexConfig.Username = string(targetSecret.Data[ObservatoriumSecretKeyDexUsername])
+	case v1.AuthTypeRedhat:
+		// RedHat SSO credentials are required to be part of the config secret created by the
+		// KAS Fleet Manager. This auth type is not supported in the config repository.
+		index.RedhatSsoConfig = new(v1.RedhatSsoConfig)
+		index.RedhatSsoConfig.Url = string(targetSecret.Data[ObservatoriumSecretKeyRedhatSsoUrl])
+		index.RedhatSsoConfig.Realm = string(targetSecret.Data[ObservatoriumSecretKeyRedhatSsoRealm])
+		index.RedhatSsoConfig.MetricsSecret = string(targetSecret.Data[ObservatoriumSecretKeyMetricsSecret])
+		index.RedhatSsoConfig.MetricsClient = string(targetSecret.Data[ObservatoriumSecretKeyMetricsClient])
+		index.RedhatSsoConfig.LogsSecret = string(targetSecret.Data[ObservatoriumSecretKeyLogsSecret])
+		index.RedhatSsoConfig.LogsClient = string(targetSecret.Data[ObservatoriumSecretKeyLogsClient])
+	default:
+		return errors2.New(fmt.Sprintf("unknown auth type %v", index.AuthType))
+	}
+
+	return nil
+}
+
 func ReconcileObservatoria(log logr.Logger, ctx context.Context, c client.Client, cr *v1.Observability, index *v1.RepositoryIndex) error {
 	if index == nil || index.Config == nil || index.Config.Observatoria == nil {
 		return nil
@@ -163,7 +252,51 @@ func ReconcileObservatoria(log logr.Logger, ctx context.Context, c client.Client
 		return nil
 	}
 
+	var transformed []v1.ObservatoriumIndex
+
 	for _, observatorium := range index.Config.Observatoria {
+		if observatorium.SecretName != "" {
+			err := assignFromSecret(ctx, c, cr, &observatorium)
+			if err != nil {
+				log.Error(err, fmt.Sprintf("error finding observatorium secret %v", observatorium.SecretName))
+				return err
+			}
+		}
+
+		if observatorium.AuthType == v1.AuthTypeDex && observatorium.DexConfig != nil && observatorium.DexConfig.CredentialSecretName != "" {
+			// By default look for the dex secret in the same namespace as the CR
+			namespace := cr.Namespace
+			if observatorium.DexConfig.CredentialSecretNamespace != "" {
+				namespace = observatorium.DexConfig.CredentialSecretNamespace
+			}
+
+			// Get credential secret
+			secret := &v12.Secret{}
+			selector := client.ObjectKey{
+				Namespace: namespace,
+				Name:      observatorium.DexConfig.CredentialSecretName,
+			}
+
+			err := c.Get(ctx, selector, secret)
+			if err != nil {
+				return err
+			}
+
+			observatorium.DexConfig.Username = string(secret.Data["username"])
+			observatorium.DexConfig.Password = string(secret.Data["password"])
+			observatorium.DexConfig.Secret = string(secret.Data["secret"])
+		}
+
+		copy := v1.ObservatoriumIndex{}
+		observatorium.DeepCopyInto(&copy)
+		transformed = append(transformed, copy)
+
+		// No token fetching required if we are using RedHat SSO. The token-refresher proxy
+		// is taking care of that for us
+		if observatorium.AuthType == v1.AuthTypeRedhat {
+			continue
+		}
+
 		t, lifetime, err := findToken(ctx, c, cr, &observatorium)
 		if err != nil {
 			return errors2.Wrap(err, fmt.Sprintf("error checking existing observatorium token for %v", observatorium.Id))
@@ -183,8 +316,8 @@ func ReconcileObservatoria(log logr.Logger, ctx context.Context, c client.Client
 				continue
 			}
 		}
-
 	}
 
+	index.Config.Observatoria = transformed
 	return nil
 }

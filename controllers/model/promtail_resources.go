@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	v1 "github.com/bf2fc6cc711aee1a0c2a/observability-operator/v3/api/v1"
+	errors2 "github.com/pkg/errors"
 	v13 "k8s.io/api/apps/v1"
 	v12 "k8s.io/api/core/v1"
 	v14 "k8s.io/api/rbac/v1"
@@ -62,14 +63,16 @@ func GetPromtailClusterRoleBinding(cr *v1.Observability) *v14.ClusterRoleBinding
 	}
 }
 
-func GetPromtailConfig(c *v1.ObservatoriumIndex, clusterId string, indexId string, namespaces []string) (string, error) {
+func GetPromtailConfig(cr *v1.Observability, c *v1.ObservatoriumIndex, indexId string, namespaces []string) (string, error) {
 	const config = `
 server:
   http_listen_port: 9080
   http_listen_address: 0.0.0.0
 clients:
   - url: {{ .Url }}
+	{{- if .RequireToken }}
     bearer_token_file: /opt/secrets/token
+	{{- end }}
     external_labels:
       cluster_id: "{{ .ClusterID }}"
       observability_id: "{{ .ObservabililtyId }}"
@@ -112,11 +115,25 @@ scrape_configs:
           names: [{{ .Namespaces }}]
 `
 	template := t.Must(t.New("template").Parse(config))
+	var requireToken = false
 	var buffer bytes.Buffer
-
 	var url string
+
 	if c != nil {
-		url = fmt.Sprintf("%s/api/logs/v1/%s/loki/api/v1/push", c.Gateway, c.Tenant)
+		if !c.IsValid() {
+			return "", errors2.New(fmt.Sprintf("invalid observatorium config for %v", c.Id))
+		}
+		switch c.AuthType {
+		case v1.AuthTypeDex:
+			url = fmt.Sprintf("%s/api/logs/v1/%s/loki/api/v1/push", c.Gateway, c.Tenant)
+			requireToken = true
+		case v1.AuthTypeRedhat:
+			if c.RedhatSsoConfig == nil || !c.RedhatSsoConfig.HasLogs() {
+				return "", errors2.New(fmt.Sprintf("invalid sso config for %v", c.Id))
+			}
+			tokenRefresherName := GetTokenRefresherName(c.Id, LogsTokenRefresher)
+			url = fmt.Sprintf("http://%v.%v.svc.cluster.local", tokenRefresherName, cr.Namespace)
+		}
 	}
 
 	// Namespaces must be ordered to avoid different config hashes
@@ -127,11 +144,13 @@ scrape_configs:
 		ObservabililtyId string
 		Namespaces       string
 		Url              string
+		RequireToken     bool
 	}{
-		ClusterID:        clusterId,
+		ClusterID:        cr.Status.ClusterID,
 		ObservabililtyId: indexId,
 		Namespaces:       strings.Join(namespaces, ","),
 		Url:              url,
+		RequireToken:     requireToken,
 	})
 
 	return string(buffer.Bytes()), err

@@ -50,7 +50,7 @@ func (r *Reconciler) createPromtailConfigFor(ctx context.Context, cr *v1.Observa
 	}
 
 	configMap := model.GetPromtailConfigmap(cr, index.Id)
-	config, err := model.GetPromtailConfig(observatorium, cr.Status.ClusterID, index.Id, namespaces)
+	config, err := model.GetPromtailConfig(cr, observatorium, index.Id, namespaces)
 
 	_, err = controllerutil.CreateOrUpdate(ctx, r.client, configMap, func() error {
 		configMap.Labels = map[string]string{
@@ -198,16 +198,6 @@ func (r *Reconciler) createPromtailDaemonsetFor(ctx context.Context, cr *v1.Obse
 								},
 							},
 						},
-						/*
-							{
-								Name: "token",
-								VolumeSource: v12.VolumeSource{
-									Secret: &v12.SecretVolumeSource{
-										SecretName: observatoriumSecretName,
-									},
-								},
-							},
-						*/
 						{
 							Name: "logs",
 							VolumeSource: v12.VolumeSource{
@@ -247,12 +237,6 @@ func (r *Reconciler) createPromtailDaemonsetFor(ctx context.Context, cr *v1.Obse
 									Name:      "config",
 									MountPath: "/opt/config",
 								},
-								/*
-									{
-										Name:      "token",
-										MountPath: "/opt/secrets",
-									},
-								*/
 								{
 									Name:      "logs",
 									MountPath: "/var/log/pods",
@@ -275,27 +259,24 @@ func (r *Reconciler) createPromtailDaemonsetFor(ctx context.Context, cr *v1.Obse
 
 		if index.Config.Promtail.Observatorium != "" {
 			observatoriumSecretName := token.GetObservatoriumPromtailSecretName(index)
-			daemonset.Spec.Template.Spec.Volumes = append(daemonset.Spec.Template.Spec.Volumes, v12.Volume{
-				Name: "token",
-				VolumeSource: v12.VolumeSource{
-					Secret: &v12.SecretVolumeSource{
-						SecretName: observatoriumSecretName,
+			if observatoriumConfig.AuthType == v1.AuthTypeDex {
+				daemonset.Spec.Template.Spec.Volumes = append(daemonset.Spec.Template.Spec.Volumes, v12.Volume{
+					Name: "token",
+					VolumeSource: v12.VolumeSource{
+						Secret: &v12.SecretVolumeSource{
+							SecretName: observatoriumSecretName,
+						},
 					},
-				},
-			})
+				})
 
-			daemonset.Spec.Template.Spec.Containers[0].VolumeMounts = append(daemonset.Spec.Template.Spec.Containers[0].VolumeMounts, v12.VolumeMount{
-				Name:      "token",
-				MountPath: "/opt/secrets",
-			})
+				daemonset.Spec.Template.Spec.Containers[0].VolumeMounts = append(daemonset.Spec.Template.Spec.Containers[0].VolumeMounts, v12.VolumeMount{
+					Name:      "token",
+					MountPath: "/opt/secrets",
+				})
+
+			}
 		}
-
 		return nil
 	})
-
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return err
 }
