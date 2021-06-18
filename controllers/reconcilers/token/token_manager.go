@@ -27,11 +27,11 @@ const (
 	ObservatoriumSecretKeyGateway     = "gateway"
 	ObservatoriumSecretKeyAuthType    = "authType"
 
-	ObservatoriumSecretKeyRedhatSsoUrl   = "redHatSsoUrl"
+	ObservatoriumSecretKeyRedhatSsoUrl   = "redHatSsoAuthServerUrl"
 	ObservatoriumSecretKeyRedhatSsoRealm = "redHatSsoRealm"
-	ObservatoriumSecretKeyMetricsClient  = "metricsClient"
+	ObservatoriumSecretKeyMetricsClient  = "metricsClientId"
 	ObservatoriumSecretKeyMetricsSecret  = "metricsSecret"
-	ObservatoriumSecretKeyLogsClient     = "logsClient"
+	ObservatoriumSecretKeyLogsClient     = "logsClientId"
 	ObservatoriumSecretKeyLogsSecret     = "logsSecret"
 )
 
@@ -168,26 +168,6 @@ func TokensExpired(ctx context.Context, c client.Client, cr *v1.Observability) (
 	return false, nil
 }
 
-func assignDexCredentialsFromSecret(ctx context.Context, c client.Client, cr *v1.Observability, index *v1.ObservatoriumIndex) error {
-	// Get credential secret
-	secret := &v12.Secret{}
-	selector := client.ObjectKey{
-		Namespace: index.DexConfig.CredentialSecretNamespace,
-		Name:      index.DexConfig.CredentialSecretName,
-	}
-
-	err := c.Get(ctx, selector, secret)
-	if err != nil {
-		return err
-	}
-
-	index.DexConfig.Username = string(secret.Data["username"])
-	index.DexConfig.Password = string(secret.Data["password"])
-	index.DexConfig.Secret = string(secret.Data["secret"])
-
-	return nil
-}
-
 func assignFromSecret(ctx context.Context, c client.Client, cr *v1.Observability, index *v1.ObservatoriumIndex) error {
 	targetSecret := &v12.Secret{}
 	selector := client.ObjectKey{
@@ -282,9 +262,23 @@ func ReconcileObservatoria(log logr.Logger, ctx context.Context, c client.Client
 				return err
 			}
 
-			observatorium.DexConfig.Username = string(secret.Data["username"])
-			observatorium.DexConfig.Password = string(secret.Data["password"])
-			observatorium.DexConfig.Secret = string(secret.Data["secret"])
+			if secret.Data["username"] != nil {
+				observatorium.DexConfig.Username = string(secret.Data["username"])
+			} else {
+				observatorium.DexConfig.Username = string(secret.Data["dexUsername"])
+			}
+
+			if secret.Data["password"] != nil {
+				observatorium.DexConfig.Password = string(secret.Data["password"])
+			} else {
+				observatorium.DexConfig.Password = string(secret.Data["dexPassword"])
+			}
+
+			if secret.Data["secret"] != nil {
+				observatorium.DexConfig.Secret = string(secret.Data["secret"])
+			} else {
+				observatorium.DexConfig.Secret = string(secret.Data["dexSecret"])
+			}
 		}
 
 		copy := v1.ObservatoriumIndex{}

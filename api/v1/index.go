@@ -30,11 +30,11 @@ type DexConfig struct {
 }
 
 type RedhatSsoConfig struct {
-	Url           string `json:"url"`
-	Realm         string `json:"realm"`
-	MetricsClient string `json:"metricsClient"`
+	Url           string `json:"redHatSsoAuthServerUrl"`
+	Realm         string `json:"redHatSsoRealm"`
+	MetricsClient string `json:"metricsClientId"`
 	MetricsSecret string `json:"metricsSecret"`
-	LogsClient    string `json:"logsClient"`
+	LogsClient    string `json:"logsClientId"`
 	LogsSecret    string `json:"logsSecret"`
 }
 
