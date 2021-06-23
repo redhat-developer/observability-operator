@@ -4,10 +4,11 @@ import (
 	"context"
 	"crypto/sha256"
 	"fmt"
+	"io"
+
 	v1 "github.com/bf2fc6cc711aee1a0c2a/observability-operator/v3/api/v1"
 	"github.com/bf2fc6cc711aee1a0c2a/observability-operator/v3/controllers/model"
 	"github.com/bf2fc6cc711aee1a0c2a/observability-operator/v3/controllers/reconcilers/token"
-	"io"
 	v13 "k8s.io/api/apps/v1"
 	v12 "k8s.io/api/core/v1"
 	v14 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -163,11 +164,11 @@ func (r *Reconciler) createPromtailDaemonsetFor(ctx context.Context, cr *v1.Obse
 		}
 		daemonset.Spec = v13.DaemonSetSpec{
 			Selector: &v14.LabelSelector{
-				MatchLabels: model.GetResourceLabels(),
+				MatchLabels: model.GetPromtailDaemonSetLabels(index),
 			},
 			Template: v12.PodTemplateSpec{
 				ObjectMeta: v14.ObjectMeta{
-					Labels: model.GetResourceLabels(),
+					Labels: model.GetPromtailDaemonSetLabels(index),
 				},
 				Spec: v12.PodSpec{
 					Affinity: &v12.Affinity{

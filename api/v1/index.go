@@ -92,6 +92,7 @@ type PromtailIndex struct {
 	Enabled                bool              `json:"enabled,omitempty"`
 	NamespaceLabelSelector map[string]string `json:"namespaceLabelSelector,omitempty"`
 	Observatorium          string            `json:"observatorium,omitempty"`
+	DaemonSetLabelSelector map[string]string `json:"daemonSetLabelSelector,omitempty"`
 }
 
 type RepositoryConfig struct {

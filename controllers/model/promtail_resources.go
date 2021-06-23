@@ -3,15 +3,16 @@ package model
 import (
 	"bytes"
 	"fmt"
+	"sort"
+	"strings"
+	t "text/template"
+
 	v1 "github.com/bf2fc6cc711aee1a0c2a/observability-operator/v3/api/v1"
 	errors2 "github.com/pkg/errors"
 	v13 "k8s.io/api/apps/v1"
 	v12 "k8s.io/api/core/v1"
 	v14 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"sort"
-	"strings"
-	t "text/template"
 )
 
 func GetPromtailConfigmap(cr *v1.Observability, name string) *v12.ConfigMap {
@@ -154,4 +155,11 @@ scrape_configs:
 	})
 
 	return string(buffer.Bytes()), err
+}
+
+func GetPromtailDaemonSetLabels(index *v1.RepositoryIndex) map[string]string {
+	if index.Config != nil && index.Config.Promtail != nil && index.Config.Promtail.DaemonSetLabelSelector != nil {
+		return index.Config.Promtail.DaemonSetLabelSelector
+	}
+	return map[string]string{"app": "strimzi"}
 }
