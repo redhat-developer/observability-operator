@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+
 	v1 "github.com/bf2fc6cc711aee1a0c2a/observability-operator/v3/api/v1"
 	"github.com/bf2fc6cc711aee1a0c2a/observability-operator/v3/controllers/model"
 	"github.com/bf2fc6cc711aee1a0c2a/observability-operator/v3/controllers/reconcilers/token"
@@ -374,13 +375,13 @@ func (r *Reconciler) reconcilePrometheus(ctx context.Context, cr *v1.Observabili
 				"cluster_id": cr.Status.ClusterID,
 			},
 			PodMonitorSelector: &v12.LabelSelector{
-				MatchLabels: model.GetResourceLabels(),
+				MatchLabels: model.GetPrometheusPodMonitorLabelSelectors(indexes),
 			},
 			ServiceMonitorSelector: &v12.LabelSelector{
-				MatchLabels: model.GetResourceLabels(),
+				MatchLabels: model.GetPrometheusServiceMonitorLabelSelectors(indexes),
 			},
 			RuleSelector: &v12.LabelSelector{
-				MatchLabels: model.GetResourceLabels(),
+				MatchLabels: model.GetPrometheusRuleMonitorLabelSelectors(indexes),
 			},
 			RemoteWrite: remoteWrites,
 			Alerting:    r.getAlerting(cr),

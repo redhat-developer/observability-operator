@@ -80,12 +80,15 @@ type AlertmanagerIndex struct {
 }
 
 type PrometheusIndex struct {
-	Rules         []string          `json:"rules"`
-	PodMonitors   []string          `json:"pod_monitors"`
-	Federation    string            `json:"federation,omitempty"`
-	Observatorium string            `json:"observatorium,omitempty"`
-	RemoteWrite   string            `json:"remoteWrite,omitempty"`
-	Labels        map[string]string `json:"labels,omitempty"`
+	Rules                       []string          `json:"rules"`
+	PodMonitors                 []string          `json:"pod_monitors"`
+	Federation                  string            `json:"federation,omitempty"`
+	Observatorium               string            `json:"observatorium,omitempty"`
+	RemoteWrite                 string            `json:"remoteWrite,omitempty"`
+	Labels                      map[string]string `json:"labels,omitempty"`
+	PodMonitorLabelSelector     map[string]string `json:"podMonitorLabelSelector,omitempty"`
+	ServiceMonitorLabelSelector map[string]string `json:"serviceMonitorLabelSelector,omitempty"`
+	RuleLabelSelector           map[string]string `json:"ruleLabelSelector,omitempty"`
 }
 
 type PromtailIndex struct {
