@@ -183,60 +183,6 @@ func GetPrometheus(cr *v1.Observability) *prometheusv1.Prometheus {
 	}
 }
 
-func GetStrimziPodMonitor(cr *v1.Observability) *prometheusv1.PodMonitor {
-	return &prometheusv1.PodMonitor{
-		ObjectMeta: v12.ObjectMeta{
-			Name:      "strimzi-metrics",
-			Namespace: cr.Namespace,
-			Labels:    GetResourceLabels(),
-		},
-	}
-}
-
-func GetCanaryPodMonitor(cr *v1.Observability) *prometheusv1.PodMonitor {
-	return &prometheusv1.PodMonitor{
-		ObjectMeta: v12.ObjectMeta{
-			Name:      "canary-metrics",
-			Namespace: cr.Namespace,
-			Labels:    GetResourceLabels(),
-		},
-	}
-}
-
-func GetKafkaPodMonitor(cr *v1.Observability) *prometheusv1.PodMonitor {
-	return &prometheusv1.PodMonitor{
-		ObjectMeta: v12.ObjectMeta{
-			Name:      "kafka-metrics",
-			Namespace: cr.Namespace,
-			Labels:    GetResourceLabels(),
-		},
-	}
-}
-
-func GetKafkaDeadmansSwitch(cr *v1.Observability) *prometheusv1.PrometheusRule {
-	return &prometheusv1.PrometheusRule{
-		ObjectMeta: v12.ObjectMeta{
-			Name:      "kafka-deadmansswitch",
-			Namespace: cr.Namespace,
-			Labels:    GetResourceLabels(),
-		},
-	}
-}
-
-func GetKafkaPrometheusRules(cr *v1.Observability) *prometheusv1.PrometheusRule {
-	return &prometheusv1.PrometheusRule{
-		ObjectMeta: v12.ObjectMeta{
-			Name:      "kafka-prometheus-rules",
-			Namespace: cr.Namespace,
-			Labels:    GetResourceLabels(),
-		},
-	}
-}
-
-func GetResourceLabels() map[string]string {
-	return map[string]string{"app": "strimzi"}
-}
-
 func GetPrometheusPodMonitorLabelSelectors(indexes []v1.RepositoryIndex) map[string]string {
 	prometheusConfig := getPrometheusRepositoryIndexConfig(indexes)
 	if prometheusConfig != nil && prometheusConfig.PodMonitorLabelSelector != nil {
