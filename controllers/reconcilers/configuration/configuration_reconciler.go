@@ -5,6 +5,11 @@ import (
 	"crypto/tls"
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
+	"net/http"
+	"net/url"
+	"time"
+
 	v1 "github.com/bf2fc6cc711aee1a0c2a/observability-operator/v3/api/v1"
 	"github.com/bf2fc6cc711aee1a0c2a/observability-operator/v3/controllers/reconcilers"
 	token2 "github.com/bf2fc6cc711aee1a0c2a/observability-operator/v3/controllers/reconcilers/token"
@@ -12,14 +17,10 @@ import (
 	"github.com/integr8ly/grafana-operator/v3/pkg/apis/integreatly/v1alpha1"
 	errors2 "github.com/pkg/errors"
 	prometheusv1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
-	"io/ioutil"
 	v13 "k8s.io/api/apps/v1"
 	v12 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/labels"
-	"net/http"
-	"net/url"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"time"
 )
 
 const (
@@ -346,6 +347,12 @@ func (r *Reconciler) Reconcile(ctx context.Context, cr *v1.Observability, s *v1.
 	err = r.reconcilePrometheus(ctx, cr, indexes)
 	if err != nil {
 		return v1.ResultFailed, errors2.Wrap(err, "error reconciling prometheus")
+	}
+
+	// Grafana CR
+	err = r.reconcileGrafanaCr(ctx, cr, indexes)
+	if err != nil {
+		return v1.ResultFailed, errors2.Wrap(err, "error reconciling grafana")
 	}
 
 	// Manage monitoring resources

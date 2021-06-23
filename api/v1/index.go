@@ -14,7 +14,8 @@ type RepositoryInfo struct {
 }
 
 type GrafanaIndex struct {
-	Dashboards []string `json:"dashboards"`
+	Dashboards             []string          `json:"dashboards"`
+	DashboardLabelSelector map[string]string `json:"dashboardLabelSelector,omitempty"`
 }
 
 type DexConfig struct {
@@ -79,11 +80,12 @@ type AlertmanagerIndex struct {
 }
 
 type PrometheusIndex struct {
-	Rules         []string `json:"rules"`
-	PodMonitors   []string `json:"pod_monitors"`
-	Federation    string   `json:"federation,omitempty"`
-	Observatorium string   `json:"observatorium,omitempty"`
-	RemoteWrite   string   `json:"remoteWrite,omitempty"`
+	Rules         []string          `json:"rules"`
+	PodMonitors   []string          `json:"pod_monitors"`
+	Federation    string            `json:"federation,omitempty"`
+	Observatorium string            `json:"observatorium,omitempty"`
+	RemoteWrite   string            `json:"remoteWrite,omitempty"`
+	Labels        map[string]string `json:"labels,omitempty"`
 }
 
 type PromtailIndex struct {
