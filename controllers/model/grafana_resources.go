@@ -10,6 +10,8 @@ import (
 	v12 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+var defaultGrafanaLabelSelectors = map[string]string{"app": "strimzi"}
+
 func GetGrafanaSubscription(cr *v1.Observability) *v1alpha1.Subscription {
 	return &v1alpha1.Subscription{
 		ObjectMeta: v12.ObjectMeta{
@@ -69,4 +71,20 @@ func GetGrafanaDatasource(cr *v1.Observability) *v1alpha12.GrafanaDataSource {
 			Namespace: cr.Namespace,
 		},
 	}
+}
+
+func GetGrafanaDashboardLabelSelectors(indexes []v1.RepositoryIndex) map[string]string {
+	if len(indexes) > 0 {
+		// We should only have one Grafana CR for the whole cluster. However, we cannot merge
+		// all of the label selectors from all of the repository index config as this will result
+		// in an AND requirement. Since we do not use multiple repositories on the same cluster just yet,
+		// there should only be one index available in the repository index list.
+		// This needs to be changed once we start using multiple repository configurations on the same cluster.
+		config := indexes[0].Config
+		if config != nil && config.Grafana != nil && config.Grafana.DashboardLabelSelector != nil {
+			return config.Grafana.DashboardLabelSelector
+		}
+	}
+
+	return defaultGrafanaLabelSelectors
 }

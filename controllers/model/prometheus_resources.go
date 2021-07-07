@@ -3,17 +3,20 @@ package model
 import (
 	"bytes"
 	"fmt"
+	"strings"
+	t "text/template"
+
 	v1 "github.com/bf2fc6cc711aee1a0c2a/observability-operator/v3/api/v1"
-	prometheusv1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
 	routev1 "github.com/openshift/api/route/v1"
 	coreosv1 "github.com/operator-framework/api/pkg/operators/v1"
 	"github.com/operator-framework/api/pkg/operators/v1alpha1"
+	prometheusv1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
 	v13 "k8s.io/api/core/v1"
 	v14 "k8s.io/api/rbac/v1"
 	v12 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"strings"
-	t "text/template"
 )
+
+var defaultPrometheusLabelSelectors = map[string]string{"app": "strimzi"}
 
 func GetPrometheusAuthTokenLifetimes(cr *v1.Observability) *v13.ConfigMap {
 	return &v13.ConfigMap{
@@ -180,56 +183,44 @@ func GetPrometheus(cr *v1.Observability) *prometheusv1.Prometheus {
 	}
 }
 
-func GetStrimziPodMonitor(cr *v1.Observability) *prometheusv1.PodMonitor {
-	return &prometheusv1.PodMonitor{
-		ObjectMeta: v12.ObjectMeta{
-			Name:      "strimzi-metrics",
-			Namespace: cr.Namespace,
-			Labels:    GetResourceLabels(),
-		},
+func GetPrometheusPodMonitorLabelSelectors(indexes []v1.RepositoryIndex) map[string]string {
+	prometheusConfig := getPrometheusRepositoryIndexConfig(indexes)
+	if prometheusConfig != nil && prometheusConfig.PodMonitorLabelSelector != nil {
+		return prometheusConfig.PodMonitorLabelSelector
 	}
+
+	return defaultPrometheusLabelSelectors
 }
 
-func GetCanaryPodMonitor(cr *v1.Observability) *prometheusv1.PodMonitor {
-	return &prometheusv1.PodMonitor{
-		ObjectMeta: v12.ObjectMeta{
-			Name:      "canary-metrics",
-			Namespace: cr.Namespace,
-			Labels:    GetResourceLabels(),
-		},
+func GetPrometheusServiceMonitorLabelSelectors(indexes []v1.RepositoryIndex) map[string]string {
+	prometheusConfig := getPrometheusRepositoryIndexConfig(indexes)
+	if prometheusConfig != nil && prometheusConfig.ServiceMonitorLabelSelector != nil {
+		return prometheusConfig.ServiceMonitorLabelSelector
 	}
+
+	return defaultPrometheusLabelSelectors
 }
 
-func GetKafkaPodMonitor(cr *v1.Observability) *prometheusv1.PodMonitor {
-	return &prometheusv1.PodMonitor{
-		ObjectMeta: v12.ObjectMeta{
-			Name:      "kafka-metrics",
-			Namespace: cr.Namespace,
-			Labels:    GetResourceLabels(),
-		},
+func GetPrometheusRuleMonitorLabelSelectors(indexes []v1.RepositoryIndex) map[string]string {
+	prometheusConfig := getPrometheusRepositoryIndexConfig(indexes)
+	if prometheusConfig != nil && prometheusConfig.RuleLabelSelector != nil {
+		return prometheusConfig.RuleLabelSelector
 	}
+
+	return defaultPrometheusLabelSelectors
 }
 
-func GetKafkaDeadmansSwitch(cr *v1.Observability) *prometheusv1.PrometheusRule {
-	return &prometheusv1.PrometheusRule{
-		ObjectMeta: v12.ObjectMeta{
-			Name:      "kafka-deadmansswitch",
-			Namespace: cr.Namespace,
-			Labels:    GetResourceLabels(),
-		},
+// returns the Prometheus configuration from the repository index
+func getPrometheusRepositoryIndexConfig(indexes []v1.RepositoryIndex) *v1.PrometheusIndex {
+	if len(indexes) > 0 {
+		// We should only have one Prometheus CR for the whole cluster. However, we cannot merge
+		// all of the label selectors from all of the repository index config as this will result
+		// in an AND requirement. Since we do not use multiple repositories on the same cluster just yet,
+		// there should only be one index available in the repository index list.
+		// This needs to be changed once we start using multiple repository configurations on the same cluster.
+		if indexes[0].Config != nil {
+			return indexes[0].Config.Prometheus
+		}
 	}
-}
-
-func GetKafkaPrometheusRules(cr *v1.Observability) *prometheusv1.PrometheusRule {
-	return &prometheusv1.PrometheusRule{
-		ObjectMeta: v12.ObjectMeta{
-			Name:      "kafka-prometheus-rules",
-			Namespace: cr.Namespace,
-			Labels:    GetResourceLabels(),
-		},
-	}
-}
-
-func GetResourceLabels() map[string]string {
-	return map[string]string{"app": "strimzi"}
+	return &v1.PrometheusIndex{}
 }
