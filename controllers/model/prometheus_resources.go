@@ -174,6 +174,41 @@ func GetPrometheusAdditionalScrapeConfig(cr *v1.Observability) *v13.Secret {
 	}
 }
 
+func GetPrometheusBlackBoxConfig(cr *v1.Observability) *v13.ConfigMap {
+	return &v13.ConfigMap{
+		ObjectMeta: v12.ObjectMeta{
+			Name: "black-box-module",
+			Namespace: cr.Namespace,
+			Labels: map[string]string{
+				"managed-by": "observability-operator",
+			},
+		},
+	}
+}
+
+func GetDefaultBlackBoxConfig() string {
+	blackBoxConfig := `modules:
+  http_extern_2xx:
+    prober: http
+    http:
+      preferred_ip_protocol: ip4
+  http_2xx:
+    prober: http
+    http:
+      preferred_ip_protocol: ip4
+      tls_config:
+        ca_file: /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+  http_post_2xx:
+    prober: http
+    http:
+      method: POST
+      preferred_ip_protocol: ip4
+      tls_config:
+        ca_file: /var/run/secrets/kubernetes.io/serviceaccount/ca.crt`
+	return blackBoxConfig
+}
+
+
 func GetPrometheus(cr *v1.Observability) *prometheusv1.Prometheus {
 	return &prometheusv1.Prometheus{
 		ObjectMeta: v12.ObjectMeta{

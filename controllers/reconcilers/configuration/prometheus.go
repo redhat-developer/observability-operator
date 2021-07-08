@@ -73,6 +73,36 @@ func (r *Reconciler) fetchFederationConfigs(cr *v1.Observability, indexes []v1.R
 	return result, nil
 }
 
+func (r *Reconciler) fetchBlackBoxExporterModule(indexes []v1.RepositoryIndex) (*string, error) {
+	var modules string
+	for _, index := range indexes {
+		if index.Config == nil || index.Config.Prometheus == nil || index.Config.Prometheus.BlackBoxExporterModule == "" {
+			continue
+		}
+		blackBoxConfig := fmt.Sprintf("%s/%s", index.BaseUrl, index.Config.Prometheus.BlackBoxExporterModule)
+		bytes, err := r.fetchResource(blackBoxConfig, index.Tag, index.AccessToken)
+		if err != nil {
+			modules = model.GetDefaultBlackBoxConfig()
+		}
+		modules = string(bytes)
+	}
+	return &modules, nil
+}
+
+func (r *Reconciler) createBlackBoxConfig(cr *v1.Observability, ctx context.Context, module string) error {
+	configMap := model.GetPrometheusBlackBoxConfig(cr)
+	_, err := controllerutil.CreateOrUpdate(ctx, r.client, configMap, func() error {
+		configMap.Data = map[string]string{
+			"black-box-module.yaml": string(module),
+		}
+		return nil
+	})
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
 // Write the additional scrape config secret, used to federate from openshift-monitoring
 // This expects the aggregation of all federation configs across all indexes
 func (r *Reconciler) createAdditionalScrapeConfigSecret(cr *v1.Observability, ctx context.Context, patterns []string) error {
@@ -355,6 +385,26 @@ func (r *Reconciler) reconcilePrometheus(ctx context.Context, cr *v1.Observabili
 		},
 	})
 
+	sidecars = append(sidecars, kv1.Container{
+		Name:  "blackbox-exporter",
+		Image: "quay.io/prometheus/blackbox-exporter:v0.19.0",
+		Args: []string{
+			"--config.file=/opt/config/black-box-module.yaml",
+		},
+		Ports: []kv1.ContainerPort{
+			{
+				Name:          "http",
+				ContainerPort: 9115,
+			},
+		},
+		VolumeMounts: []kv1.VolumeMount{
+			{
+				Name:      "black-box-config",
+				MountPath: "/opt/config/",
+			},
+		},
+	})
+
 	prometheus := model.GetPrometheus(cr)
 	_, err = controllerutil.CreateOrUpdate(ctx, r.client, prometheus, func() error {
 		prometheus.Spec = prometheusv1.PrometheusSpec{
@@ -380,13 +430,27 @@ func (r *Reconciler) reconcilePrometheus(ctx context.Context, cr *v1.Observabili
 			ServiceMonitorSelector: &v12.LabelSelector{
 				MatchLabels: model.GetPrometheusServiceMonitorLabelSelectors(indexes),
 			},
+			ProbeSelector: &v12.LabelSelector{
+				MatchLabels: model.GetResourceLabels(),
+			},
 			RuleSelector: &v12.LabelSelector{
 				MatchLabels: model.GetPrometheusRuleMonitorLabelSelectors(indexes),
 			},
 			RemoteWrite: remoteWrites,
 			Alerting:    r.getAlerting(cr),
-			Secrets:     secrets,
-			Containers:  sidecars,
+			Secrets:     secrets, Containers: sidecars,
+			Volumes: []kv1.Volume{
+				{
+					Name: "black-box-config",
+					VolumeSource: kv1.VolumeSource{
+						ConfigMap: &kv1.ConfigMapVolumeSource{
+							LocalObjectReference: kv1.LocalObjectReference{
+								Name: "black-box-module",
+							},
+						},
+					},
+				},
+			},
 		}
 		if cr.Spec.Storage != nil && cr.Spec.Storage.PrometheusStorageSpec != nil {
 			prometheus.Spec.Storage = cr.Spec.Storage.PrometheusStorageSpec

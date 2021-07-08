@@ -336,7 +336,15 @@ func (r *Reconciler) Reconcile(ctx context.Context, cr *v1.Observability, s *v1.
 	if err != nil {
 		return v1.ResultFailed, err
 	}
-
+	//blackbox exporter
+	blackboxMod, err := r.fetchBlackBoxExporterModule(indexes)
+	if err != nil {
+		return v1.ResultFailed, errors2.Wrap(err, "error fetching black box module config")
+	}
+	err = r.createBlackBoxConfig(cr, ctx, *blackboxMod)
+	if err != nil {
+		return v1.ResultFailed, err
+	}
 	// Alertmanager CR
 	err = r.reconcileAlertmanager(ctx, cr)
 	if err != nil {
