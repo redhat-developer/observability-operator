@@ -213,10 +213,8 @@ func (in *GrafanaIndex) DeepCopyInto(out *GrafanaIndex) {
 	}
 	if in.DashboardLabelSelector != nil {
 		in, out := &in.DashboardLabelSelector, &out.DashboardLabelSelector
-		*out = make(map[string]string, len(*in))
-		for key, val := range *in {
-			(*out)[key] = val
-		}
+		*out = new(metav1.LabelSelector)
+		(*in).DeepCopyInto(*out)
 	}
 }
 
@@ -401,31 +399,23 @@ func (in *PrometheusIndex) DeepCopyInto(out *PrometheusIndex) {
 	}
 	if in.Labels != nil {
 		in, out := &in.Labels, &out.Labels
-		*out = make(map[string]string, len(*in))
-		for key, val := range *in {
-			(*out)[key] = val
-		}
+		*out = new(metav1.LabelSelector)
+		(*in).DeepCopyInto(*out)
 	}
 	if in.PodMonitorLabelSelector != nil {
 		in, out := &in.PodMonitorLabelSelector, &out.PodMonitorLabelSelector
-		*out = make(map[string]string, len(*in))
-		for key, val := range *in {
-			(*out)[key] = val
-		}
+		*out = new(metav1.LabelSelector)
+		(*in).DeepCopyInto(*out)
 	}
 	if in.ServiceMonitorLabelSelector != nil {
 		in, out := &in.ServiceMonitorLabelSelector, &out.ServiceMonitorLabelSelector
-		*out = make(map[string]string, len(*in))
-		for key, val := range *in {
-			(*out)[key] = val
-		}
+		*out = new(metav1.LabelSelector)
+		(*in).DeepCopyInto(*out)
 	}
 	if in.RuleLabelSelector != nil {
 		in, out := &in.RuleLabelSelector, &out.RuleLabelSelector
-		*out = make(map[string]string, len(*in))
-		for key, val := range *in {
-			(*out)[key] = val
-		}
+		*out = new(metav1.LabelSelector)
+		(*in).DeepCopyInto(*out)
 	}
 }
 
@@ -451,10 +441,8 @@ func (in *PromtailIndex) DeepCopyInto(out *PromtailIndex) {
 	}
 	if in.DaemonSetLabelSelector != nil {
 		in, out := &in.DaemonSetLabelSelector, &out.DaemonSetLabelSelector
-		*out = make(map[string]string, len(*in))
-		for key, val := range *in {
-			(*out)[key] = val
-		}
+		*out = new(metav1.LabelSelector)
+		(*in).DeepCopyInto(*out)
 	}
 }
 

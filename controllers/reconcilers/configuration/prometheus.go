@@ -15,7 +15,6 @@ import (
 	"github.com/sirupsen/logrus"
 	kv1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
-	v12 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -421,24 +420,6 @@ func (r *Reconciler) reconcilePrometheus(ctx context.Context, cr *v1.Observabili
 			ExternalLabels: map[string]string{
 				"cluster_id": cr.Status.ClusterID,
 			},
-			PodMonitorSelector: &v12.LabelSelector{
-				MatchLabels: model.GetPrometheusPodMonitorLabelSelectors(indexes),
-			},
-			ServiceMonitorSelector: &v12.LabelSelector{
-				MatchLabels: model.GetPrometheusServiceMonitorLabelSelectors(indexes),
-			},
-			ProbeSelector: &v12.LabelSelector{
-				MatchLabels: map[string]string{
-					"app": "strimzi",
-				},
-			},
-			RuleSelector: &v12.LabelSelector{
-				MatchLabels: model.GetPrometheusRuleMonitorLabelSelectors(indexes),
-			},
-			RemoteWrite: remoteWrites,
-			Alerting:    r.getAlerting(cr),
-			Secrets:     secrets,
-			Containers:  sidecars,
 			Volumes: []kv1.Volume{
 				{
 					Name: "black-box-config",
@@ -451,6 +432,16 @@ func (r *Reconciler) reconcilePrometheus(ctx context.Context, cr *v1.Observabili
 					},
 				},
 			},
+			PodMonitorSelector:              model.GetPrometheusPodMonitorLabelSelectors(cr, indexes),
+			PodMonitorNamespaceSelector:     model.GetPrometheusPodMonitorNamespaceSelectors(cr, indexes),
+			ServiceMonitorSelector:          model.GetPrometheusServiceMonitorLabelSelectors(cr, indexes),
+			ServiceMonitorNamespaceSelector: model.GetPrometheusServiceMonitorNamespaceSelectors(cr, indexes),
+			RuleSelector:                    model.GetPrometheusRuleLabelSelectors(cr, indexes),
+			RuleNamespaceSelector:           model.GetPrometheusRuleNamespaceSelectors(cr, indexes),
+			RemoteWrite:                     remoteWrites,
+			Alerting:                        r.getAlerting(cr),
+			Secrets:                         secrets,
+			Containers:                      sidecars,
 		}
 		if cr.Spec.Storage != nil && cr.Spec.Storage.PrometheusStorageSpec != nil {
 			prometheus.Spec.Storage = cr.Spec.Storage.PrometheusStorageSpec

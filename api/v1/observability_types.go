@@ -76,13 +76,19 @@ type Storage struct {
 }
 
 type SelfContained struct {
-	DisableRepoSync         *bool    `json:"disableRepoSync,omitempty"`
-	DisableObservatorium    *bool    `json:"disableObservatorium,omitempty"`
-	DisablePagerDuty        *bool    `json:"disablePagerDuty,omitempty"`
-	DisableDeadmansSnitch   *bool    `json:"disableDeadmansSnitch,omitempty"`
-	DisableBlackboxExporter *bool    `json:"disableBlackboxExporter,omitempty"`
-	SelfSignedCerts         *bool    `json:"selfSignedCerts,omitempty"`
-	FederatedMetrics        []string `json:"federatedMetrics,omitempty"`
+	DisableRepoSync                 *bool                 `json:"disableRepoSync,omitempty"`
+	DisableObservatorium            *bool                 `json:"disableObservatorium,omitempty"`
+	DisablePagerDuty                *bool                 `json:"disablePagerDuty,omitempty"`
+	DisableDeadmansSnitch           *bool                 `json:"disableDeadmansSnitch,omitempty"`
+	DisableBlackboxExporter         *bool                 `json:"disableBlackboxExporter,omitempty"`
+	SelfSignedCerts                 *bool                 `json:"selfSignedCerts,omitempty"`
+	FederatedMetrics                []string              `json:"federatedMetrics,omitempty"`
+	PodMonitorLabelSelector         *metav1.LabelSelector `json:"podMonitorLabelSelector,omitempty"`
+	PodMonitorNamespaceSelector     *metav1.LabelSelector `json:"podMonitorNamespaceSelector,omitempty"`
+	ServiceMonitorLabelSelector     *metav1.LabelSelector `json:"serviceMonitorLabelSelector,omitempty"`
+	ServiceMonitorNamespaceSelector *metav1.LabelSelector `json:"serviceMonitorNamespaceSelector,omitempty"`
+	RuleLabelSelector               *metav1.LabelSelector `json:"ruleLabelSelector,omitempty"`
+	RuleNamespaceSelector           *metav1.LabelSelector `json:"ruleNamespaceSelector,omitempty"`
 }
 
 // ObservabilitySpec defines the desired state of Observability

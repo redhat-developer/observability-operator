@@ -163,12 +163,10 @@ func (r *Reconciler) createPromtailDaemonsetFor(ctx context.Context, cr *v1.Obse
 			"managed-by": "observability-operator",
 		}
 		daemonset.Spec = v13.DaemonSetSpec{
-			Selector: &v14.LabelSelector{
-				MatchLabels: model.GetPromtailDaemonSetLabels(index),
-			},
+			Selector: model.GetPromtailDaemonSetLabels(index),
 			Template: v12.PodTemplateSpec{
 				ObjectMeta: v14.ObjectMeta{
-					Labels: model.GetPromtailDaemonSetLabels(index),
+					Labels: model.GetPromtailDaemonSetLabels(index).MatchLabels,
 				},
 				Spec: v12.PodSpec{
 					Affinity: &v12.Affinity{

@@ -73,7 +73,7 @@ func GetGrafanaDatasource(cr *v1.Observability) *v1alpha12.GrafanaDataSource {
 	}
 }
 
-func GetGrafanaDashboardLabelSelectors(indexes []v1.RepositoryIndex) map[string]string {
+func GetGrafanaDashboardLabelSelectors(indexes []v1.RepositoryIndex) *v12.LabelSelector {
 	if len(indexes) > 0 {
 		// We should only have one Grafana CR for the whole cluster. However, we cannot merge
 		// all of the label selectors from all of the repository index config as this will result
@@ -86,5 +86,7 @@ func GetGrafanaDashboardLabelSelectors(indexes []v1.RepositoryIndex) map[string]
 		}
 	}
 
-	return defaultGrafanaLabelSelectors
+	return &v12.LabelSelector{
+		MatchLabels: defaultPrometheusLabelSelectors,
+	}
 }

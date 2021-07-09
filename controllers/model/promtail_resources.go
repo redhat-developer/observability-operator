@@ -157,9 +157,13 @@ scrape_configs:
 	return string(buffer.Bytes()), err
 }
 
-func GetPromtailDaemonSetLabels(index *v1.RepositoryIndex) map[string]string {
+func GetPromtailDaemonSetLabels(index *v1.RepositoryIndex) *metav1.LabelSelector {
 	if index.Config != nil && index.Config.Promtail != nil && index.Config.Promtail.DaemonSetLabelSelector != nil {
 		return index.Config.Promtail.DaemonSetLabelSelector
 	}
-	return map[string]string{"app": "strimzi"}
+	return &metav1.LabelSelector{
+		MatchLabels: map[string]string{
+			"app": "strimzi",
+		},
+	}
 }
