@@ -428,7 +428,9 @@ func (r *Reconciler) reconcilePrometheus(ctx context.Context, cr *v1.Observabili
 				MatchLabels: model.GetPrometheusServiceMonitorLabelSelectors(indexes),
 			},
 			ProbeSelector: &v12.LabelSelector{
-				MatchLabels: model.GetResourceLabels(),
+				MatchLabels: map[string]string{
+					"app": "strimzi",
+				},
 			},
 			RuleSelector: &v12.LabelSelector{
 				MatchLabels: model.GetPrometheusRuleMonitorLabelSelectors(indexes),
