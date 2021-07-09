@@ -620,6 +620,16 @@ func (in *SelfContained) DeepCopyInto(out *SelfContained) {
 		*out = new(bool)
 		**out = **in
 	}
+	if in.DisableBlackboxExporter != nil {
+		in, out := &in.DisableBlackboxExporter, &out.DisableBlackboxExporter
+		*out = new(bool)
+		**out = **in
+	}
+	if in.SelfSignedCerts != nil {
+		in, out := &in.SelfSignedCerts, &out.SelfSignedCerts
+		*out = new(bool)
+		**out = **in
+	}
 	if in.FederatedMetrics != nil {
 		in, out := &in.FederatedMetrics, &out.FederatedMetrics
 		*out = make([]string, len(*in))

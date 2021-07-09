@@ -2,6 +2,7 @@ package model
 
 import (
 	"bytes"
+	"crypto/sha256"
 	"fmt"
 	"strings"
 	t "text/template"
@@ -11,6 +12,7 @@ import (
 	coreosv1 "github.com/operator-framework/api/pkg/operators/v1"
 	"github.com/operator-framework/api/pkg/operators/v1alpha1"
 	prometheusv1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
+	"html/template"
 	v13 "k8s.io/api/core/v1"
 	v14 "k8s.io/api/rbac/v1"
 	v12 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -177,7 +179,7 @@ func GetPrometheusAdditionalScrapeConfig(cr *v1.Observability) *v13.Secret {
 func GetPrometheusBlackBoxConfig(cr *v1.Observability) *v13.ConfigMap {
 	return &v13.ConfigMap{
 		ObjectMeta: v12.ObjectMeta{
-			Name: "black-box-module",
+			Name:      "black-box-module",
 			Namespace: cr.Namespace,
 			Labels: map[string]string{
 				"managed-by": "observability-operator",
@@ -186,7 +188,7 @@ func GetPrometheusBlackBoxConfig(cr *v1.Observability) *v13.ConfigMap {
 	}
 }
 
-func GetDefaultBlackBoxConfig() string {
+func GetDefaultBlackBoxConfig(cr *v1.Observability) ([]byte, string, error) {
 	blackBoxConfig := `modules:
   http_extern_2xx:
     prober: http
@@ -195,19 +197,42 @@ func GetDefaultBlackBoxConfig() string {
   http_2xx:
     prober: http
     http:
-      preferred_ip_protocol: ip4
+      preferred_ip_protocol: ip4{{ if .SelfSignedCerts }}
       tls_config:
         ca_file: /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+        cert_file: /etc/tls/private/tls.crt
+        key_file: /etc/tls/private/tls.key{{ end }}
   http_post_2xx:
     prober: http
     http:
       method: POST
-      preferred_ip_protocol: ip4
+      preferred_ip_protocol: ip4{{ if .SelfSignedCerts }}
       tls_config:
-        ca_file: /var/run/secrets/kubernetes.io/serviceaccount/ca.crt`
-	return blackBoxConfig
-}
+        ca_file: /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+        cert_file: /etc/tls/private/tls.crt
+        key_file: /etc/tls/private/tls.key{{ end }}`
 
+	parser := template.New("blackbox-config")
+	parsed, err := parser.Parse(blackBoxConfig)
+	if err != nil {
+		return nil, "", err
+	}
+
+	var buffer bytes.Buffer
+	params := struct {
+		SelfSignedCerts bool
+	}{
+		SelfSignedCerts: cr.SelfSignedCerts(),
+	}
+
+	err = parsed.Execute(&buffer, &params)
+	if err != nil {
+		return nil, "", err
+	}
+
+	hash := sha256.Sum256(buffer.Bytes())
+	return buffer.Bytes(), fmt.Sprintf("%x", hash), nil
+}
 
 func GetPrometheus(cr *v1.Observability) *prometheusv1.Prometheus {
 	return &prometheusv1.Prometheus{

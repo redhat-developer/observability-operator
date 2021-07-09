@@ -200,6 +200,9 @@ func (r *ObservabilityReconciler) InitializeOperand(mgr ctrl.Manager) error {
 		},
 		Spec: apiv1.ObservabilitySpec{
 			ResyncPeriod: "1h",
+			SelfContained: &apiv1.SelfContained{
+				DisableBlackboxExporter: &([]bool{true})[0],
+			},
 			ConfigurationSelector: &metav1.LabelSelector{
 				MatchLabels: map[string]string{
 					"configures": "observability-operator",
