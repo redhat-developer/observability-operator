@@ -336,7 +336,11 @@ func (r *Reconciler) Reconcile(ctx context.Context, cr *v1.Observability, s *v1.
 	if err != nil {
 		return v1.ResultFailed, err
 	}
-
+	//blackbox exporter
+	hash, err := r.createBlackBoxConfig(cr, ctx)
+	if err != nil {
+		return v1.ResultFailed, err
+	}
 	// Alertmanager CR
 	err = r.reconcileAlertmanager(ctx, cr)
 	if err != nil {
@@ -344,7 +348,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, cr *v1.Observability, s *v1.
 	}
 
 	// Prometheus CR
-	err = r.reconcilePrometheus(ctx, cr, indexes)
+	err = r.reconcilePrometheus(ctx, cr, indexes, hash)
 	if err != nil {
 		return v1.ResultFailed, errors2.Wrap(err, "error reconciling prometheus")
 	}

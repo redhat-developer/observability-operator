@@ -76,11 +76,13 @@ type Storage struct {
 }
 
 type SelfContained struct {
-	DisableRepoSync       *bool    `json:"disableRepoSync,omitempty"`
-	DisableObservatorium  *bool    `json:"disableObservatorium,omitempty"`
-	DisablePagerDuty      *bool    `json:"disablePagerDuty,omitempty"`
-	DisableDeadmansSnitch *bool    `json:"disableDeadmansSnitch,omitempty"`
-	FederatedMetrics      []string `json:"federatedMetrics,omitempty"`
+	DisableRepoSync         *bool    `json:"disableRepoSync,omitempty"`
+	DisableObservatorium    *bool    `json:"disableObservatorium,omitempty"`
+	DisablePagerDuty        *bool    `json:"disablePagerDuty,omitempty"`
+	DisableDeadmansSnitch   *bool    `json:"disableDeadmansSnitch,omitempty"`
+	DisableBlackboxExporter *bool    `json:"disableBlackboxExporter,omitempty"`
+	SelfSignedCerts         *bool    `json:"selfSignedCerts,omitempty"`
+	FederatedMetrics        []string `json:"federatedMetrics,omitempty"`
 }
 
 // ObservabilitySpec defines the desired state of Observability
@@ -140,6 +142,14 @@ func (in *Observability) PagerDutyDisabled() bool {
 
 func (in *Observability) DeadMansSnitchDisabled() bool {
 	return in.Spec.SelfContained != nil && in.Spec.SelfContained.DisableDeadmansSnitch != nil && *in.Spec.SelfContained.DisableDeadmansSnitch
+}
+
+func (in *Observability) BlackboxExporterDisabled() bool {
+	return in.Spec.SelfContained != nil && in.Spec.SelfContained.DisableBlackboxExporter != nil && *in.Spec.SelfContained.DisableBlackboxExporter
+}
+
+func (in *Observability) SelfSignedCerts() bool {
+	return in.Spec.SelfContained != nil && in.Spec.SelfContained.SelfSignedCerts != nil && *in.Spec.SelfContained.SelfSignedCerts
 }
 
 func init() {
