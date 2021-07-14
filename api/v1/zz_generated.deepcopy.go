@@ -407,13 +407,38 @@ func (in *PrometheusIndex) DeepCopyInto(out *PrometheusIndex) {
 		*out = new(metav1.LabelSelector)
 		(*in).DeepCopyInto(*out)
 	}
+	if in.PodMonitorNamespaceSelector != nil {
+		in, out := &in.PodMonitorNamespaceSelector, &out.PodMonitorNamespaceSelector
+		*out = new(metav1.LabelSelector)
+		(*in).DeepCopyInto(*out)
+	}
 	if in.ServiceMonitorLabelSelector != nil {
 		in, out := &in.ServiceMonitorLabelSelector, &out.ServiceMonitorLabelSelector
 		*out = new(metav1.LabelSelector)
 		(*in).DeepCopyInto(*out)
 	}
+	if in.ServiceMonitorNamespaceSelector != nil {
+		in, out := &in.ServiceMonitorNamespaceSelector, &out.ServiceMonitorNamespaceSelector
+		*out = new(metav1.LabelSelector)
+		(*in).DeepCopyInto(*out)
+	}
 	if in.RuleLabelSelector != nil {
 		in, out := &in.RuleLabelSelector, &out.RuleLabelSelector
+		*out = new(metav1.LabelSelector)
+		(*in).DeepCopyInto(*out)
+	}
+	if in.RuleNamespaceSelector != nil {
+		in, out := &in.RuleNamespaceSelector, &out.RuleNamespaceSelector
+		*out = new(metav1.LabelSelector)
+		(*in).DeepCopyInto(*out)
+	}
+	if in.ProbeLabelSelector != nil {
+		in, out := &in.ProbeLabelSelector, &out.ProbeLabelSelector
+		*out = new(metav1.LabelSelector)
+		(*in).DeepCopyInto(*out)
+	}
+	if in.ProbeNamespaceSelector != nil {
+		in, out := &in.ProbeNamespaceSelector, &out.ProbeNamespaceSelector
 		*out = new(metav1.LabelSelector)
 		(*in).DeepCopyInto(*out)
 	}
@@ -622,6 +647,46 @@ func (in *SelfContained) DeepCopyInto(out *SelfContained) {
 		in, out := &in.FederatedMetrics, &out.FederatedMetrics
 		*out = make([]string, len(*in))
 		copy(*out, *in)
+	}
+	if in.PodMonitorLabelSelector != nil {
+		in, out := &in.PodMonitorLabelSelector, &out.PodMonitorLabelSelector
+		*out = new(metav1.LabelSelector)
+		(*in).DeepCopyInto(*out)
+	}
+	if in.PodMonitorNamespaceSelector != nil {
+		in, out := &in.PodMonitorNamespaceSelector, &out.PodMonitorNamespaceSelector
+		*out = new(metav1.LabelSelector)
+		(*in).DeepCopyInto(*out)
+	}
+	if in.ServiceMonitorLabelSelector != nil {
+		in, out := &in.ServiceMonitorLabelSelector, &out.ServiceMonitorLabelSelector
+		*out = new(metav1.LabelSelector)
+		(*in).DeepCopyInto(*out)
+	}
+	if in.ServiceMonitorNamespaceSelector != nil {
+		in, out := &in.ServiceMonitorNamespaceSelector, &out.ServiceMonitorNamespaceSelector
+		*out = new(metav1.LabelSelector)
+		(*in).DeepCopyInto(*out)
+	}
+	if in.RuleLabelSelector != nil {
+		in, out := &in.RuleLabelSelector, &out.RuleLabelSelector
+		*out = new(metav1.LabelSelector)
+		(*in).DeepCopyInto(*out)
+	}
+	if in.RuleNamespaceSelector != nil {
+		in, out := &in.RuleNamespaceSelector, &out.RuleNamespaceSelector
+		*out = new(metav1.LabelSelector)
+		(*in).DeepCopyInto(*out)
+	}
+	if in.ProbeLabelSelector != nil {
+		in, out := &in.ProbeLabelSelector, &out.ProbeLabelSelector
+		*out = new(metav1.LabelSelector)
+		(*in).DeepCopyInto(*out)
+	}
+	if in.ProbeNamespaceSelector != nil {
+		in, out := &in.ProbeNamespaceSelector, &out.ProbeNamespaceSelector
+		*out = new(metav1.LabelSelector)
+		(*in).DeepCopyInto(*out)
 	}
 }
 

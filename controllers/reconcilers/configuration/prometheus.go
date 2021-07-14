@@ -81,7 +81,7 @@ func (r *Reconciler) createBlackBoxConfig(cr *v1.Observability, ctx context.Cont
 
 	_, err = controllerutil.CreateOrUpdate(ctx, r.client, configMap, func() error {
 		configMap.Data = map[string]string{
-			"black-box-module.yaml": string(cfg),
+			"black-box-config.yaml": string(cfg),
 		}
 		return nil
 	})
@@ -375,7 +375,7 @@ func (r *Reconciler) reconcilePrometheus(ctx context.Context, cr *v1.Observabili
 			Name:  "blackbox-exporter",
 			Image: "quay.io/prometheus/blackbox-exporter:v0.19.0",
 			Args: []string{
-				"--config.file=/opt/config/black-box-module.yaml",
+				"--config.file=/opt/config/black-box-config.yaml",
 			},
 			Env: []kv1.EnvVar{
 				{
@@ -426,7 +426,7 @@ func (r *Reconciler) reconcilePrometheus(ctx context.Context, cr *v1.Observabili
 					VolumeSource: kv1.VolumeSource{
 						ConfigMap: &kv1.ConfigMapVolumeSource{
 							LocalObjectReference: kv1.LocalObjectReference{
-								Name: "black-box-module",
+								Name: "black-box-config",
 							},
 						},
 					},
@@ -438,6 +438,8 @@ func (r *Reconciler) reconcilePrometheus(ctx context.Context, cr *v1.Observabili
 			ServiceMonitorNamespaceSelector: model.GetPrometheusServiceMonitorNamespaceSelectors(cr, indexes),
 			RuleSelector:                    model.GetPrometheusRuleLabelSelectors(cr, indexes),
 			RuleNamespaceSelector:           model.GetPrometheusRuleNamespaceSelectors(cr, indexes),
+			ProbeSelector:                   model.GetProbeLabelSelectors(cr, indexes),
+			ProbeNamespaceSelector:          model.GetProbeNamespaceSelectors(cr, indexes),
 			RemoteWrite:                     remoteWrites,
 			Alerting:                        r.getAlerting(cr),
 			Secrets:                         secrets,

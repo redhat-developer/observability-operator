@@ -93,6 +93,8 @@ type PrometheusIndex struct {
 	ServiceMonitorNamespaceSelector *v13.LabelSelector `json:"serviceMonitorNamespaceSelector,omitempty"`
 	RuleLabelSelector               *v13.LabelSelector `json:"ruleLabelSelector,omitempty"`
 	RuleNamespaceSelector           *v13.LabelSelector `json:"ruleNamespaceSelector,omitempty"`
+	ProbeLabelSelector              *v13.LabelSelector `json:"probeSelector,omitempty"`
+	ProbeNamespaceSelector          *v13.LabelSelector `json:"probeNamespaceSelector,omitempty"`
 }
 
 type PromtailIndex struct {

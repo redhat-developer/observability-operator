@@ -89,6 +89,8 @@ type SelfContained struct {
 	ServiceMonitorNamespaceSelector *metav1.LabelSelector `json:"serviceMonitorNamespaceSelector,omitempty"`
 	RuleLabelSelector               *metav1.LabelSelector `json:"ruleLabelSelector,omitempty"`
 	RuleNamespaceSelector           *metav1.LabelSelector `json:"ruleNamespaceSelector,omitempty"`
+	ProbeLabelSelector              *metav1.LabelSelector `json:"probeSelector,omitempty"`
+	ProbeNamespaceSelector          *metav1.LabelSelector `json:"probeNamespaceSelector,omitempty"`
 }
 
 // ObservabilitySpec defines the desired state of Observability

@@ -179,7 +179,7 @@ func GetPrometheusAdditionalScrapeConfig(cr *v1.Observability) *v13.Secret {
 func GetPrometheusBlackBoxConfig(cr *v1.Observability) *v13.ConfigMap {
 	return &v13.ConfigMap{
 		ObjectMeta: v12.ObjectMeta{
-			Name:      "black-box-module",
+			Name:      "black-box-config",
 			Namespace: cr.Namespace,
 			Labels: map[string]string{
 				"managed-by": "observability-operator",
@@ -290,6 +290,21 @@ func GetPrometheusRuleLabelSelectors(cr *v1.Observability, indexes []v1.Reposito
 	}
 }
 
+func GetProbeLabelSelectors(cr *v1.Observability, indexes []v1.RepositoryIndex) *v12.LabelSelector {
+	if cr.Spec.SelfContained != nil && cr.Spec.SelfContained.ProbeLabelSelector != nil {
+		return cr.Spec.SelfContained.ProbeLabelSelector
+	}
+
+	prometheusConfig := getPrometheusRepositoryIndexConfig(indexes)
+	if prometheusConfig != nil && prometheusConfig.ProbeLabelSelector != nil {
+		return prometheusConfig.ProbeLabelSelector
+	}
+
+	return &v12.LabelSelector{
+		MatchLabels: defaultPrometheusLabelSelectors,
+	}
+}
+
 // Namespace selectors
 
 func GetPrometheusPodMonitorNamespaceSelectors(cr *v1.Observability, indexes []v1.RepositoryIndex) *v12.LabelSelector {
@@ -321,6 +336,17 @@ func GetPrometheusRuleNamespaceSelectors(cr *v1.Observability, indexes []v1.Repo
 	prometheusConfig := getPrometheusRepositoryIndexConfig(indexes)
 	if prometheusConfig != nil && prometheusConfig.RuleLabelSelector != nil {
 		return prometheusConfig.RuleLabelSelector
+	}
+	return nil
+}
+
+func GetProbeNamespaceSelectors(cr *v1.Observability, indexes []v1.RepositoryIndex) *v12.LabelSelector {
+	if cr.Spec.SelfContained != nil && cr.Spec.SelfContained.ProbeNamespaceSelector != nil {
+		return cr.Spec.SelfContained.ProbeNamespaceSelector
+	}
+	prometheusConfig := getPrometheusRepositoryIndexConfig(indexes)
+	if prometheusConfig != nil && prometheusConfig.ProbeNamespaceSelector != nil {
+		return prometheusConfig.ProbeNamespaceSelector
 	}
 	return nil
 }
