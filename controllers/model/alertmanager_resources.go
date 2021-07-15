@@ -90,6 +90,16 @@ func GetAlertmanagerSecret(cr *v1.Observability) *v13.Secret {
 	}
 }
 
+func GetAlertmanagerSecretName(cr *v1.Observability) string {
+	override, name := cr.HasAlertmanagerConfigSecret()
+	if override {
+		return name
+	}
+
+	secret := GetAlertmanagerSecret(cr)
+	return secret.Name
+}
+
 func GetAlertmanagerService(cr *v1.Observability) *v13.Service {
 	return &v13.Service{
 		ObjectMeta: metav1.ObjectMeta{
