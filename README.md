@@ -59,7 +59,7 @@ metadata:
     configures: observability-operator
 data:
   access_token: '<token here>'
-  channel: '<optional, defaults to resources>'
+  channel: 'resources'
   repository: 'https://api.github.com/repos/bf2fc6cc711aee1a0c2a/observability-resources-mk/contents'
   tag: <tag or branch>
 ```
