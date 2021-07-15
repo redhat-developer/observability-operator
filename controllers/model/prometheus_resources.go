@@ -179,7 +179,7 @@ func GetPrometheusAdditionalScrapeConfig(cr *v1.Observability) *v13.Secret {
 func GetPrometheusBlackBoxConfig(cr *v1.Observability) *v13.ConfigMap {
 	return &v13.ConfigMap{
 		ObjectMeta: v12.ObjectMeta{
-			Name:      "black-box-module",
+			Name:      "black-box-config",
 			Namespace: cr.Namespace,
 			Labels: map[string]string{
 				"managed-by": "observability-operator",
@@ -243,31 +243,112 @@ func GetPrometheus(cr *v1.Observability) *prometheusv1.Prometheus {
 	}
 }
 
-func GetPrometheusPodMonitorLabelSelectors(indexes []v1.RepositoryIndex) map[string]string {
+// Label Selectors
+
+func GetPrometheusPodMonitorLabelSelectors(cr *v1.Observability, indexes []v1.RepositoryIndex) *v12.LabelSelector {
+	if cr.Spec.SelfContained != nil && cr.Spec.SelfContained.PodMonitorLabelSelector != nil {
+		return cr.Spec.SelfContained.PodMonitorLabelSelector
+	}
+
 	prometheusConfig := getPrometheusRepositoryIndexConfig(indexes)
 	if prometheusConfig != nil && prometheusConfig.PodMonitorLabelSelector != nil {
 		return prometheusConfig.PodMonitorLabelSelector
 	}
 
-	return defaultPrometheusLabelSelectors
+	return &v12.LabelSelector{
+		MatchLabels: defaultPrometheusLabelSelectors,
+	}
 }
 
-func GetPrometheusServiceMonitorLabelSelectors(indexes []v1.RepositoryIndex) map[string]string {
+func GetPrometheusServiceMonitorLabelSelectors(cr *v1.Observability, indexes []v1.RepositoryIndex) *v12.LabelSelector {
+	if cr.Spec.SelfContained != nil && cr.Spec.SelfContained.ServiceMonitorLabelSelector != nil {
+		return cr.Spec.SelfContained.ServiceMonitorLabelSelector
+	}
+
 	prometheusConfig := getPrometheusRepositoryIndexConfig(indexes)
 	if prometheusConfig != nil && prometheusConfig.ServiceMonitorLabelSelector != nil {
 		return prometheusConfig.ServiceMonitorLabelSelector
 	}
 
-	return defaultPrometheusLabelSelectors
+	return &v12.LabelSelector{
+		MatchLabels: defaultPrometheusLabelSelectors,
+	}
 }
 
-func GetPrometheusRuleMonitorLabelSelectors(indexes []v1.RepositoryIndex) map[string]string {
+func GetPrometheusRuleLabelSelectors(cr *v1.Observability, indexes []v1.RepositoryIndex) *v12.LabelSelector {
+	if cr.Spec.SelfContained != nil && cr.Spec.SelfContained.RuleLabelSelector != nil {
+		return cr.Spec.SelfContained.RuleLabelSelector
+	}
+
 	prometheusConfig := getPrometheusRepositoryIndexConfig(indexes)
 	if prometheusConfig != nil && prometheusConfig.RuleLabelSelector != nil {
 		return prometheusConfig.RuleLabelSelector
 	}
 
-	return defaultPrometheusLabelSelectors
+	return &v12.LabelSelector{
+		MatchLabels: defaultPrometheusLabelSelectors,
+	}
+}
+
+func GetProbeLabelSelectors(cr *v1.Observability, indexes []v1.RepositoryIndex) *v12.LabelSelector {
+	if cr.Spec.SelfContained != nil && cr.Spec.SelfContained.ProbeLabelSelector != nil {
+		return cr.Spec.SelfContained.ProbeLabelSelector
+	}
+
+	prometheusConfig := getPrometheusRepositoryIndexConfig(indexes)
+	if prometheusConfig != nil && prometheusConfig.ProbeLabelSelector != nil {
+		return prometheusConfig.ProbeLabelSelector
+	}
+
+	return &v12.LabelSelector{
+		MatchLabels: defaultPrometheusLabelSelectors,
+	}
+}
+
+// Namespace selectors
+
+func GetPrometheusPodMonitorNamespaceSelectors(cr *v1.Observability, indexes []v1.RepositoryIndex) *v12.LabelSelector {
+	if cr.Spec.SelfContained != nil && cr.Spec.SelfContained.PodMonitorNamespaceSelector != nil {
+		return cr.Spec.SelfContained.PodMonitorNamespaceSelector
+	}
+	prometheusConfig := getPrometheusRepositoryIndexConfig(indexes)
+	if prometheusConfig != nil && prometheusConfig.PodMonitorLabelSelector != nil {
+		return prometheusConfig.PodMonitorLabelSelector
+	}
+	return nil
+}
+
+func GetPrometheusServiceMonitorNamespaceSelectors(cr *v1.Observability, indexes []v1.RepositoryIndex) *v12.LabelSelector {
+	if cr.Spec.SelfContained != nil && cr.Spec.SelfContained.ServiceMonitorNamespaceSelector != nil {
+		return cr.Spec.SelfContained.ServiceMonitorNamespaceSelector
+	}
+	prometheusConfig := getPrometheusRepositoryIndexConfig(indexes)
+	if prometheusConfig != nil && prometheusConfig.ServiceMonitorLabelSelector != nil {
+		return prometheusConfig.ServiceMonitorLabelSelector
+	}
+	return nil
+}
+
+func GetPrometheusRuleNamespaceSelectors(cr *v1.Observability, indexes []v1.RepositoryIndex) *v12.LabelSelector {
+	if cr.Spec.SelfContained != nil && cr.Spec.SelfContained.RuleNamespaceSelector != nil {
+		return cr.Spec.SelfContained.RuleNamespaceSelector
+	}
+	prometheusConfig := getPrometheusRepositoryIndexConfig(indexes)
+	if prometheusConfig != nil && prometheusConfig.RuleLabelSelector != nil {
+		return prometheusConfig.RuleLabelSelector
+	}
+	return nil
+}
+
+func GetProbeNamespaceSelectors(cr *v1.Observability, indexes []v1.RepositoryIndex) *v12.LabelSelector {
+	if cr.Spec.SelfContained != nil && cr.Spec.SelfContained.ProbeNamespaceSelector != nil {
+		return cr.Spec.SelfContained.ProbeNamespaceSelector
+	}
+	prometheusConfig := getPrometheusRepositoryIndexConfig(indexes)
+	if prometheusConfig != nil && prometheusConfig.ProbeNamespaceSelector != nil {
+		return prometheusConfig.ProbeNamespaceSelector
+	}
+	return nil
 }
 
 // returns the Prometheus configuration from the repository index

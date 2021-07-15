@@ -3,6 +3,7 @@ package v1
 import (
 	v12 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
 	v1 "k8s.io/api/core/v1"
+	v13 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 type RepositoryInfo struct {
@@ -14,8 +15,8 @@ type RepositoryInfo struct {
 }
 
 type GrafanaIndex struct {
-	Dashboards             []string          `json:"dashboards"`
-	DashboardLabelSelector map[string]string `json:"dashboardLabelSelector,omitempty"`
+	Dashboards             []string           `json:"dashboards"`
+	DashboardLabelSelector *v13.LabelSelector `json:"dashboardLabelSelector,omitempty"`
 }
 
 type DexConfig struct {
@@ -80,22 +81,27 @@ type AlertmanagerIndex struct {
 }
 
 type PrometheusIndex struct {
-	Rules                       []string          `json:"rules"`
-	PodMonitors                 []string          `json:"pod_monitors"`
-	Federation                  string            `json:"federation,omitempty"`
-	Observatorium               string            `json:"observatorium,omitempty"`
-	RemoteWrite                 string            `json:"remoteWrite,omitempty"`
-	Labels                      map[string]string `json:"labels,omitempty"`
-	PodMonitorLabelSelector     map[string]string `json:"podMonitorLabelSelector,omitempty"`
-	ServiceMonitorLabelSelector map[string]string `json:"serviceMonitorLabelSelector,omitempty"`
-	RuleLabelSelector           map[string]string `json:"ruleLabelSelector,omitempty"`
+	Rules                           []string           `json:"rules"`
+	PodMonitors                     []string           `json:"pod_monitors"`
+	Federation                      string             `json:"federation,omitempty"`
+	Observatorium                   string             `json:"observatorium,omitempty"`
+	RemoteWrite                     string             `json:"remoteWrite,omitempty"`
+	Labels                          *v13.LabelSelector `json:"labels,omitempty"`
+	PodMonitorLabelSelector         *v13.LabelSelector `json:"podMonitorLabelSelector,omitempty"`
+	PodMonitorNamespaceSelector     *v13.LabelSelector `json:"podMonitorNamespaceSelector,omitempty"`
+	ServiceMonitorLabelSelector     *v13.LabelSelector `json:"serviceMonitorLabelSelector,omitempty"`
+	ServiceMonitorNamespaceSelector *v13.LabelSelector `json:"serviceMonitorNamespaceSelector,omitempty"`
+	RuleLabelSelector               *v13.LabelSelector `json:"ruleLabelSelector,omitempty"`
+	RuleNamespaceSelector           *v13.LabelSelector `json:"ruleNamespaceSelector,omitempty"`
+	ProbeLabelSelector              *v13.LabelSelector `json:"probeSelector,omitempty"`
+	ProbeNamespaceSelector          *v13.LabelSelector `json:"probeNamespaceSelector,omitempty"`
 }
 
 type PromtailIndex struct {
-	Enabled                bool              `json:"enabled,omitempty"`
-	NamespaceLabelSelector map[string]string `json:"namespaceLabelSelector,omitempty"`
-	Observatorium          string            `json:"observatorium,omitempty"`
-	DaemonSetLabelSelector map[string]string `json:"daemonSetLabelSelector,omitempty"`
+	Enabled                bool               `json:"enabled,omitempty"`
+	NamespaceLabelSelector map[string]string  `json:"namespaceLabelSelector,omitempty"`
+	Observatorium          string             `json:"observatorium,omitempty"`
+	DaemonSetLabelSelector *v13.LabelSelector `json:"daemonSetLabelSelector,omitempty"`
 }
 
 type RepositoryConfig struct {

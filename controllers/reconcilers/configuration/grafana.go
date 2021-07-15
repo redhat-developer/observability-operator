@@ -80,9 +80,7 @@ func (r *Reconciler) reconcileGrafanaCr(ctx context.Context, cr *v1.Observabilit
 				},
 			},
 			DashboardLabelSelector: []*metav1.LabelSelector{
-				{
-					MatchLabels: model.GetGrafanaDashboardLabelSelectors(indexes),
-				},
+				model.GetGrafanaDashboardLabelSelectors(indexes),
 			},
 			Ingress: &v1alpha1.GrafanaIngress{
 				Enabled:     true,

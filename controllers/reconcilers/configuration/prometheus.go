@@ -15,7 +15,6 @@ import (
 	"github.com/sirupsen/logrus"
 	kv1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
-	v12 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -82,7 +81,7 @@ func (r *Reconciler) createBlackBoxConfig(cr *v1.Observability, ctx context.Cont
 
 	_, err = controllerutil.CreateOrUpdate(ctx, r.client, configMap, func() error {
 		configMap.Data = map[string]string{
-			"black-box-module.yaml": string(cfg),
+			"black-box-config.yaml": string(cfg),
 		}
 		return nil
 	})
@@ -376,7 +375,7 @@ func (r *Reconciler) reconcilePrometheus(ctx context.Context, cr *v1.Observabili
 			Name:  "blackbox-exporter",
 			Image: "quay.io/prometheus/blackbox-exporter:v0.19.0",
 			Args: []string{
-				"--config.file=/opt/config/black-box-module.yaml",
+				"--config.file=/opt/config/black-box-config.yaml",
 			},
 			Env: []kv1.EnvVar{
 				{
@@ -421,36 +420,30 @@ func (r *Reconciler) reconcilePrometheus(ctx context.Context, cr *v1.Observabili
 			ExternalLabels: map[string]string{
 				"cluster_id": cr.Status.ClusterID,
 			},
-			PodMonitorSelector: &v12.LabelSelector{
-				MatchLabels: model.GetPrometheusPodMonitorLabelSelectors(indexes),
-			},
-			ServiceMonitorSelector: &v12.LabelSelector{
-				MatchLabels: model.GetPrometheusServiceMonitorLabelSelectors(indexes),
-			},
-			ProbeSelector: &v12.LabelSelector{
-				MatchLabels: map[string]string{
-					"app": "strimzi",
-				},
-			},
-			RuleSelector: &v12.LabelSelector{
-				MatchLabels: model.GetPrometheusRuleMonitorLabelSelectors(indexes),
-			},
-			RemoteWrite: remoteWrites,
-			Alerting:    r.getAlerting(cr),
-			Secrets:     secrets,
-			Containers:  sidecars,
 			Volumes: []kv1.Volume{
 				{
 					Name: "black-box-config",
 					VolumeSource: kv1.VolumeSource{
 						ConfigMap: &kv1.ConfigMapVolumeSource{
 							LocalObjectReference: kv1.LocalObjectReference{
-								Name: "black-box-module",
+								Name: "black-box-config",
 							},
 						},
 					},
 				},
 			},
+			PodMonitorSelector:              model.GetPrometheusPodMonitorLabelSelectors(cr, indexes),
+			PodMonitorNamespaceSelector:     model.GetPrometheusPodMonitorNamespaceSelectors(cr, indexes),
+			ServiceMonitorSelector:          model.GetPrometheusServiceMonitorLabelSelectors(cr, indexes),
+			ServiceMonitorNamespaceSelector: model.GetPrometheusServiceMonitorNamespaceSelectors(cr, indexes),
+			RuleSelector:                    model.GetPrometheusRuleLabelSelectors(cr, indexes),
+			RuleNamespaceSelector:           model.GetPrometheusRuleNamespaceSelectors(cr, indexes),
+			ProbeSelector:                   model.GetProbeLabelSelectors(cr, indexes),
+			ProbeNamespaceSelector:          model.GetProbeNamespaceSelectors(cr, indexes),
+			RemoteWrite:                     remoteWrites,
+			Alerting:                        r.getAlerting(cr),
+			Secrets:                         secrets,
+			Containers:                      sidecars,
 		}
 		if cr.Spec.Storage != nil && cr.Spec.Storage.PrometheusStorageSpec != nil {
 			prometheus.Spec.Storage = cr.Spec.Storage.PrometheusStorageSpec
