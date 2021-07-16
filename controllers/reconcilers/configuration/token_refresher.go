@@ -11,6 +11,8 @@ import (
 	v14 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/intstr"
+	"net/url"
+	"path"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
@@ -20,20 +22,28 @@ const (
 )
 
 // Return a set of credentials and configuration for either logs or metrics
-func getTokenRefresherConfigSetFor(t model.TokenRefresherType, observatorium *v1.ObservatoriumIndex) *model.TokenRefresherConfigSet {
+func getTokenRefresherConfigSetFor(t model.TokenRefresherType, observatorium *v1.ObservatoriumIndex) (*model.TokenRefresherConfigSet, error) {
 	if observatorium.RedhatSsoConfig == nil {
-		return nil
+		return nil, nil
 	}
 
 	result := &model.TokenRefresherConfigSet{}
 	result.Name = model.GetTokenRefresherName(observatorium.Id, t)
-	result.AuthUrl = fmt.Sprintf("%vrealms/%v", observatorium.RedhatSsoConfig.Url, observatorium.RedhatSsoConfig.Realm)
+
+	authEndpoint, err := url.Parse(observatorium.RedhatSsoConfig.Url)
+	if err != nil {
+		return nil, err
+	}
+
+	authEndpoint.Path = path.Join(authEndpoint.Path, "realms", observatorium.RedhatSsoConfig.Realm)
+
+	result.AuthUrl = authEndpoint.String()
 	result.Realm = observatorium.RedhatSsoConfig.Realm
 	result.Tenant = observatorium.Tenant
 	switch t {
 	case model.MetricsTokenRefresher:
 		if !observatorium.RedhatSsoConfig.HasMetrics() {
-			return nil
+			return nil, nil
 		}
 
 		result.ObservatoriumUrl = fmt.Sprintf("%v/api/metrics/v1/%v/api/v1/receive", observatorium.Gateway, observatorium.Tenant)
@@ -41,16 +51,16 @@ func getTokenRefresherConfigSetFor(t model.TokenRefresherType, observatorium *v1
 		result.Client = observatorium.RedhatSsoConfig.MetricsClient
 	case model.LogsTokenRefresher:
 		if !observatorium.RedhatSsoConfig.HasLogs() {
-			return nil
+			return nil, nil
 		}
 
 		result.ObservatoriumUrl = fmt.Sprintf("%v/api/logs/v1/%v/loki/api/v1/push", observatorium.Gateway, observatorium.Tenant)
 		result.Secret = observatorium.RedhatSsoConfig.LogsSecret
 		result.Client = observatorium.RedhatSsoConfig.LogsClient
 	default:
-		return nil
+		return nil, nil
 	}
-	return result
+	return result, nil
 }
 
 func (r *Reconciler) createServiceFor(ctx context.Context, cr *v1.Observability, config *model.TokenRefresherConfigSet) error {
@@ -142,14 +152,18 @@ func (r *Reconciler) reconcileTokenRefresherFor(ctx context.Context, cr *v1.Obse
 			continue
 		}
 
-		configSet := getTokenRefresherConfigSetFor(t, observatorium)
+		configSet, err := getTokenRefresherConfigSetFor(t, observatorium)
+		if err != nil {
+			return err
+		}
+
 		if configSet == nil {
 			// Do not abort in case of error, setups that skip logs are expected
 			r.logger.Info(fmt.Sprintf("skip creating %v token refresher for %v because of missing config", t, observatorium.Id))
 			continue
 		}
 
-		err := r.createServiceFor(ctx, cr, configSet)
+		err = r.createServiceFor(ctx, cr, configSet)
 		if err != nil {
 			return err
 		}
@@ -223,7 +237,11 @@ func (r *Reconciler) deleteUnrequestedTokenRefreshers(ctx context.Context, cr *v
 						return false
 					}
 
-					configSet := getTokenRefresherConfigSetFor(t, &observatorium)
+					configSet, err := getTokenRefresherConfigSetFor(t, &observatorium)
+					if err != nil {
+						return false
+					}
+
 					if name == configSet.Name {
 						return true
 					}
