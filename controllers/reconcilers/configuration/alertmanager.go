@@ -15,7 +15,7 @@ import (
 
 func (r *Reconciler) reconcileAlertmanager(ctx context.Context, cr *v1.Observability) error {
 	alertmanager := model.GetAlertmanagerCr(cr)
-	configSecret := model.GetAlertmanagerSecret(cr)
+	configSecretName := model.GetAlertmanagerSecretName(cr)
 	proxySecret := model.GetAlertmanagerProxySecret(cr)
 	sa := model.GetAlertmanagerServiceAccount(cr)
 
@@ -36,7 +36,7 @@ func (r *Reconciler) reconcileAlertmanager(ctx context.Context, cr *v1.Observabi
 	}
 
 	_, err = controllerutil.CreateOrUpdate(ctx, r.client, alertmanager, func() error {
-		alertmanager.Spec.ConfigSecret = configSecret.Name
+		alertmanager.Spec.ConfigSecret = configSecretName
 		alertmanager.Spec.ListenLocal = true
 		alertmanager.Spec.ExternalURL = fmt.Sprintf("https://%v", host)
 		alertmanager.Spec.ServiceAccountName = sa.Name

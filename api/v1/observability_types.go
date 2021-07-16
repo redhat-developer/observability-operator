@@ -54,23 +54,6 @@ const (
 	AuthTypeRedhat ObservabilityAuthType = "redhat"
 )
 
-type DashboardSource struct {
-	Url  string `json:"url"`
-	Name string `json:"name"`
-}
-
-type GrafanaConfig struct {
-	// How often to refetch the dashboards?
-	ResyncPeriod string `json:"resyncPeriod,omitempty"`
-}
-
-type AlertmanagerConfig struct {
-	PagerDutySecretName           string `json:"pagerDutySecretName"`
-	PagerDutySecretNamespace      string `json:"pagerDutySecretNamespace,omitempty"`
-	DeadMansSnitchSecretName      string `json:"deadMansSnitchSecretName"`
-	DeadMansSnitchSecretNamespace string `json:"deadMansSnitchSecretNamespace,omitempty"`
-}
-
 type Storage struct {
 	PrometheusStorageSpec *prometheusv1.StorageSpec `json:"prometheus,omitempty"`
 }
@@ -91,6 +74,7 @@ type SelfContained struct {
 	RuleNamespaceSelector           *metav1.LabelSelector `json:"ruleNamespaceSelector,omitempty"`
 	ProbeLabelSelector              *metav1.LabelSelector `json:"probeSelector,omitempty"`
 	ProbeNamespaceSelector          *metav1.LabelSelector `json:"probeNamespaceSelector,omitempty"`
+	AlertManagerConfigSecret        string                `json:"alertManagerConfigSecret,omitempty"`
 }
 
 // ObservabilitySpec defines the desired state of Observability
@@ -158,6 +142,14 @@ func (in *Observability) BlackboxExporterDisabled() bool {
 
 func (in *Observability) SelfSignedCerts() bool {
 	return in.Spec.SelfContained != nil && in.Spec.SelfContained.SelfSignedCerts != nil && *in.Spec.SelfContained.SelfSignedCerts
+}
+
+func (in *Observability) HasAlertmanagerConfigSecret() (bool, string) {
+	if in.Spec.SelfContained != nil && in.Spec.SelfContained.AlertManagerConfigSecret != "" {
+		return true, in.Spec.SelfContained.AlertManagerConfigSecret
+	}
+
+	return false, ""
 }
 
 func init() {

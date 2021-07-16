@@ -321,9 +321,14 @@ func (r *Reconciler) Reconcile(ctx context.Context, cr *v1.Observability, s *v1.
 	// Alertmanager configuration
 	// When external sync is disabled, allow to create secret
 	if !cr.ExternalSyncDisabled() {
-		err = r.reconcileAlertmanagerSecret(ctx, cr, indexes)
-		if err != nil {
-			return v1.ResultFailed, errors2.Wrap(err, "error reconciling alertmanager secret")
+		overrideConfigSecret, _ := cr.HasAlertmanagerConfigSecret()
+
+		// Only create the config secret if the user has not overridden it via CR
+		if !overrideConfigSecret {
+			err = r.reconcileAlertmanagerSecret(ctx, cr, indexes)
+			if err != nil {
+				return v1.ResultFailed, errors2.Wrap(err, "error reconciling alertmanager secret")
+			}
 		}
 	}
 
