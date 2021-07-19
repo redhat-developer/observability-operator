@@ -56,6 +56,7 @@ func (r *Reconciler) createPromtailConfigFor(ctx context.Context, cr *v1.Observa
 	_, err = controllerutil.CreateOrUpdate(ctx, r.client, configMap, func() error {
 		configMap.Labels = map[string]string{
 			"managed-by": "observability-operator",
+			"app": "promtail",
 		}
 		if configMap.Data == nil {
 			configMap.Data = make(map[string]string)

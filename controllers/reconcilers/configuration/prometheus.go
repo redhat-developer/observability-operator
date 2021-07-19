@@ -403,6 +403,10 @@ func (r *Reconciler) reconcilePrometheus(ctx context.Context, cr *v1.Observabili
 	}
 	prometheus := model.GetPrometheus(cr)
 	_, err = controllerutil.CreateOrUpdate(ctx, r.client, prometheus, func() error {
+		cr.Labels = map[string]string{
+			"app": "prometheus",
+		}
+
 		prometheus.Spec = prometheusv1.PrometheusSpec{
 			// Custom Prometheus version
 			Image:   &image,

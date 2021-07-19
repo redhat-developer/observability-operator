@@ -24,6 +24,17 @@ rules:
       - list
       - watch
   - apiGroups:
+      - "networking.k8s.io"
+    resources:
+      - "networkpolicies"
+    verbs:
+      - create
+      - update
+      - delete
+      - get
+      - list
+      - watch
+  - apiGroups:
       - "security.openshift.io"
     resources:
       - "securitycontextconstraints"
@@ -102,6 +113,7 @@ rules:
       - "subscriptions"
       - "operatorgroups"
       - "clusterserviceversions"
+      - "catalogsources"
     verbs:
       - get
       - list
@@ -219,8 +231,8 @@ spec:
     spec:
       serviceAccountName: observability-operator
       containers:
-        - name: grafana-operator
-          image: quay.io/integreatly/observability-operator:latest
+        - name: observability-operator
+          image: quay.io/pb82/observability-operator:latest
           ports:
             - containerPort: 60000
               name: metrics
@@ -237,29 +249,3 @@ spec:
             - name: OPERATOR_NAME
               value: "observability-operator"
 ---
-apiVersion: observability.redhat.com/v1
-kind: Observability
-metadata:
-  name: observability-sample
-spec:
-  # clusterId: "dummy-observability-operator"
-  # alertmanager:
-  # pagerDutySecretName: "pagerduty"
-  # deadMansSnitchSecretName: "deadmanssnitch"
-  grafana:
-    managed: false
-    # resyncPeriod: "5m"
-    # dashboards:
-    #  - url: "https://raw.githubusercontent.com/RHCloudServices/kafka-monitoring-stuff/master/install/resources/monitoring-cluster/dashboards/strimzi-operators.yaml"
-    #    name: "strimzi-operators"
-  kafkaNamespaceSelector:
-    matchLabels:
-      app: strimzi
-  observatorium:
-    gateway: "https://observatorium-observatorium.apps.pbraun-observatorium.observability.rhmw.io"
-    tenant: "test"
-    authType: "dex"
-    dexConfig:
-      url: "http://dex-dex.apps.pbraun-observatorium.observability.rhmw.io"
-      credentialSecretNamespace: "kafka-observability"
-      credentialSecretName: "observatorium-dex-credentials"
