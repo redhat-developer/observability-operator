@@ -232,7 +232,7 @@ spec:
       serviceAccountName: observability-operator
       containers:
         - name: observability-operator
-          image: quay.io/pb82/observability-operator:latest
+          image: quay.io/integreatly/observability-operator:latest
           ports:
             - containerPort: 60000
               name: metrics

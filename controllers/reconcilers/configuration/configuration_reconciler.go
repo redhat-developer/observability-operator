@@ -6,7 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
-	"k8s.io/api/extensions/v1beta1"
+	v14 "k8s.io/api/networking/v1"
 	"net/http"
 	"net/url"
 	"time"
@@ -168,7 +168,7 @@ func (r *Reconciler) Cleanup(ctx context.Context, cr *v1.Observability) (v1.Obse
 	}
 
 	// Delete the network policies
-	networkPolicies := &v1beta1.NetworkPolicyList{}
+	networkPolicies := &v14.NetworkPolicyList{}
 	opts = &client.ListOptions{
 		LabelSelector: labels.SelectorFromSet(map[string]string{
 			"app.kubernetes.io/component": "authentication-proxy",

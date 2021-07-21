@@ -97,9 +97,9 @@ func (r *Reconciler) createNetworkPolicyFor(ctx context.Context, cr *v1.Observab
 	selector := make(map[string]string)
 	switch config.Type {
 	case model.LogsTokenRefresher:
-		selector["app"] = "prometheus"
-	case model.MetricsTokenRefresher:
 		selector["app"] = "promtail"
+	case model.MetricsTokenRefresher:
+		selector["app"] = "prometheus"
 	}
 
 	_, err := controllerutil.CreateOrUpdate(ctx, r.client, policy, func() error {
@@ -290,7 +290,7 @@ func (r *Reconciler) deleteUnrequestedNetworkPolicies(ctx context.Context, cr *v
 						return false
 					}
 
-					if name == configSet.Name {
+					if name == fmt.Sprintf("%v-network-policy", configSet.Name) {
 						return true
 					}
 				}
@@ -310,7 +310,6 @@ func (r *Reconciler) deleteUnrequestedNetworkPolicies(ctx context.Context, cr *v
 
 	return nil
 }
-
 
 func (r *Reconciler) deleteUnrequestedTokenRefreshers(ctx context.Context, cr *v1.Observability, indexes []v1.RepositoryIndex) error {
 	list := &v13.DeploymentList{}
