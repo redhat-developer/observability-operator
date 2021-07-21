@@ -163,7 +163,7 @@ func GetPromtailDaemonSetLabels(index *v1.RepositoryIndex) *metav1.LabelSelector
 	}
 	return &metav1.LabelSelector{
 		MatchLabels: map[string]string{
-			"app": "strimzi",
+			"app": "promtail",
 		},
 	}
 }

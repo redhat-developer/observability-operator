@@ -8,6 +8,7 @@ import (
 	errors2 "github.com/pkg/errors"
 	v13 "k8s.io/api/apps/v1"
 	v12 "k8s.io/api/core/v1"
+	v15 "k8s.io/api/networking/v1"
 	v14 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/intstr"
@@ -40,6 +41,7 @@ func getTokenRefresherConfigSetFor(t model.TokenRefresherType, observatorium *v1
 	result.AuthUrl = authEndpoint.String()
 	result.Realm = observatorium.RedhatSsoConfig.Realm
 	result.Tenant = observatorium.Tenant
+	result.Type = t
 	switch t {
 	case model.MetricsTokenRefresher:
 		if !observatorium.RedhatSsoConfig.HasMetrics() {
@@ -89,10 +91,56 @@ func (r *Reconciler) createServiceFor(ctx context.Context, cr *v1.Observability,
 	return err
 }
 
+func (r *Reconciler) createNetworkPolicyFor(ctx context.Context, cr *v1.Observability, config *model.TokenRefresherConfigSet) error {
+	policy := model.GetTokenRefresherNetworkPolicy(cr, config.Name)
+
+	selector := make(map[string]string)
+	switch config.Type {
+	case model.LogsTokenRefresher:
+		selector["app"] = "promtail"
+	case model.MetricsTokenRefresher:
+		selector["app"] = "prometheus"
+	}
+
+	_, err := controllerutil.CreateOrUpdate(ctx, r.client, policy, func() error {
+		policy.Labels = map[string]string{
+			"app.kubernetes.io/component": "authentication-proxy",
+		}
+		policy.Spec = v15.NetworkPolicySpec{
+			PodSelector: v14.LabelSelector{
+				MatchLabels: map[string]string{
+					"app.kubernetes.io/component": "authentication-proxy",
+					"app.kubernetes.io/name":      config.Name,
+				},
+			},
+			Ingress: []v15.NetworkPolicyIngressRule{
+				{
+					From: []v15.NetworkPolicyPeer{
+						{
+							PodSelector: &v14.LabelSelector{
+								MatchLabels: selector,
+							},
+						},
+					},
+				},
+			},
+			PolicyTypes: []v15.PolicyType{v15.PolicyTypeIngress},
+		}
+		return nil
+	})
+
+	return err
+}
+
 func (r *Reconciler) createDeploymentFor(ctx context.Context, cr *v1.Observability, config *model.TokenRefresherConfigSet) error {
 	deployment := model.GetTokenRefresherDeployment(cr, config.Name)
 
-	_, err := controllerutil.CreateOrUpdate(ctx, r.client, deployment, func() error {
+	err := r.createNetworkPolicyFor(ctx, cr, config)
+	if err != nil {
+		return err
+	}
+
+	_, err = controllerutil.CreateOrUpdate(ctx, r.client, deployment, func() error {
 		deployment.Labels = map[string]string{
 			"app.kubernetes.io/component": "authentication-proxy",
 			"app.kubernetes.io/name":      config.Name,
@@ -195,6 +243,67 @@ func (r *Reconciler) reconcileTokenRefresher(ctx context.Context, cr *v1.Observa
 				if err != nil {
 					return err
 				}
+			}
+		}
+	}
+
+	return nil
+}
+
+func (r *Reconciler) deleteUnrequestedNetworkPolicies(ctx context.Context, cr *v1.Observability, indexes []v1.RepositoryIndex) error {
+	list := &v15.NetworkPolicyList{}
+	selector := labels.SelectorFromSet(map[string]string{
+		"app.kubernetes.io/component": "authentication-proxy",
+	})
+	opts := &client.ListOptions{
+		Namespace:     cr.Namespace,
+		LabelSelector: selector,
+	}
+
+	err := r.client.List(ctx, list, opts)
+	if err != nil {
+		return err
+	}
+
+	shouldExist := func(name string) bool {
+		if cr.ExternalSyncDisabled() || cr.ObservatoriumDisabled() {
+			return false
+		}
+
+		for _, index := range indexes {
+			if index.Config == nil {
+				return false
+			}
+
+			for _, observatorium := range index.Config.Observatoria {
+				if !observatorium.IsValid() || observatorium.RedhatSsoConfig == nil {
+					return false
+				}
+
+				for _, t := range []model.TokenRefresherType{model.MetricsTokenRefresher, model.LogsTokenRefresher} {
+					if t == model.LogsTokenRefresher && (index.Config.Promtail == nil || !index.Config.Promtail.Enabled) {
+						return false
+					}
+
+					configSet, err := getTokenRefresherConfigSetFor(t, &observatorium)
+					if err != nil {
+						return false
+					}
+
+					if name == fmt.Sprintf("%v-network-policy", configSet.Name) {
+						return true
+					}
+				}
+			}
+		}
+		return false
+	}
+
+	for _, policy := range list.Items {
+		if !shouldExist(policy.Name) {
+			err = r.client.Delete(ctx, &policy)
+			if err != nil {
+				return err
 			}
 		}
 	}
