@@ -41,6 +41,7 @@ const (
 	PromtailInstallation     ObservabilityStageName = "PromtailInstallation"
 	AlertmanagerInstallation ObservabilityStageName = "AlertmanagerInstallation"
 	Configuration            ObservabilityStageName = "configuration"
+	PriorityClass            ObservabilityStageName = "PriorityClass"
 )
 
 const (

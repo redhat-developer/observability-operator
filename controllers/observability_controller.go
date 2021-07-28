@@ -10,6 +10,7 @@ import (
 	"github.com/bf2fc6cc711aee1a0c2a/observability-operator/v3/controllers/reconcilers/csv"
 	"github.com/bf2fc6cc711aee1a0c2a/observability-operator/v3/controllers/reconcilers/grafana_configuration"
 	"github.com/bf2fc6cc711aee1a0c2a/observability-operator/v3/controllers/reconcilers/grafana_installation"
+	"github.com/bf2fc6cc711aee1a0c2a/observability-operator/v3/controllers/reconcilers/priorityclass"
 	"github.com/bf2fc6cc711aee1a0c2a/observability-operator/v3/controllers/reconcilers/prometheus_configuration"
 	"github.com/bf2fc6cc711aee1a0c2a/observability-operator/v3/controllers/reconcilers/prometheus_installation"
 	"github.com/bf2fc6cc711aee1a0c2a/observability-operator/v3/controllers/reconcilers/promtail_installation"
@@ -245,6 +246,7 @@ func (r *ObservabilityReconciler) InitializeOperand(mgr ctrl.Manager) error {
 
 func (r *ObservabilityReconciler) getInstallationStages() []apiv1.ObservabilityStageName {
 	return []apiv1.ObservabilityStageName{
+		apiv1.PriorityClass,
 		apiv1.TokenRequest,
 		apiv1.PrometheusInstallation,
 		apiv1.PrometheusConfiguration,
@@ -267,6 +269,7 @@ func (r *ObservabilityReconciler) getCleanupStages() []apiv1.ObservabilityStageN
 		apiv1.Configuration,
 		apiv1.TokenRequest,
 		apiv1.CsvRemoval,
+		apiv1.PriorityClass,
 	}
 }
 
@@ -316,6 +319,9 @@ func (r *ObservabilityReconciler) getReconcilerForStage(stage apiv1.Observabilit
 
 	case apiv1.Configuration:
 		return configuration.NewReconciler(r.Client, r.Log)
+
+	case apiv1.PriorityClass:
+		return priorityclass.NewReconciler(r.Client, r.Log)
 
 	default:
 		return nil
