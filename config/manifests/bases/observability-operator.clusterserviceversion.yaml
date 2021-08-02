@@ -43,6 +43,9 @@ spec:
   - name: Observability Operator
     url: https://observability-operator.domain
   maturity: alpha
+  maintainers:
+    - email: mas-users@redhat.com
+      name: rhosak
   provider:
     name: Red Hat
   version: 0.0.0
