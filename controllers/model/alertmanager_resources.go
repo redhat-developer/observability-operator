@@ -1,7 +1,6 @@
 package model
 
 import (
-	"bytes"
 	"fmt"
 	v1 "github.com/bf2fc6cc711aee1a0c2a/observability-operator/v3/api/v1"
 	routev1 "github.com/openshift/api/route/v1"
@@ -9,7 +8,6 @@ import (
 	v13 "k8s.io/api/core/v1"
 	v14 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	t "text/template"
 )
 
 func GetAlertmanagerProxySecret(cr *v1.Observability) *v13.Secret {
@@ -107,37 +105,4 @@ func GetAlertmanagerService(cr *v1.Observability) *v13.Service {
 			Namespace: cr.Namespace,
 		},
 	}
-}
-
-func GetAlertmanagerConfig(secret string, url string) (string, error) {
-	const config = `
-global:
-  resolve_timeout: 5m
-route:
-  receiver: default
-  routes:
-    - match:
-        alertname: DeadMansSwitch
-      repeat_interval: 5m
-      receiver: deadmansswitch
-receivers:
-  - name: default
-    pagerduty_configs:
-      - service_key: {{ .PagerDutyServiceKey }}
-  - name: deadmansswitch
-    webhook_configs:
-      - url: {{ .DeadMansSnitchURL }}
-`
-	template := t.Must(t.New("template").Parse(config))
-	var buffer bytes.Buffer
-
-	err := template.Execute(&buffer, struct {
-		PagerDutyServiceKey string
-		DeadMansSnitchURL   string
-	}{
-		PagerDutyServiceKey: secret,
-		DeadMansSnitchURL:   url,
-	})
-
-	return string(buffer.Bytes()), err
 }

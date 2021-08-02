@@ -412,6 +412,8 @@ func (r *Reconciler) reconcilePrometheus(ctx context.Context, cr *v1.Observabili
 			Image:   &image,
 			Version: PrometheusVersion,
 
+			PriorityClassName: model.ObservabilityPriorityClassName,
+
 			// Spec
 			ServiceAccountName: sa.Name,
 			ExternalURL:        fmt.Sprintf("https://%v", host),

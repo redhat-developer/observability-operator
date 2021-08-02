@@ -161,6 +161,7 @@ func (r *Reconciler) createDeploymentFor(ctx context.Context, cr *v1.Observabili
 					},
 				},
 				Spec: v12.PodSpec{
+					PriorityClassName: model.ObservabilityPriorityClassName,
 					Containers: []v12.Container{
 						{
 							Name:  config.Name,
