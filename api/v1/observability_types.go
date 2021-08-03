@@ -36,7 +36,7 @@ const (
 	GrafanaConfiguration     ObservabilityStageName = "GrafanaConfiguration"
 	PrometheusInstallation   ObservabilityStageName = "Prometheus"
 	PrometheusConfiguration  ObservabilityStageName = "PrometheusConfiguration"
-	CsvRemoval               ObservabilityStageName = "CsvRemoval"
+	Csv                      ObservabilityStageName = "Csv"
 	TokenRequest             ObservabilityStageName = "TokenRequest"
 	PromtailInstallation     ObservabilityStageName = "PromtailInstallation"
 	AlertmanagerInstallation ObservabilityStageName = "AlertmanagerInstallation"

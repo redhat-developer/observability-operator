@@ -253,6 +253,7 @@ func (r *ObservabilityReconciler) getInstallationStages() []apiv1.ObservabilityS
 		apiv1.GrafanaConfiguration,
 		apiv1.AlertmanagerInstallation,
 		apiv1.PromtailInstallation,
+		apiv1.Csv,
 		apiv1.Configuration,
 	}
 }
@@ -267,7 +268,7 @@ func (r *ObservabilityReconciler) getCleanupStages() []apiv1.ObservabilityStageN
 		apiv1.PromtailInstallation,
 		apiv1.Configuration,
 		apiv1.TokenRequest,
-		apiv1.CsvRemoval,
+		apiv1.Csv,
 	}
 }
 
@@ -303,7 +304,7 @@ func (r *ObservabilityReconciler) getReconcilerForStage(stage apiv1.Observabilit
 	case apiv1.GrafanaConfiguration:
 		return grafana_configuration.NewReconciler(r.Client, r.Log)
 
-	case apiv1.CsvRemoval:
+	case apiv1.Csv:
 		return csv.NewReconciler(r.Client, r.Log)
 
 	case apiv1.TokenRequest:
