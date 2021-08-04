@@ -114,6 +114,7 @@ func (r *Reconciler) reconcileGrafanaCr(ctx context.Context, cr *v1.Observabilit
 			},
 			Deployment: &v1alpha1.GrafanaDeployment{
 				Replicas: 1,
+				PriorityClassName: model.ObservabilityPriorityClassName,
 			},
 		}
 		if cr.Spec.Tolerations != nil {

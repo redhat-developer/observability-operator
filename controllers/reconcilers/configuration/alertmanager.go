@@ -44,6 +44,7 @@ func (r *Reconciler) reconcileAlertmanager(ctx context.Context, cr *v1.Observabi
 			proxySecret.Name,
 			"alertmanager-k8s-tls",
 		}
+		alertmanager.Spec.PriorityClassName = model.ObservabilityPriorityClassName
 		alertmanager.Spec.Containers = []v12.Container{
 			{
 				Name:  "oauth-proxy",

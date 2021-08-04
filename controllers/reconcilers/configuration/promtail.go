@@ -206,6 +206,7 @@ func (r *Reconciler) createPromtailDaemonsetFor(ctx context.Context, cr *v1.Obse
 							},
 						},
 					},
+					PriorityClassName: model.ObservabilityPriorityClassName,
 					Containers: []v12.Container{
 						{
 							Name:  "promtail",

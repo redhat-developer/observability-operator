@@ -58,9 +58,9 @@ metadata:
         }
       ]
     capabilities: Basic Install
-    operators.operatorframework.io/builder: operator-sdk-v1.3.0
+    operators.operatorframework.io/builder: operator-sdk-v1.3.2
     operators.operatorframework.io/project_layout: go.kubebuilder.io/v2
-  name: observability-operator.v3.0.3
+  name: observability-operator.v3.0.4
   namespace: placeholder
 spec:
   apiservicedefinitions: {}
@@ -189,6 +189,17 @@ spec:
           - update
           - watch
         - apiGroups:
+          - networking.k8s.io
+          resources:
+          - networkpolicies
+          verbs:
+          - create
+          - delete
+          - get
+          - list
+          - update
+          - watch
+        - apiGroups:
           - observability.redhat.com
           resources:
           - observabilities
@@ -296,7 +307,8 @@ spec:
                 - --enable-leader-election
                 command:
                 - /manager
-                image: quay.io/bf2fc6cc711aee1a0c2a82e312df7f2e6b37baa12bd9b1f2fd752e260d93a6f8144ac730947f25caa2bfe6ad0f410da360940ee6d28d6c1688d3822c4055650e/observability-operator:v3.0.3
+                image: quay.io/bf2fc6cc711aee1a0c2a82e312df7f2e6b37baa12bd9b1f2fd752e260d93a6f8144ac730947f25caa2bfe6ad0f410da360940ee6d28d6c1688d3822c4055650e/observability-operator:v3.0.4
+                imagePullPolicy: Always
                 name: manager
                 resources:
                   limits:
@@ -305,6 +317,7 @@ spec:
                   requests:
                     cpu: 100m
                     memory: 50Mi
+              priorityClassName: observability-operator-priority-class
               terminationGracePeriodSeconds: 10
       permissions:
       - rules:
@@ -353,8 +366,11 @@ spec:
   links:
   - name: Observability Operator
     url: https://observability-operator.domain
+  maintainers:
+  - email: mas-users@redhat.com
+    name: rhosak
   maturity: alpha
   provider:
     name: Red Hat
-  replaces: observability-operator.v3.0.2
-  version: 3.0.3
+  replaces: observability-operator.v3.0.3
+  version: 3.0.4
