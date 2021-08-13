@@ -16,10 +16,10 @@ REG ?= bf2fc6cc711aee1a0c2a82e312df7f2e6b37baa12bd9b1f2fd752e260d93a6f8144ac7309
 IMG ?= quay.io/$(REG)/observability-operator:v$(VERSION)
 
 # Default bundle image tag
-BUNDLE_IMG ?= quay.io/$(REG)/observability-operator-bundle:v$(VERSION)
+export BUNDLE_IMG ?= quay.io/$(REG)/observability-operator-bundle:v$(VERSION)
 
 # Default index image tag
-INDEX_IMG ?= quay.io/$(REG)/observability-operator-index:v$(VERSION)
+export INDEX_IMG ?= quay.io/$(REG)/observability-operator-index:v$(VERSION)
 
 # Produce CRDs that work back to Kubernetes 1.11 (no version conversion)
 CRD_OPTIONS ?= "crd:trivialVersions=true"
@@ -122,10 +122,14 @@ bundle: manifests
 docker-build:
 	docker build . -t ${IMG}
 
+# Login to the registry
+.PHONY: docker-login
+docker-login:
+	docker --config="${DOCKER_CONFIG}" login -u "${QUAY_USER}" -p "${QUAY_TOKEN}" quay.io
+
 # Push the docker image
 .PHONY: docker-push
 docker-push:
-	docker login -u "${QUAY_USER}" -p "${QUAY_TOKEN}" quay.io
 	docker push ${IMG}
 
 # Build the bundle image.
@@ -135,10 +139,12 @@ bundle-build:
 
 .PHONY: bundle-push
 bundle-push:
-	docker login -u "${QUAY_USER}" -p "${QUAY_TOKEN}" quay.io
 	docker push $(BUNDLE_IMG)
+
+.PHONY: index-build
+index-build:
+	eval './build_index.sh'
 
 .PHONY: index-push
 index-push:
-	docker login -u "${QUAY_USER}" -p "${QUAY_TOKEN}" quay.io
 	docker push $(INDEX_IMG)
