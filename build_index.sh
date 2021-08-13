@@ -29,7 +29,7 @@ if [ ! -f "${PWD}/.bin/opm" ]; then
   chmod +x "${PWD}/.bin/opm"
 fi
 
-# Check if list if bundles is up to date
+# Check if bundle list is up to date
 # If not append the bundle image for the current version
 if ! grep -q "$BUNDLE_IMG" "bundle_history.txt"; then
   printf "%s\n" "$BUNDLE_IMG" >> bundle_history.txt
