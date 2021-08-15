@@ -1,0 +1,7 @@
+quay.io/integreatly/observability-operator-bundle:latest
+quay.io/integreatly/observability-operator-bundle:v2.0.0
+quay.io/integreatly/observability-operator-bundle:v3.0.0
+quay.io/integreatly/observability-operator-bundle:v3.0.1
+quay.io/bf2fc6cc711aee1a0c2a82e312df7f2e6b37baa12bd9b1f2fd752e260d93a6f8144ac730947f25caa2bfe6ad0f410da360940ee6d28d6c1688d3822c4055650e/observability-operator-bundle:v3.0.2
+quay.io/bf2fc6cc711aee1a0c2a82e312df7f2e6b37baa12bd9b1f2fd752e260d93a6f8144ac730947f25caa2bfe6ad0f410da360940ee6d28d6c1688d3822c4055650e/observability-operator-bundle:v3.0.3
+quay.io/bf2fc6cc711aee1a0c2a82e312df7f2e6b37baa12bd9b1f2fd752e260d93a6f8144ac730947f25caa2bfe6ad0f410da360940ee6d28d6c1688d3822c4055650e/observability-operator-bundle:v3.0.4

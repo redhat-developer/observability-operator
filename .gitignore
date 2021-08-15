@@ -38,3 +38,6 @@ bin
 vendor/
 
 testbin
+
+.docker
+.bin
