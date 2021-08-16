@@ -35,6 +35,9 @@ export QUAY_TOKEN=${QUAY_USER_PASSWORD:-$RHOAS_QUAY_TOKEN}
 export DOCKER_CONFIG="${PWD}/.docker"
 mkdir -p "${DOCKER_CONFIG}"
 
+# print go version
+go version
+
 make docker-login
 make docker-build
 make docker-push

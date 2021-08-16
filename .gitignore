@@ -41,3 +41,6 @@ testbin
 
 .docker
 .bin
+
+# Binary
+manager

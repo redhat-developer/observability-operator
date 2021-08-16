@@ -117,15 +117,20 @@ bundle: manifests
 	$(KUSTOMIZE) build config/manifests | operator-sdk generate bundle -q --overwrite --version $(VERSION) $(BUNDLE_METADATA_OPTS)
 	operator-sdk bundle validate ./bundle
 
+# Build the binary
+.PHONY: binary-build
+binary-build:
+	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 GO111MODULE=on go build -a -o manager main.go
+
 # Build the docker image
 .PHONY: docker-build
-docker-build:
+docker-build: binary-build
 	docker build . -t ${IMG}
 
 # Login to the registry
 .PHONY: docker-login
 docker-login:
-	docker --config="${DOCKER_CONFIG}" login -u "${QUAY_USER}" -p "${QUAY_TOKEN}" quay.io
+	echo "$(QUAY_TOKEN)" | docker --config="${DOCKER_CONFIG}" login -u "${QUAY_USER}" quay.io --password-stdin
 
 # Push the docker image
 .PHONY: docker-push
