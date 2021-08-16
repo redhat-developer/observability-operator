@@ -117,16 +117,9 @@ bundle: manifests
 	$(KUSTOMIZE) build config/manifests | operator-sdk generate bundle -q --overwrite --version $(VERSION) $(BUNDLE_METADATA_OPTS)
 	operator-sdk bundle validate ./bundle
 
-# Build the binary
-.PHONY: binary-build
-binary-build:
-	rm go.sum
-	go mod tidy
-	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 GO111MODULE=on go build -a -o manager main.go
-
 # Build the docker image
 .PHONY: docker-build
-docker-build: binary-build
+docker-build:
 	docker build . -t ${IMG}
 
 # Login to the registry
