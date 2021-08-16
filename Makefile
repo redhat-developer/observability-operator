@@ -120,7 +120,8 @@ bundle: manifests
 # Build the binary
 .PHONY: binary-build
 binary-build:
-	go mod download
+	go clean -modcache
+	go mod tidy
 	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 GO111MODULE=on go build -a -o manager main.go
 
 # Build the docker image

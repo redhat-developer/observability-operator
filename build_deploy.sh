@@ -35,8 +35,17 @@ export QUAY_TOKEN=${QUAY_USER_PASSWORD:-$RHOAS_QUAY_TOKEN}
 export DOCKER_CONFIG="${PWD}/.docker"
 mkdir -p "${DOCKER_CONFIG}"
 
+# Set the Go path:
+export GOPATH="${PWD}/.gopath"
+export PATH="${PATH}:${GOPATH}/bin"
+LINK="${GOPATH}/src/github.com/bf2fc6cc711aee1a0c2a/observability-operator"
+
 # print go version
 go version
+
+mkdir -p "$(dirname "${LINK}")"
+ln -sf "${PWD}" "${LINK}"
+cd "${LINK}"
 
 make docker-login
 make docker-build
