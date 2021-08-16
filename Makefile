@@ -127,6 +127,8 @@ binary-build:
 # Build the docker image
 .PHONY: docker-build
 docker-build: binary-build
+	rm go.sum
+	go mod tidy
 	docker build . -t ${IMG}
 
 # Login to the registry
