@@ -125,6 +125,7 @@ binary-build:
 # Build the docker image
 .PHONY: docker-build
 docker-build: binary-build
+	go clean -modcache
 	go mod tidy
 	docker build . -t ${IMG}
 
