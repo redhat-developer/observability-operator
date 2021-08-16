@@ -41,6 +41,8 @@ testbin
 
 .docker
 .bin
+.gopath
+observability-operator
 
 # Binary
 manager
