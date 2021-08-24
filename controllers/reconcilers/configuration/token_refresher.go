@@ -3,6 +3,9 @@ package configuration
 import (
 	"context"
 	"fmt"
+	"net/url"
+	"path"
+
 	v1 "github.com/bf2fc6cc711aee1a0c2a/observability-operator/v3/api/v1"
 	"github.com/bf2fc6cc711aee1a0c2a/observability-operator/v3/controllers/model"
 	errors2 "github.com/pkg/errors"
@@ -12,14 +15,12 @@ import (
 	v14 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/intstr"
-	"net/url"
-	"path"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
 
 const (
-	TokenRefresherImageTag = "master-2021-06-03-a835a06"
+	TokenRefresherImageTag = "latest"
 )
 
 // Return a set of credentials and configuration for either logs or metrics
@@ -164,8 +165,9 @@ func (r *Reconciler) createDeploymentFor(ctx context.Context, cr *v1.Observabili
 					PriorityClassName: model.ObservabilityPriorityClassName,
 					Containers: []v12.Container{
 						{
-							Name:  config.Name,
-							Image: fmt.Sprintf("quay.io/observatorium/token-refresher:%v", TokenRefresherImageTag),
+							Name:            config.Name,
+							Image:           fmt.Sprintf("quay.io/rhoas/mk-token-refresher:%v", TokenRefresherImageTag),
+							ImagePullPolicy: v12.PullAlways,
 							Args: []string{
 								"--oidc.audience=observatorium-telemeter",
 								fmt.Sprintf("--oidc.client-id=%v", config.Client),
