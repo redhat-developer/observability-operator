@@ -12,6 +12,15 @@ import (
 
 var defaultGrafanaLabelSelectors = map[string]string{"app": "strimzi"}
 
+func GetGrafanaCatalogSource(cr *v1.Observability) *v1alpha1.CatalogSource {
+	return &v1alpha1.CatalogSource{
+		ObjectMeta: v12.ObjectMeta{
+			Name:      "grafana-operator-catalog-source",
+			Namespace: cr.Namespace,
+		},
+	}
+}
+
 func GetGrafanaSubscription(cr *v1.Observability) *v1alpha1.Subscription {
 	return &v1alpha1.Subscription{
 		ObjectMeta: v12.ObjectMeta{

@@ -163,7 +163,6 @@ func createDashboardFromSource(cr *v1.Observability, name string, t SourceType, 
 	dashboard := &v1alpha1.GrafanaDashboard{}
 	dashboard.Name = name
 	dashboard.Namespace = cr.Namespace
-	dashboard.Spec.Name = fmt.Sprintf("%s.json", name)
 
 	switch t {
 	case SourceTypeJson:
