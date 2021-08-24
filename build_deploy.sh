@@ -37,8 +37,8 @@ mkdir -p "${DOCKER_CONFIG}"
 
 make docker-login
 make docker-build
-make docker-push
+# make docker-push
 make bundle-build
-make bundle-push
+# make bundle-push
 make index-build
-make index-push
+# make index-push

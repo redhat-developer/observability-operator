@@ -17,7 +17,10 @@
 
 # This script builds and deploys the Observability Operator Index using the OPM CLI.
 
-OPM_VERSION=v1.17.5
+# Print GLIBC version
+ldd --version
+
+OPM_VERSION=v1.17.0
 OPM_PLATFORM=linux-amd64
 OPM_DOWNLOAD_URL="https://github.com/operator-framework/operator-registry/releases/download/$OPM_VERSION/$OPM_PLATFORM-opm"
 
