@@ -10,7 +10,7 @@ endif
 BUNDLE_METADATA_OPTS ?= $(BUNDLE_CHANNELS) $(BUNDLE_DEFAULT_CHANNEL)
 
 # Default image registry
-REG ?= bf2fc6cc711aee1a0c2a82e312df7f2e6b37baa12bd9b1f2fd752e260d93a6f8144ac730947f25caa2bfe6ad0f410da360940ee6d28d6c1688d3822c4055650e
+REG ?= rhoas
 
 # Image URL to use all building/pushing image targets
 IMG ?= quay.io/$(REG)/observability-operator:v$(VERSION)
