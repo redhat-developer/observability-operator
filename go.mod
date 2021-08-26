@@ -17,7 +17,7 @@ require (
 	github.com/go-openapi/validate v0.19.8 // indirect
 	github.com/golang-migrate/migrate/v4 v4.7.0 // indirect
 	github.com/google/go-cmp v0.5.2 // indirect
-	github.com/integr8ly/grafana-operator/v3 v3.6.0
+	github.com/integr8ly/grafana-operator/v3 v3.10.3
 	github.com/kr/pretty v0.2.1 // indirect
 	github.com/mitchellh/mapstructure v1.2.2 // indirect
 	github.com/onsi/ginkgo v1.14.0
