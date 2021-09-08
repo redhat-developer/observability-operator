@@ -268,6 +268,11 @@ review the content of each!
       ```
       oc apply -f config/samples/secrets/observability_secret.yaml
       ```
+* Priority Class
+  * If the Observability Operator was not installed using OLM, you need to create the requried Priority Class yourself. Use the command to add the necessary Priority Class:
+  ```
+  oc apply -f config/samples/prioclass.yaml
+  ```
 
 
 
