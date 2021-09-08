@@ -4,6 +4,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io/ioutil"
+	"os"
+	"reflect"
+	"strings"
+	"time"
+
 	"github.com/bf2fc6cc711aee1a0c2a/observability-operator/v3/controllers/reconcilers"
 	"github.com/bf2fc6cc711aee1a0c2a/observability-operator/v3/controllers/reconcilers/alertmanager_installation"
 	"github.com/bf2fc6cc711aee1a0c2a/observability-operator/v3/controllers/reconcilers/configuration"
@@ -15,16 +21,11 @@ import (
 	"github.com/bf2fc6cc711aee1a0c2a/observability-operator/v3/controllers/reconcilers/promtail_installation"
 	"github.com/bf2fc6cc711aee1a0c2a/observability-operator/v3/controllers/reconcilers/token"
 	"github.com/go-logr/logr"
-	"io/ioutil"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	"os"
-	"reflect"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"strings"
-	"time"
 
 	apiv1 "github.com/bf2fc6cc711aee1a0c2a/observability-operator/v3/api/v1"
 )
@@ -201,6 +202,7 @@ func (r *ObservabilityReconciler) InitializeOperand(mgr ctrl.Manager) error {
 		},
 		Spec: apiv1.ObservabilitySpec{
 			ResyncPeriod: "1h",
+			Retention:    "45d",
 			SelfContained: &apiv1.SelfContained{
 				DisableBlackboxExporter: &([]bool{true})[0],
 			},

@@ -88,6 +88,7 @@ type ObservabilitySpec struct {
 	Tolerations           []v1.Toleration       `json:"tolerations,omitempty"`
 	Affinity              *v1.Affinity          `json:"affinity,omitempty"`
 	SelfContained         *SelfContained        `json:"selfContained,omitempty"`
+	Retention             string                `json:"retention,omitempty"`
 }
 
 // ObservabilityStatus defines the observed state of Observability

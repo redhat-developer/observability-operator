@@ -416,6 +416,7 @@ func (r *Reconciler) reconcilePrometheus(ctx context.Context, cr *v1.Observabili
 
 			// Spec
 			ServiceAccountName: sa.Name,
+			Retention:          getRetentionHelper(cr),
 			ExternalURL:        fmt.Sprintf("https://%v", host),
 			AdditionalScrapeConfigs: &kv1.SecretKeySelector{
 				LocalObjectReference: kv1.LocalObjectReference{
@@ -468,4 +469,11 @@ func (r *Reconciler) reconcilePrometheus(ctx context.Context, cr *v1.Observabili
 	}
 
 	return nil
+}
+
+func getRetentionHelper(cr *v1.Observability) string {
+	if cr.Spec.Retention == "" {
+		return "45d"
+	}
+	return cr.Spec.Retention
 }
