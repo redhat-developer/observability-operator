@@ -74,6 +74,7 @@ type SelfContained struct {
 	RuleNamespaceSelector           *metav1.LabelSelector `json:"ruleNamespaceSelector,omitempty"`
 	ProbeLabelSelector              *metav1.LabelSelector `json:"probeSelector,omitempty"`
 	ProbeNamespaceSelector          *metav1.LabelSelector `json:"probeNamespaceSelector,omitempty"`
+	GrafanaDashboardLabelSelector   *metav1.LabelSelector `json:"grafanaDashboardLabelSelector,omitempty"`
 	AlertManagerConfigSecret        string                `json:"alertManagerConfigSecret,omitempty"`
 }
 
