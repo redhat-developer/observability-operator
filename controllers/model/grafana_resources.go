@@ -82,8 +82,12 @@ func GetGrafanaDatasource(cr *v1.Observability) *v1alpha12.GrafanaDataSource {
 	}
 }
 
-func GetGrafanaDashboardLabelSelectors(indexes []v1.RepositoryIndex) *v12.LabelSelector {
+func GetGrafanaDashboardLabelSelectors(cr *v1.Observability, indexes []v1.RepositoryIndex) *v12.LabelSelector {
 	if len(indexes) > 0 {
+		if cr.Spec.SelfContained != nil && cr.Spec.SelfContained.GrafanaDashboardLabelSelector != nil {
+			return cr.Spec.SelfContained.GrafanaDashboardLabelSelector
+		}
+
 		// We should only have one Grafana CR for the whole cluster. However, we cannot merge
 		// all of the label selectors from all of the repository index config as this will result
 		// in an AND requirement. Since we do not use multiple repositories on the same cluster just yet,
