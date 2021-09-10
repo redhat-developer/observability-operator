@@ -27,6 +27,7 @@ require (
 	github.com/operator-framework/api v0.3.20
 	github.com/operator-framework/operator-registry v1.12.6-0.20200611222234-275301b779f8
 	github.com/pkg/errors v0.9.1
+	github.com/prometheus-operator/prometheus-operator v0.43.0 // indirect
 	github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring v0.43.0
 	github.com/prometheus/client_golang v1.8.0 // indirect
 	github.com/sirupsen/logrus v1.6.0
