@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"regexp"
 
 	v1 "github.com/bf2fc6cc711aee1a0c2a/observability-operator/v3/api/v1"
 	"github.com/bf2fc6cc711aee1a0c2a/observability-operator/v3/controllers/model"
@@ -23,6 +24,7 @@ import (
 
 const PrometheusBaseImage = "quay.io/prometheus/prometheus"
 const PrometheusVersion = "v2.22.2"
+const PrometheusRetention = "45d"
 
 func (r *Reconciler) fetchFederationConfigs(cr *v1.Observability, indexes []v1.RepositoryIndex) ([]string, error) {
 	var result []string
@@ -472,8 +474,11 @@ func (r *Reconciler) reconcilePrometheus(ctx context.Context, cr *v1.Observabili
 }
 
 func getRetentionHelper(cr *v1.Observability) string {
-	if cr.Spec.Retention == "" {
-		return "45d"
+	match, _ := regexp.MatchString("^[0-9]+(((ms)|y|w|d|h|m|s)){1}$", cr.Spec.Retention)
+
+	if !match {
+		return PrometheusRetention
 	}
+
 	return cr.Spec.Retention
 }
