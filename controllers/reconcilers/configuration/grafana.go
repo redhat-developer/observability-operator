@@ -80,7 +80,7 @@ func (r *Reconciler) reconcileGrafanaCr(ctx context.Context, cr *v1.Observabilit
 				},
 			},
 			DashboardLabelSelector: []*metav1.LabelSelector{
-				model.GetGrafanaDashboardLabelSelectors(indexes),
+				model.GetGrafanaDashboardLabelSelectors(cr, indexes),
 			},
 			Ingress: &v1alpha1.GrafanaIngress{
 				Enabled:     true,
@@ -113,7 +113,7 @@ func (r *Reconciler) reconcileGrafanaCr(ctx context.Context, cr *v1.Observabilit
 				PreferService: true,
 			},
 			Deployment: &v1alpha1.GrafanaDeployment{
-				Replicas: 1,
+				Replicas:          1,
 				PriorityClassName: model.ObservabilityPriorityClassName,
 			},
 		}
