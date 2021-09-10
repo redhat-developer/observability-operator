@@ -474,9 +474,8 @@ func (r *Reconciler) reconcilePrometheus(ctx context.Context, cr *v1.Observabili
 }
 
 func getRetentionHelper(cr *v1.Observability) string {
-	match, _ := regexp.MatchString("^[0-9]+(((ms)|y|w|d|h|m|s)){1}$", cr.Spec.Retention)
-
-	if !match {
+	match, err := regexp.MatchString("^[0-9]+(((ms)|y|w|d|h|m|s)){1}$", cr.Spec.Retention)
+	if err != nil || !match {
 		return PrometheusRetention
 	}
 
