@@ -664,6 +664,8 @@ spec:
               properties:
                 alertManagerConfigSecret:
                   type: string
+                alertManagerRoute:
+                  type: string
                 disableBlackboxExporter:
                   type: boolean
                 disableDeadmansSnitch:
@@ -725,6 +727,8 @@ spec:
                         are ANDed.
                       type: object
                   type: object
+                grafanaRoute:
+                  type: string
                 podMonitorLabelSelector:
                   description: A label selector is a label query over a set of resources.
                     The result of matchLabels and matchExpressions are ANDed. An empty
@@ -913,6 +917,8 @@ spec:
                         are ANDed.
                       type: object
                   type: object
+                prometheusRoute:
+                  type: string
                 ruleLabelSelector:
                   description: A label selector is a label query over a set of resources.
                     The result of matchLabels and matchExpressions are ANDed. An empty

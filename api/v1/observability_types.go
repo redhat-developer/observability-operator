@@ -76,6 +76,8 @@ type SelfContained struct {
 	ProbeNamespaceSelector          *metav1.LabelSelector `json:"probeNamespaceSelector,omitempty"`
 	GrafanaDashboardLabelSelector   *metav1.LabelSelector `json:"grafanaDashboardLabelSelector,omitempty"`
 	AlertManagerConfigSecret        string                `json:"alertManagerConfigSecret,omitempty"`
+	AlertManagerRoute               string                `json:"alertManagerRoute,omitempty"`
+	PrometheusRoute                 string                `json:"prometheusRoute,omitempty"`
 }
 
 // ObservabilitySpec defines the desired state of Observability
