@@ -115,6 +115,14 @@ func GetPrometheusClusterRoleBinding() *v14.ClusterRoleBinding {
 }
 
 func GetPrometheusRoute(cr *v1.Observability) *routev1.Route {
+	if cr.Spec.SelfContained != nil && cr.Spec.SelfContained.PrometheusRoute != "" {
+		return &routev1.Route{
+			ObjectMeta: v12.ObjectMeta{
+				Name:      cr.Spec.SelfContained.PrometheusRoute,
+				Namespace: cr.Namespace,
+			},
+		}
+	}
 	return &routev1.Route{
 		ObjectMeta: v12.ObjectMeta{
 			Name:      "kafka-prometheus",
