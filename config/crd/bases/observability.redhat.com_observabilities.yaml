@@ -660,6 +660,8 @@ spec:
               type: object
             resyncPeriod:
               type: string
+            retention:
+              type: string
             selfContained:
               properties:
                 alertManagerConfigSecret:
