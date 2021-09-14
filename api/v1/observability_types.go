@@ -78,6 +78,8 @@ type SelfContained struct {
 	AlertManagerConfigSecret        string                `json:"alertManagerConfigSecret,omitempty"`
 	AlertManagerRoute               string                `json:"alertManagerRoute,omitempty"`
 	PrometheusRoute                 string                `json:"prometheusRoute,omitempty"`
+	AlertManagerVersion             string                `json:"alertManagerVersion,omitempty"`
+	PrometheusVersion               string                `json:"prometheusVersion,omitempty"`
 }
 
 // ObservabilitySpec defines the desired state of Observability

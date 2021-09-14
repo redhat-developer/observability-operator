@@ -23,7 +23,6 @@ import (
 )
 
 const PrometheusBaseImage = "quay.io/prometheus/prometheus"
-const PrometheusVersion = "v2.22.2"
 const PrometheusRetention = "45d"
 
 func (r *Reconciler) fetchFederationConfigs(cr *v1.Observability, indexes []v1.RepositoryIndex) ([]string, error) {
@@ -321,7 +320,7 @@ func (r *Reconciler) reconcilePrometheus(ctx context.Context, cr *v1.Observabili
 		}
 	}
 
-	var image = fmt.Sprintf("%s:%s", PrometheusBaseImage, PrometheusVersion)
+	var image = fmt.Sprintf("%s:%s", PrometheusBaseImage, model.GetPrometheusVersion(cr))
 
 	sidecars = append(sidecars, kv1.Container{
 		Name:  "oauth-proxy",
@@ -412,7 +411,7 @@ func (r *Reconciler) reconcilePrometheus(ctx context.Context, cr *v1.Observabili
 		prometheus.Spec = prometheusv1.PrometheusSpec{
 			// Custom Prometheus version
 			Image:   &image,
-			Version: PrometheusVersion,
+			Version: model.GetPrometheusVersion(cr),
 
 			PriorityClassName: model.ObservabilityPriorityClassName,
 
