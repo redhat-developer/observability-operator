@@ -29,6 +29,14 @@ func GetAlertmanagerTLSSecret(cr *v1.Observability) *v13.Secret {
 }
 
 func GetAlertmanagerRoute(cr *v1.Observability) *routev1.Route {
+	if cr.Spec.SelfContained != nil && cr.Spec.SelfContained.AlertManagerRoute != "" {
+		return &routev1.Route{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      cr.Spec.SelfContained.AlertManagerRoute,
+				Namespace: cr.Namespace,
+			},
+		}
+	}
 	return &routev1.Route{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "kafka-alertmanager",
