@@ -20,6 +20,8 @@ import (
 
 var defaultPrometheusLabelSelectors = map[string]string{"app": "strimzi"}
 
+const PrometheusVersion = "v2.22.2"
+
 func GetPrometheusAuthTokenLifetimes(cr *v1.Observability) *v13.ConfigMap {
 	return &v13.ConfigMap{
 		ObjectMeta: v12.ObjectMeta{
@@ -372,4 +374,11 @@ func getPrometheusRepositoryIndexConfig(indexes []v1.RepositoryIndex) *v1.Promet
 		}
 	}
 	return &v1.PrometheusIndex{}
+}
+
+func GetPrometheusVersion(cr *v1.Observability) string {
+	if cr.Spec.SelfContained != nil && cr.Spec.SelfContained.PrometheusVersion != "" {
+		return cr.Spec.SelfContained.PrometheusVersion
+	}
+	return PrometheusVersion
 }
