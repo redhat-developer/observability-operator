@@ -95,7 +95,7 @@ func (r *Reconciler) reconcileAlertmanager(ctx context.Context, cr *v1.Observabi
 				},
 			},
 		}
-		alertmanager.Spec.Version = model.GetAlermanagerVersion(cr)
+		alertmanager.Spec.Version = model.GetAlertmanagerVersion(cr)
 		return nil
 	})
 	if err != nil {

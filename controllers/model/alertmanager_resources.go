@@ -115,7 +115,7 @@ func GetAlertmanagerService(cr *v1.Observability) *v13.Service {
 	}
 }
 
-func GetAlermanagerVersion(cr *v1.Observability) string {
+func GetAlertmanagerVersion(cr *v1.Observability) string {
 	if cr.Spec.SelfContained != nil && cr.Spec.SelfContained.AlertManagerVersion != "" {
 		return cr.Spec.SelfContained.AlertManagerVersion
 	}
