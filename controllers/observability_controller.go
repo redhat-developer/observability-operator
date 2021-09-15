@@ -20,7 +20,9 @@ import (
 	"github.com/bf2fc6cc711aee1a0c2a/observability-operator/v3/controllers/reconcilers/prometheus_installation"
 	"github.com/bf2fc6cc711aee1a0c2a/observability-operator/v3/controllers/reconcilers/promtail_installation"
 	"github.com/bf2fc6cc711aee1a0c2a/observability-operator/v3/controllers/reconcilers/token"
+	"github.com/prometheus-operator/prometheus-operator/pkg/k8sutil"
 	"github.com/go-logr/logr"
+	v1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -34,6 +36,8 @@ const (
 	RequeueDelaySuccess    = 10 * time.Second
 	RequeueDelayError      = 5 * time.Second
 	ObservabilityFinalizer = "observability-cleanup"
+	NoInitConfigMapName    = "observability-operator-no-init"
+
 )
 
 // ObservabilityReconciler reconciles a Observability object
@@ -179,7 +183,7 @@ func (r *ObservabilityReconciler) InitializeOperand(mgr ctrl.Manager) error {
 	namespacePath := "/var/run/secrets/kubernetes.io/serviceaccount/namespace"
 	ns, err := ioutil.ReadFile(namespacePath)
 	if err != nil {
-		// If that does not work (runnign locally?) try the env vars
+		// If that does not work (running locally?) try the env vars
 		namespace = os.Getenv("WATCH_NAMESPACE")
 	} else {
 		namespace = string(ns)
@@ -194,6 +198,29 @@ func (r *ObservabilityReconciler) InitializeOperand(mgr ctrl.Manager) error {
 	mgrClient := mgr.GetClient()
 	apiReader := mgr.GetAPIReader()
 
+	// don't initialise the operand if there the following config map is found in the operator namespace
+	configMap := &v1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      NoInitConfigMapName,
+			Namespace: strings.TrimSpace(namespace),
+		},
+	}
+	key, err := client.ObjectKeyFromObject(configMap)
+	if err != nil {
+		return err
+	}
+	err = apiReader.Get(context.Background(), key, configMap)
+	if err == nil {
+		// if there is no error that means that the config map is found.
+		r.Log.Info(fmt.Sprintf("found config map '%s' so wont create observability cr", NoInitConfigMapName))
+		return nil
+	}
+	if !k8sutil.IsResourceNotFoundError(err) {
+		// report error if any other error than NotFound
+		return err
+	}
+
+	// defines the expected object
 	instance := apiv1.Observability{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "observability-stack",
