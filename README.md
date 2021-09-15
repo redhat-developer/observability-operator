@@ -221,7 +221,7 @@ previously mentioned
 ### Prerequisite Tools
 
 * golang 1.15+
-* operator-sdk v1.1.0
+* operator-sdk v1.3.2
 * [CodeReady Containers](https://github.com/code-ready/crc) 1.18 (OCP 4.6.1) or later
 * [OpenShift command line tool](https://developers.redhat.com/openshift/command-line-tools)
 
