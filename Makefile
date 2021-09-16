@@ -1,5 +1,5 @@
 # Current Operator version
-VERSION ?= 3.0.4
+VERSION ?= 3.0.5
 # Options for 'bundle-build'
 ifneq ($(origin CHANNELS), undefined)
 BUNDLE_CHANNELS := --channels=$(CHANNELS)
@@ -10,7 +10,7 @@ endif
 BUNDLE_METADATA_OPTS ?= $(BUNDLE_CHANNELS) $(BUNDLE_DEFAULT_CHANNEL)
 
 # Default image registry
-REG ?= bf2fc6cc711aee1a0c2a82e312df7f2e6b37baa12bd9b1f2fd752e260d93a6f8144ac730947f25caa2bfe6ad0f410da360940ee6d28d6c1688d3822c4055650e
+REG ?= rhoas
 
 # Image URL to use all building/pushing image targets
 IMG ?= quay.io/$(REG)/observability-operator:v$(VERSION)
@@ -22,7 +22,7 @@ export BUNDLE_IMG ?= quay.io/$(REG)/observability-operator-bundle:v$(VERSION)
 export INDEX_IMG ?= quay.io/$(REG)/observability-operator-index:v$(VERSION)
 
 # Produce CRDs that work back to Kubernetes 1.11 (no version conversion)
-CRD_OPTIONS ?= "crd:trivialVersions=true"
+CRD_OPTIONS ?= "crd:trivialVersions=true,crdVersions=v1"
 
 # Get the currently used golang install path (in GOPATH/bin, unless GOBIN is set)
 ifeq (,$(shell go env GOBIN))
