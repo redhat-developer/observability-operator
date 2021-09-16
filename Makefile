@@ -1,5 +1,5 @@
 # Current Operator version
-VERSION ?= 3.0.4
+VERSION ?= 3.0.5
 # Options for 'bundle-build'
 ifneq ($(origin CHANNELS), undefined)
 BUNDLE_CHANNELS := --channels=$(CHANNELS)
@@ -22,7 +22,7 @@ export BUNDLE_IMG ?= quay.io/$(REG)/observability-operator-bundle:v$(VERSION)
 export INDEX_IMG ?= quay.io/$(REG)/observability-operator-index:v$(VERSION)
 
 # Produce CRDs that work back to Kubernetes 1.11 (no version conversion)
-CRD_OPTIONS ?= "crd:trivialVersions=true"
+CRD_OPTIONS ?= "crd:trivialVersions=true,crdVersions=v1"
 
 # Get the currently used golang install path (in GOPATH/bin, unless GOBIN is set)
 ifeq (,$(shell go env GOBIN))
