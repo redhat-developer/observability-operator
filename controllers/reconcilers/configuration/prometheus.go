@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"k8s.io/apimachinery/pkg/api/resource"
 	"regexp"
 
 	v1 "github.com/bf2fc6cc711aee1a0c2a/observability-operator/v3/api/v1"
@@ -452,6 +453,10 @@ func (r *Reconciler) reconcilePrometheus(ctx context.Context, cr *v1.Observabili
 			Alerting:                        r.getAlerting(cr),
 			Secrets:                         secrets,
 			Containers:                      sidecars,
+			Resources: kv1.ResourceRequirements{
+				Requests: kv1.ResourceList{kv1.ResourceCPU: resource.MustParse("100m"), kv1.ResourceMemory: resource.MustParse("200Mi")},
+				Limits:   kv1.ResourceList{kv1.ResourceCPU: resource.MustParse("200m"), kv1.ResourceMemory: resource.MustParse("400Mi")},
+			},
 		}
 		if cr.Spec.Storage != nil && cr.Spec.Storage.PrometheusStorageSpec != nil {
 			prometheus.Spec.Storage = cr.Spec.Storage.PrometheusStorageSpec
