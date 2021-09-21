@@ -164,6 +164,16 @@ array of regex patterns to be concatenated & used in instantiating the Prometheu
     }, ...]
   ```
 
+Additionally, an empty ConfigMap can be created in a target namespace to prevent an Observability operand (CR) from being created in that namespace.
+* The ConfigMap requires the `name` to be set to `observability-operator-no-init` and the target `namespace` to be specified:
+  ```yaml
+    kind: ConfigMap
+    apiVersion: v1
+    metadata:
+      name: observability-operator-no-init
+      namespace: my-target-namespace
+  ```
+
 ## What's required in the Observability operand (CR)?
 Your spec will be required to specify, at a minumum, two things:
 * a `resyncPeriod` to indicate how often external config should be re-fetched
@@ -268,6 +278,11 @@ review the content of each!
       ```
       oc apply -f config/samples/secrets/observability_secret.yaml
       ```
+* Priority Class
+  * If the Observability Operator was not installed using OLM, you need to create the requried Priority Class yourself. Use the command to add the necessary Priority Class:
+  ```
+  oc apply -f config/samples/prioclass.yaml
+  ```
 
 
 

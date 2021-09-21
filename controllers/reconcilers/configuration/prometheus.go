@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"regexp"
 
 	v1 "github.com/bf2fc6cc711aee1a0c2a/observability-operator/v3/api/v1"
 	"github.com/bf2fc6cc711aee1a0c2a/observability-operator/v3/controllers/model"
@@ -22,7 +23,7 @@ import (
 )
 
 const PrometheusBaseImage = "quay.io/prometheus/prometheus"
-const PrometheusVersion = "v2.22.2"
+const PrometheusRetention = "45d"
 
 func (r *Reconciler) fetchFederationConfigs(cr *v1.Observability, indexes []v1.RepositoryIndex) ([]string, error) {
 	var result []string
@@ -319,7 +320,7 @@ func (r *Reconciler) reconcilePrometheus(ctx context.Context, cr *v1.Observabili
 		}
 	}
 
-	var image = fmt.Sprintf("%s:%s", PrometheusBaseImage, PrometheusVersion)
+	var image = fmt.Sprintf("%s:%s", PrometheusBaseImage, model.GetPrometheusVersion(cr))
 
 	sidecars = append(sidecars, kv1.Container{
 		Name:  "oauth-proxy",
@@ -410,12 +411,13 @@ func (r *Reconciler) reconcilePrometheus(ctx context.Context, cr *v1.Observabili
 		prometheus.Spec = prometheusv1.PrometheusSpec{
 			// Custom Prometheus version
 			Image:   &image,
-			Version: PrometheusVersion,
+			Version: model.GetPrometheusVersion(cr),
 
 			PriorityClassName: model.ObservabilityPriorityClassName,
 
 			// Spec
 			ServiceAccountName: sa.Name,
+			Retention:          getRetentionHelper(cr),
 			ExternalURL:        fmt.Sprintf("https://%v", host),
 			AdditionalScrapeConfigs: &kv1.SecretKeySelector{
 				LocalObjectReference: kv1.LocalObjectReference{
@@ -468,4 +470,13 @@ func (r *Reconciler) reconcilePrometheus(ctx context.Context, cr *v1.Observabili
 	}
 
 	return nil
+}
+
+func getRetentionHelper(cr *v1.Observability) string {
+	match, err := regexp.MatchString("^[0-9]+(((ms)|y|w|d|h|m|s)){1}$", cr.Spec.Retention)
+	if err != nil || !match {
+		return PrometheusRetention
+	}
+
+	return cr.Spec.Retention
 }

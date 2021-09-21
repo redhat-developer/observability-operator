@@ -20,6 +20,8 @@ import (
 
 var defaultPrometheusLabelSelectors = map[string]string{"app": "strimzi"}
 
+const PrometheusVersion = "v2.22.2"
+
 func GetPrometheusAuthTokenLifetimes(cr *v1.Observability) *v13.ConfigMap {
 	return &v13.ConfigMap{
 		ObjectMeta: v12.ObjectMeta{
@@ -115,6 +117,14 @@ func GetPrometheusClusterRoleBinding() *v14.ClusterRoleBinding {
 }
 
 func GetPrometheusRoute(cr *v1.Observability) *routev1.Route {
+	if cr.Spec.SelfContained != nil && cr.Spec.SelfContained.PrometheusRoute != "" {
+		return &routev1.Route{
+			ObjectMeta: v12.ObjectMeta{
+				Name:      cr.Spec.SelfContained.PrometheusRoute,
+				Namespace: cr.Namespace,
+			},
+		}
+	}
 	return &routev1.Route{
 		ObjectMeta: v12.ObjectMeta{
 			Name:      "kafka-prometheus",
@@ -364,4 +374,11 @@ func getPrometheusRepositoryIndexConfig(indexes []v1.RepositoryIndex) *v1.Promet
 		}
 	}
 	return &v1.PrometheusIndex{}
+}
+
+func GetPrometheusVersion(cr *v1.Observability) string {
+	if cr.Spec.SelfContained != nil && cr.Spec.SelfContained.PrometheusVersion != "" {
+		return cr.Spec.SelfContained.PrometheusVersion
+	}
+	return PrometheusVersion
 }
