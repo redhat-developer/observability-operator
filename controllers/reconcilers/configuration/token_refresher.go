@@ -20,7 +20,7 @@ import (
 )
 
 const (
-	TokenRefresherImageTag = "e85bec4"
+	TokenRefresherImageTag = "0b54d2e"
 )
 
 // Return a set of credentials and configuration for either logs or metrics
