@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	apiv1 "github.com/bf2fc6cc711aee1a0c2a/observability-operator/v3/api/v1"
 	"github.com/bf2fc6cc711aee1a0c2a/observability-operator/v3/controllers/reconcilers"
 	"github.com/bf2fc6cc711aee1a0c2a/observability-operator/v3/controllers/reconcilers/alertmanager_installation"
 	"github.com/bf2fc6cc711aee1a0c2a/observability-operator/v3/controllers/reconcilers/configuration"
@@ -20,16 +21,16 @@ import (
 	"github.com/bf2fc6cc711aee1a0c2a/observability-operator/v3/controllers/reconcilers/prometheus_installation"
 	"github.com/bf2fc6cc711aee1a0c2a/observability-operator/v3/controllers/reconcilers/promtail_installation"
 	"github.com/bf2fc6cc711aee1a0c2a/observability-operator/v3/controllers/reconcilers/token"
-	"github.com/prometheus-operator/prometheus-operator/pkg/k8sutil"
 	"github.com/go-logr/logr"
+	prometheusv1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
+	"github.com/prometheus-operator/prometheus-operator/pkg/k8sutil"
 	v1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	rs "k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-
-	apiv1 "github.com/bf2fc6cc711aee1a0c2a/observability-operator/v3/api/v1"
 )
 
 const (
@@ -37,7 +38,6 @@ const (
 	RequeueDelayError      = 5 * time.Second
 	ObservabilityFinalizer = "observability-cleanup"
 	NoInitConfigMapName    = "observability-operator-no-init"
-
 )
 
 // ObservabilityReconciler reconciles a Observability object
@@ -220,6 +220,8 @@ func (r *ObservabilityReconciler) InitializeOperand(mgr ctrl.Manager) error {
 		return err
 	}
 
+	storageClassName := "gp2"
+
 	// defines the expected object
 	instance := apiv1.Observability{
 		ObjectMeta: metav1.ObjectMeta{
@@ -230,6 +232,42 @@ func (r *ObservabilityReconciler) InitializeOperand(mgr ctrl.Manager) error {
 		Spec: apiv1.ObservabilitySpec{
 			ResyncPeriod: "1h",
 			Retention:    "45d",
+			Storage: &apiv1.Storage{
+				PrometheusStorageSpec: &prometheusv1.StorageSpec{
+					VolumeClaimTemplate: prometheusv1.EmbeddedPersistentVolumeClaim{
+					    EmbeddedObjectMetadata:
+					        prometheusv1.EmbeddedObjectMetadata{
+					            Name: "managed-services",
+					        },
+						Spec: v1.PersistentVolumeClaimSpec{
+							StorageClassName: &storageClassName,
+							Resources: v1.ResourceRequirements{
+								Requests: map[v1.ResourceName]rs.Quantity{
+									v1.ResourceStorage: rs.MustParse("50Gi"),
+								},
+							},
+						},
+					},
+				},
+			},
+			Tolerations: []v1.Toleration{
+				{
+					Effect:   "NoSchedule",
+					Key:      "node-role.kubernetes.io/infra",
+					Operator: "Exists",
+				}},
+			Affinity: &v1.Affinity{
+				NodeAffinity: &v1.NodeAffinity{
+					RequiredDuringSchedulingIgnoredDuringExecution: &v1.NodeSelector{
+						NodeSelectorTerms: []v1.NodeSelectorTerm{{
+							MatchExpressions: []v1.NodeSelectorRequirement{{
+								Key:      "node-role.kubernetes.io/infra",
+								Operator: "Exists",
+							}},
+						}},
+					},
+				},
+			},
 			SelfContained: &apiv1.SelfContained{
 				DisableBlackboxExporter: &([]bool{true})[0],
 			},
