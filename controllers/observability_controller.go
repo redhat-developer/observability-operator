@@ -4,14 +4,16 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	prometheusv1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
 	"io/ioutil"
+	storage "k8s.io/api/storage/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 	"os"
 	"reflect"
 	"strings"
 	"time"
 
 	"github.com/go-logr/logr"
-	prometheusv1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
 	"github.com/prometheus-operator/prometheus-operator/pkg/k8sutil"
 	"github.com/redhat-developer/observability-operator/v3/controllers/reconcilers"
 	"github.com/redhat-developer/observability-operator/v3/controllers/reconcilers/alertmanager_installation"
@@ -25,7 +27,6 @@ import (
 	"github.com/redhat-developer/observability-operator/v3/controllers/reconcilers/token"
 	v1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	rs "k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -39,6 +40,7 @@ const (
 	RequeueDelayError      = 5 * time.Second
 	ObservabilityFinalizer = "observability-cleanup"
 	NoInitConfigMapName    = "observability-operator-no-init"
+	storageClassGp2        = "gp2"
 )
 
 // ObservabilityReconciler reconciles a Observability object
@@ -199,7 +201,7 @@ func (r *ObservabilityReconciler) InitializeOperand(mgr ctrl.Manager) error {
 	mgrClient := mgr.GetClient()
 	apiReader := mgr.GetAPIReader()
 
-	// don't initialise the operand if there the following config map is found in the operator namespace
+	// don't initialise the operand if the following config map is found in the operator namespace
 	configMap := &v1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      NoInitConfigMapName,
@@ -221,63 +223,22 @@ func (r *ObservabilityReconciler) InitializeOperand(mgr ctrl.Manager) error {
 		return err
 	}
 
-	storageClassName := "gp2"
+	storageClassExists := false
+	storageClass := &storage.StorageClass{}
+	selector := client.ObjectKey{
+		Name: storageClassGp2,
+	}
 
-	// defines the expected object
-	instance := apiv1.Observability{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "observability-stack",
-			Namespace: strings.TrimSpace(namespace),
-			Labels:    map[string]string{"managed-by": "observability-operator"},
-		},
-		Spec: apiv1.ObservabilitySpec{
-			ResyncPeriod: "1h",
-			Retention:    "45d",
-			Storage: &apiv1.Storage{
-				PrometheusStorageSpec: &prometheusv1.StorageSpec{
-					VolumeClaimTemplate: prometheusv1.EmbeddedPersistentVolumeClaim{
-					    EmbeddedObjectMetadata:
-					        prometheusv1.EmbeddedObjectMetadata{
-					            Name: "managed-services",
-					        },
-						Spec: v1.PersistentVolumeClaimSpec{
-							StorageClassName: &storageClassName,
-							Resources: v1.ResourceRequirements{
-								Requests: map[v1.ResourceName]rs.Quantity{
-									v1.ResourceStorage: rs.MustParse("50Gi"),
-								},
-							},
-						},
-					},
-				},
-			},
-			Tolerations: []v1.Toleration{
-				{
-					Effect:   "NoSchedule",
-					Key:      "node-role.kubernetes.io/infra",
-					Operator: "Exists",
-				}},
-			Affinity: &v1.Affinity{
-				NodeAffinity: &v1.NodeAffinity{
-					RequiredDuringSchedulingIgnoredDuringExecution: &v1.NodeSelector{
-						NodeSelectorTerms: []v1.NodeSelectorTerm{{
-							MatchExpressions: []v1.NodeSelectorRequirement{{
-								Key:      "node-role.kubernetes.io/infra",
-								Operator: "Exists",
-							}},
-						}},
-					},
-				},
-			},
-			SelfContained: &apiv1.SelfContained{
-				DisableBlackboxExporter: &([]bool{true})[0],
-			},
-			ConfigurationSelector: &metav1.LabelSelector{
-				MatchLabels: map[string]string{
-					"configures": "observability-operator",
-				},
-			},
-		},
+	err = apiReader.Get(context.Background(), selector, storageClass)
+	if err == nil {
+		// no error means that the storage class was found
+		storageClassExists = true
+		r.Log.Info(fmt.Sprintf("found storage class %s on the cluster", storageClassGp2))
+	}
+
+	instance := observabilityInstanceWithStorage(namespace)
+	if !storageClassExists {
+		instance = observabilityInstanceWithoutStorage(namespace)
 	}
 
 	instances := apiv1.ObservabilityList{}
@@ -292,6 +253,12 @@ func (r *ObservabilityReconciler) InitializeOperand(mgr ctrl.Manager) error {
 			r.Log.Info("removing pre-existing operand missing or mismatching managed label")
 			if err := r.UpdateOperand(&existing, &instance); err != nil {
 				r.Log.Error(err, "Failed to remove pre-existing operand with missing or incorrect managed label")
+				return err
+			}
+			found = true
+		} else if (instances.Items[0].Spec.Storage == nil || instances.Items[0].Spec.Retention == "") && storageClassExists {
+			r.Log.Info("Adding retention period and storage spec to the pre-existing operand")
+			if err := r.UpdateOperand(&existing, &instance); err != nil {
 				return err
 			}
 			found = true
@@ -356,6 +323,66 @@ func (r *ObservabilityReconciler) updateStatus(cr *apiv1.Observability, nextStat
 		Requeue:      true,
 		RequeueAfter: RequeueDelaySuccess,
 	}, nil
+}
+
+func observabilityInstanceWithStorage(namespace string) apiv1.Observability {
+	return apiv1.Observability{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "observability-stack",
+			Namespace: strings.TrimSpace(namespace),
+			Labels:    map[string]string{"managed-by": "observability-operator"},
+		},
+		Spec: apiv1.ObservabilitySpec{
+			ResyncPeriod: "1h",
+			Retention:    "45d",
+			Storage: &apiv1.Storage{
+				PrometheusStorageSpec: &prometheusv1.StorageSpec{
+					VolumeClaimTemplate: prometheusv1.EmbeddedPersistentVolumeClaim{
+						EmbeddedObjectMetadata: prometheusv1.EmbeddedObjectMetadata{
+							Name: "managed-services",
+						},
+						Spec: v1.PersistentVolumeClaimSpec{
+							Resources: v1.ResourceRequirements{
+								Requests: map[v1.ResourceName]resource.Quantity{
+									v1.ResourceStorage: resource.MustParse("50Gi"),
+								},
+							},
+						},
+					},
+				},
+			},
+			SelfContained: &apiv1.SelfContained{
+				DisableBlackboxExporter: &([]bool{true})[0],
+			},
+			ConfigurationSelector: &metav1.LabelSelector{
+				MatchLabels: map[string]string{
+					"configures": "observability-operator",
+				},
+			},
+		},
+	}
+}
+
+func observabilityInstanceWithoutStorage(namespace string) apiv1.Observability {
+	return apiv1.Observability{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "observability-stack",
+			Namespace: strings.TrimSpace(namespace),
+			Labels:    map[string]string{"managed-by": "observability-operator"},
+		},
+		Spec: apiv1.ObservabilitySpec{
+			ResyncPeriod: "1h",
+			Retention:    "45d",
+			SelfContained: &apiv1.SelfContained{
+				DisableBlackboxExporter: &([]bool{true})[0],
+			},
+			ConfigurationSelector: &metav1.LabelSelector{
+				MatchLabels: map[string]string{
+					"configures": "observability-operator",
+				},
+			},
+		},
+	}
 }
 
 func (r *ObservabilityReconciler) getReconcilerForStage(stage apiv1.ObservabilityStageName) reconcilers.ObservabilityReconciler {
