@@ -19,8 +19,6 @@ package main
 import (
 	"context"
 	"flag"
-	apiv1 "github.com/bf2fc6cc711aee1a0c2a/observability-operator/v3/api/v1"
-	"github.com/bf2fc6cc711aee1a0c2a/observability-operator/v3/controllers"
 	"github.com/go-logr/logr"
 	grafana "github.com/integr8ly/grafana-operator/v3/pkg/apis/integreatly/v1alpha1"
 	configv1 "github.com/openshift/api/config/v1"
@@ -29,6 +27,8 @@ import (
 	coreosv1 "github.com/operator-framework/api/pkg/operators/v1"
 	coreosv1alpha1 "github.com/operator-framework/api/pkg/operators/v1alpha1"
 	prometheusv1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
+	apiv1 "github.com/redhat-developer/observability-operator/v3/api/v1"
+	"github.com/redhat-developer/observability-operator/v3/controllers"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"

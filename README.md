@@ -42,10 +42,10 @@ needs. That being said (and know that what follows is absolutely subject to chan
 Observability Operator is intended to support multiple application services, each of which will be responsible for 
 maintaining their own configuration repository & instantiating a ConfigMap containing a bit of information the 
 operator needs in order to read from it. At current, it's expected that configuration repos reside within our 
-['bf2' organization](https://github.com/bf2fc6cc711aee1a0c2a) as we use a special read-only mechanism limited to 
+['bf2' organization](https://github.com/redhat-developer) as we use a special read-only mechanism limited to 
 within our organization for access. 
 
-As an example, first take a look at the [configuration repository](https://github.com/bf2fc6cc711aee1a0c2a/observability-resources-mk) 
+As an example, first take a look at the [configuration repository](https://github.com/redhat-developer/observability-resources-mk) 
 for the first service we've onboarded, Managed Kafka. There you'll find an index file and various configuration files referenced from within. In order to use this config 
 repo, the Observability Operator must be told about it via a `Secret`:
 
@@ -60,7 +60,7 @@ metadata:
 data:
   access_token: '<token here>'
   channel: 'resources'
-  repository: 'https://api.github.com/repos/bf2fc6cc711aee1a0c2a/observability-resources-mk/contents'
+  repository: 'https://api.github.com/repos/redhat-developer/observability-resources-mk/contents'
   tag: <tag or branch>
 ```
 
@@ -75,7 +75,7 @@ as specified in the Observability CR (more on that in a bit):
 
 ## What's supported via external config?
 
-Within a given resources folder an [index.json file](https://github.com/bf2fc6cc711aee1a0c2a/observability-resources-mk/blob/main/development/index.json) 
+Within a given resources folder an [index.json file](https://github.com/redhat-developer/observability-resources-mk/blob/main/development/index.json) 
 containing, at a minimum, `id` and `config` fields must exist:
  ```yaml 
  {
@@ -349,7 +349,7 @@ Please refer to our [JIRA epic](https://issues.redhat.com/browse/MGDSTRM-717) fo
 
 ## Issues
 
-If you'd like to report an issue, feel free to use our [project Issues page](https://github.com/bf2fc6cc711aee1a0c2a/observability-operator/v3/issues) - just remember that we're not fully tracking ongoing work there, but in [JIRA](https://issues.redhat.com/browse/MGDSTRM-717) instead.  
+If you'd like to report an issue, feel free to use our [project Issues page](https://github.com/redhat-developer/observability-operator/v3/issues) - just remember that we're not fully tracking ongoing work there, but in [JIRA](https://issues.redhat.com/browse/MGDSTRM-717) instead.  
 
 
 ## Contact

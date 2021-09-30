@@ -3,9 +3,9 @@ module github.com/redhat-developer/observability-operator/v3
 go 1.13
 
 require (
-	github.com/bf2fc6cc711aee1a0c2a/observability-operator/v3 v3.0.5
 	github.com/ghodss/yaml v1.0.0
 	github.com/go-logr/logr v0.2.1
+	github.com/go-logr/zapr v0.2.0 // indirect
 	github.com/integr8ly/grafana-operator/v3 v3.10.3
 	github.com/onsi/ginkgo v1.14.0
 	github.com/onsi/gomega v1.10.1

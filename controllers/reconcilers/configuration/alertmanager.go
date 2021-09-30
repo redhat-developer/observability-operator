@@ -3,10 +3,10 @@ package configuration
 import (
 	"context"
 	"fmt"
-	v1 "github.com/bf2fc6cc711aee1a0c2a/observability-operator/v3/api/v1"
-	"github.com/bf2fc6cc711aee1a0c2a/observability-operator/v3/controllers/model"
-	"github.com/bf2fc6cc711aee1a0c2a/observability-operator/v3/controllers/utils"
 	"github.com/ghodss/yaml"
+	v1 "github.com/redhat-developer/observability-operator/v3/api/v1"
+	"github.com/redhat-developer/observability-operator/v3/controllers/model"
+	"github.com/redhat-developer/observability-operator/v3/controllers/utils"
 	v12 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"sigs.k8s.io/controller-runtime/pkg/client"

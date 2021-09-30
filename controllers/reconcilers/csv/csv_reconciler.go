@@ -2,11 +2,11 @@ package csv
 
 import (
 	"context"
-	v1 "github.com/bf2fc6cc711aee1a0c2a/observability-operator/v3/api/v1"
-	"github.com/bf2fc6cc711aee1a0c2a/observability-operator/v3/controllers/model"
-	"github.com/bf2fc6cc711aee1a0c2a/observability-operator/v3/controllers/reconcilers"
 	"github.com/go-logr/logr"
 	"github.com/operator-framework/api/pkg/operators/v1alpha1"
+	v1 "github.com/redhat-developer/observability-operator/v3/api/v1"
+	"github.com/redhat-developer/observability-operator/v3/controllers/model"
+	"github.com/redhat-developer/observability-operator/v3/controllers/reconcilers"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"strings"

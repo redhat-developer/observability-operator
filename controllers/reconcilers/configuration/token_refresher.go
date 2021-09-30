@@ -6,9 +6,9 @@ import (
 	"net/url"
 	"path"
 
-	v1 "github.com/bf2fc6cc711aee1a0c2a/observability-operator/v3/api/v1"
-	"github.com/bf2fc6cc711aee1a0c2a/observability-operator/v3/controllers/model"
 	errors2 "github.com/pkg/errors"
+	v1 "github.com/redhat-developer/observability-operator/v3/api/v1"
+	"github.com/redhat-developer/observability-operator/v3/controllers/model"
 	v13 "k8s.io/api/apps/v1"
 	v12 "k8s.io/api/core/v1"
 	v15 "k8s.io/api/networking/v1"

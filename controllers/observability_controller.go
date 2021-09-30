@@ -10,18 +10,18 @@ import (
 	"strings"
 	"time"
 
-	"github.com/bf2fc6cc711aee1a0c2a/observability-operator/v3/controllers/reconcilers"
-	"github.com/bf2fc6cc711aee1a0c2a/observability-operator/v3/controllers/reconcilers/alertmanager_installation"
-	"github.com/bf2fc6cc711aee1a0c2a/observability-operator/v3/controllers/reconcilers/configuration"
-	"github.com/bf2fc6cc711aee1a0c2a/observability-operator/v3/controllers/reconcilers/csv"
-	"github.com/bf2fc6cc711aee1a0c2a/observability-operator/v3/controllers/reconcilers/grafana_configuration"
-	"github.com/bf2fc6cc711aee1a0c2a/observability-operator/v3/controllers/reconcilers/grafana_installation"
-	"github.com/bf2fc6cc711aee1a0c2a/observability-operator/v3/controllers/reconcilers/prometheus_configuration"
-	"github.com/bf2fc6cc711aee1a0c2a/observability-operator/v3/controllers/reconcilers/prometheus_installation"
-	"github.com/bf2fc6cc711aee1a0c2a/observability-operator/v3/controllers/reconcilers/promtail_installation"
-	"github.com/bf2fc6cc711aee1a0c2a/observability-operator/v3/controllers/reconcilers/token"
-	"github.com/prometheus-operator/prometheus-operator/pkg/k8sutil"
 	"github.com/go-logr/logr"
+	"github.com/prometheus-operator/prometheus-operator/pkg/k8sutil"
+	"github.com/redhat-developer/observability-operator/v3/controllers/reconcilers"
+	"github.com/redhat-developer/observability-operator/v3/controllers/reconcilers/alertmanager_installation"
+	"github.com/redhat-developer/observability-operator/v3/controllers/reconcilers/configuration"
+	"github.com/redhat-developer/observability-operator/v3/controllers/reconcilers/csv"
+	"github.com/redhat-developer/observability-operator/v3/controllers/reconcilers/grafana_configuration"
+	"github.com/redhat-developer/observability-operator/v3/controllers/reconcilers/grafana_installation"
+	"github.com/redhat-developer/observability-operator/v3/controllers/reconcilers/prometheus_configuration"
+	"github.com/redhat-developer/observability-operator/v3/controllers/reconcilers/prometheus_installation"
+	"github.com/redhat-developer/observability-operator/v3/controllers/reconcilers/promtail_installation"
+	"github.com/redhat-developer/observability-operator/v3/controllers/reconcilers/token"
 	v1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -29,7 +29,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	apiv1 "github.com/bf2fc6cc711aee1a0c2a/observability-operator/v3/api/v1"
+	apiv1 "github.com/redhat-developer/observability-operator/v3/api/v1"
 )
 
 const (
@@ -37,7 +37,6 @@ const (
 	RequeueDelayError      = 5 * time.Second
 	ObservabilityFinalizer = "observability-cleanup"
 	NoInitConfigMapName    = "observability-operator-no-init"
-
 )
 
 // ObservabilityReconciler reconciles a Observability object
