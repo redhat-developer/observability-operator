@@ -382,3 +382,17 @@ func GetPrometheusVersion(cr *v1.Observability) string {
 	}
 	return PrometheusVersion
 }
+
+func GetPrometheusResourceRequirement(cr *v1.Observability) v13.ResourceRequirements {
+	if cr.Spec.SelfContained != nil {
+		return cr.Spec.SelfContained.PrometheusResourceRequirement
+	}
+	return v13.ResourceRequirements{}
+}
+
+func GetPrometheusOperatorResourceRequirement(cr *v1.Observability) v13.ResourceRequirements {
+	if cr.Spec.SelfContained != nil {
+		return cr.Spec.SelfContained.PrometheusOperatorResourceRequirement
+	}
+	return v13.ResourceRequirements{}
+}

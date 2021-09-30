@@ -452,6 +452,7 @@ func (r *Reconciler) reconcilePrometheus(ctx context.Context, cr *v1.Observabili
 			Alerting:                        r.getAlerting(cr),
 			Secrets:                         secrets,
 			Containers:                      sidecars,
+			Resources:                       model.GetPrometheusResourceRequirement(cr),
 		}
 		if cr.Spec.Storage != nil && cr.Spec.Storage.PrometheusStorageSpec != nil {
 			prometheus.Spec.Storage = cr.Spec.Storage.PrometheusStorageSpec

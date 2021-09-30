@@ -181,6 +181,7 @@ func (r *Reconciler) reconcileSubscription(ctx context.Context, cr *v1.Observabi
 			Package:                "grafana-operator",
 			Channel:                "alpha",
 			StartingCSV:            "grafana-operator.v3.10.4",
+			Config:                 v1alpha1.SubscriptionConfig{Resources: model.GetGrafanaOperatorResourceRequirement(cr)},
 		}
 		return nil
 	})

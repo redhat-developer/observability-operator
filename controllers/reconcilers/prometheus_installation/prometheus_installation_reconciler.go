@@ -151,6 +151,7 @@ func (r *Reconciler) reconcileSubscription(ctx context.Context, cr *v1.Observabi
 			Package:                "prometheus",
 			Channel:                "preview",
 			InstallPlanApproval:    v1alpha1.ApprovalAutomatic,
+			Config:                 v1alpha1.SubscriptionConfig{Resources: model.GetPrometheusOperatorResourceRequirement(cr)},
 		}
 
 		return nil

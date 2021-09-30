@@ -121,3 +121,10 @@ func GetAlertmanagerVersion(cr *v1.Observability) string {
 	}
 	return ""
 }
+
+func GetAlertmanagerResourceRequirement(cr *v1.Observability) v13.ResourceRequirements {
+	if cr.Spec.SelfContained != nil {
+		return cr.Spec.SelfContained.AlertManagerResourceRequirement
+	}
+	return v13.ResourceRequirements{}
+}

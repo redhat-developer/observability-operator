@@ -116,6 +116,7 @@ func (r *Reconciler) reconcileGrafanaCr(ctx context.Context, cr *v1.Observabilit
 				Replicas:          1,
 				PriorityClassName: model.ObservabilityPriorityClassName,
 			},
+			Resources: model.GetGrafanaResourceRequirement(cr),
 		}
 		if cr.Spec.Tolerations != nil {
 			grafana.Spec.Deployment.Tolerations = cr.Spec.Tolerations

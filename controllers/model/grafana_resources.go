@@ -104,3 +104,16 @@ func GetGrafanaDashboardLabelSelectors(cr *v1.Observability, indexes []v1.Reposi
 		MatchLabels: defaultPrometheusLabelSelectors,
 	}
 }
+func GetGrafanaResourceRequirement(cr *v1.Observability) *v14.ResourceRequirements {
+	if cr.Spec.SelfContained != nil && cr.Spec.SelfContained.GrafanaResourceRequirement != nil {
+		return cr.Spec.SelfContained.GrafanaResourceRequirement
+	}
+	return &v14.ResourceRequirements{}
+}
+
+func GetGrafanaOperatorResourceRequirement(cr *v1.Observability) v14.ResourceRequirements {
+	if cr.Spec.SelfContained != nil {
+		return cr.Spec.SelfContained.GrafanaOperatorResourceRequirement
+	}
+	return v14.ResourceRequirements{}
+}
