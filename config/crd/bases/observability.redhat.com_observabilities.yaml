@@ -627,6 +627,8 @@ spec:
                         type: array
                     type: object
                 type: object
+              alertManagerDefaultName:
+                type: string
               clusterId:
                 description: Cluster ID. If not provided, the operator tries to obtain
                   it.
@@ -678,6 +680,10 @@ spec:
                       are ANDed.
                     type: object
                 type: object
+              grafanaDefaultName:
+                type: string
+              prometheusDefaultName:
+                type: string
               resyncPeriod:
                 type: string
               retention:
@@ -713,8 +719,6 @@ spec:
                           to an implementation-defined value. More info: https://kubernetes.io/docs/concepts/configuration/manage-compute-resources-container/'
                         type: object
                     type: object
-                  alertManagerRoute:
-                    type: string
                   alertManagerVersion:
                     type: string
                   disableBlackboxExporter:
@@ -1076,8 +1080,6 @@ spec:
                           to an implementation-defined value. More info: https://kubernetes.io/docs/concepts/configuration/manage-compute-resources-container/'
                         type: object
                     type: object
-                  prometheusRoute:
-                    type: string
                   prometheusVersion:
                     type: string
                   ruleLabelSelector:

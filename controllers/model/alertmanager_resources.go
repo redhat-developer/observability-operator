@@ -10,6 +10,13 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+func GetDefaultNameAlertmanager(cr *v1.Observability) string {
+	if cr.Spec.SelfContained != nil && cr.Spec.AlertManagerDefaultName != "" {
+		return cr.Spec.AlertManagerDefaultName
+	}
+	return "kafka-alertmanager"
+}
+
 func GetAlertmanagerProxySecret(cr *v1.Observability) *v13.Secret {
 	return &v13.Secret{
 		ObjectMeta: metav1.ObjectMeta{
@@ -29,17 +36,9 @@ func GetAlertmanagerTLSSecret(cr *v1.Observability) *v13.Secret {
 }
 
 func GetAlertmanagerRoute(cr *v1.Observability) *routev1.Route {
-	if cr.Spec.SelfContained != nil && cr.Spec.SelfContained.AlertManagerRoute != "" {
-		return &routev1.Route{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      cr.Spec.SelfContained.AlertManagerRoute,
-				Namespace: cr.Namespace,
-			},
-		}
-	}
 	return &routev1.Route{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      "kafka-alertmanager",
+			Name:      GetDefaultNameAlertmanager(cr),
 			Namespace: cr.Namespace,
 		},
 	}
@@ -51,7 +50,7 @@ func GetAlertmanagerServiceAccount(cr *v1.Observability) *v13.ServiceAccount {
 
 	return &v13.ServiceAccount{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      "kafka-alertmanager",
+			Name:      GetDefaultNameAlertmanager(cr),
 			Namespace: cr.Namespace,
 			Annotations: map[string]string{
 				"serviceaccounts.openshift.io/oauth-redirectreference.primary": redirect,
@@ -60,18 +59,18 @@ func GetAlertmanagerServiceAccount(cr *v1.Observability) *v13.ServiceAccount {
 	}
 }
 
-func GetAlertmanagerClusterRole() *v14.ClusterRole {
+func GetAlertmanagerClusterRole(cr *v1.Observability) *v14.ClusterRole {
 	return &v14.ClusterRole{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: "kafka-alertmanager",
+			Name: GetDefaultNameAlertmanager(cr),
 		},
 	}
 }
 
-func GetAlertmanagerClusterRoleBinding() *v14.ClusterRoleBinding {
+func GetAlertmanagerClusterRoleBinding(cr *v1.Observability) *v14.ClusterRoleBinding {
 	return &v14.ClusterRoleBinding{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: "kafka-alertmanager",
+			Name: GetDefaultNameAlertmanager(cr),
 		},
 	}
 }
@@ -79,7 +78,7 @@ func GetAlertmanagerClusterRoleBinding() *v14.ClusterRoleBinding {
 func GetAlertmanagerCr(cr *v1.Observability) *v12.Alertmanager {
 	return &v12.Alertmanager{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      "kafka-alertmanager",
+			Name:      GetDefaultNameAlertmanager(cr),
 			Namespace: cr.Namespace,
 		},
 	}
@@ -109,7 +108,7 @@ func GetAlertmanagerSecretName(cr *v1.Observability) string {
 func GetAlertmanagerService(cr *v1.Observability) *v13.Service {
 	return &v13.Service{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      "kafka-alertmanager",
+			Name:      GetDefaultNameAlertmanager(cr),
 			Namespace: cr.Namespace,
 		},
 	}

@@ -19,6 +19,8 @@ package main
 import (
 	"context"
 	"flag"
+	"os"
+
 	"github.com/go-logr/logr"
 	grafana "github.com/integr8ly/grafana-operator/v3/pkg/apis/integreatly/v1alpha1"
 	configv1 "github.com/openshift/api/config/v1"
@@ -27,15 +29,15 @@ import (
 	coreosv1 "github.com/operator-framework/api/pkg/operators/v1"
 	coreosv1alpha1 "github.com/operator-framework/api/pkg/operators/v1alpha1"
 	prometheusv1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
-	apiv1 "github.com/redhat-developer/observability-operator/v3/api/v1"
-	"github.com/redhat-developer/observability-operator/v3/controllers"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
-	"os"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
+
+	apiv1 "github.com/redhat-developer/observability-operator/v3/api/v1"
+	"github.com/redhat-developer/observability-operator/v3/controllers"
 	// +kubebuilder:scaffold:imports
 )
 
@@ -97,6 +99,10 @@ func main() {
 
 	if err = observabilityReconciler.SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Observability")
+		os.Exit(1)
+	}
+	if err = (&apiv1.Observability{}).SetupWebhookWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create webhook", "webhook", "Observability")
 		os.Exit(1)
 	}
 	// +kubebuilder:scaffold:builder

@@ -60,13 +60,13 @@ func (r *Reconciler) Cleanup(ctx context.Context, cr *v1.Observability) (v1.Obse
 	}
 
 	// Delete role and rolebinding
-	rb := model.GetPrometheusClusterRoleBinding()
+	rb := model.GetPrometheusClusterRoleBinding(cr)
 	err = r.client.Delete(ctx, rb)
 	if err != nil && !errors.IsNotFound(err) {
 		return v1.ResultFailed, err
 	}
 
-	role := model.GetPrometheusClusterRole()
+	role := model.GetPrometheusClusterRole(cr)
 	err = r.client.Delete(ctx, role)
 	if err != nil && !errors.IsNotFound(err) {
 		return v1.ResultFailed, err
@@ -138,7 +138,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, cr *v1.Observability, s *v1.
 	}
 
 	// prometheus cluster role
-	status, err = r.reconcileClusterRole(ctx)
+	status, err = r.reconcileClusterRole(ctx, cr)
 	if status != v1.ResultSuccess {
 		return status, err
 	}
@@ -260,8 +260,8 @@ func (r *Reconciler) reconcileService(ctx context.Context, cr *v1.Observability)
 	return v1.ResultSuccess, nil
 }
 
-func (r *Reconciler) reconcileClusterRole(ctx context.Context) (v1.ObservabilityStageStatus, error) {
-	clusterRole := model.GetPrometheusClusterRole()
+func (r *Reconciler) reconcileClusterRole(ctx context.Context, cr *v1.Observability) (v1.ObservabilityStageStatus, error) {
+	clusterRole := model.GetPrometheusClusterRole(cr)
 
 	_, err := controllerutil.CreateOrUpdate(ctx, r.client, clusterRole, func() error {
 		clusterRole.Rules = []rbacv1.PolicyRule{
@@ -301,8 +301,8 @@ func (r *Reconciler) reconcileClusterRole(ctx context.Context) (v1.Observability
 }
 
 func (r *Reconciler) reconcileClusterRoleBinding(ctx context.Context, cr *v1.Observability) (v1.ObservabilityStageStatus, error) {
-	clusterRoleBinding := model.GetPrometheusClusterRoleBinding()
-	role := model.GetPrometheusClusterRole()
+	clusterRoleBinding := model.GetPrometheusClusterRoleBinding(cr)
+	role := model.GetPrometheusClusterRole(cr)
 
 	_, err := controllerutil.CreateOrUpdate(ctx, r.client, clusterRoleBinding, func() error {
 		clusterRoleBinding.Subjects = []rbacv1.Subject{
