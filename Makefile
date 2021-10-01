@@ -145,6 +145,10 @@ bundle-push:
 index-build:
 	docker build -t $(INDEX_IMG) -f opm.Dockerfile .
 
+.PHONY: opm-build
+opm-build:
+	@bash build_index.sh
+
 .PHONY: index-push
 index-push:
 	docker push $(INDEX_IMG)
