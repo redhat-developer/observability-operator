@@ -117,13 +117,13 @@ func (r *Reconciler) Cleanup(ctx context.Context, cr *v1.Observability) (v1.Obse
 		return v1.ResultFailed, err
 	}
 
-	role := model.GetAlertmanagerClusterRole()
+	role := model.GetAlertmanagerClusterRole(cr)
 	err = r.client.Delete(ctx, role)
 	if err != nil && !errors.IsNotFound(err) {
 		return v1.ResultFailed, err
 	}
 
-	binding := model.GetAlertmanagerClusterRoleBinding()
+	binding := model.GetAlertmanagerClusterRoleBinding(cr)
 	err = r.client.Delete(ctx, binding)
 	if err != nil && !errors.IsNotFound(err) {
 		return v1.ResultFailed, err
@@ -189,7 +189,7 @@ func (r *Reconciler) reconcileAlertmanagerServiceAccount(ctx context.Context, cr
 }
 
 func (r *Reconciler) reconcileAlertmanagerClusterRole(ctx context.Context, cr *v1.Observability) (v1.ObservabilityStageStatus, error) {
-	role := model.GetAlertmanagerClusterRole()
+	role := model.GetAlertmanagerClusterRole(cr)
 
 	_, err := controllerutil.CreateOrUpdate(ctx, r.client, role, func() error {
 		role.Rules = []v15.PolicyRule{
@@ -214,8 +214,8 @@ func (r *Reconciler) reconcileAlertmanagerClusterRole(ctx context.Context, cr *v
 }
 
 func (r *Reconciler) reconcileAlertmanagerClusterRoleBinding(ctx context.Context, cr *v1.Observability) (v1.ObservabilityStageStatus, error) {
-	binding := model.GetAlertmanagerClusterRoleBinding()
-	role := model.GetAlertmanagerClusterRole()
+	binding := model.GetAlertmanagerClusterRoleBinding(cr)
+	role := model.GetAlertmanagerClusterRole(cr)
 
 	_, err := controllerutil.CreateOrUpdate(ctx, r.client, binding, func() error {
 		binding.Subjects = []v15.Subject{

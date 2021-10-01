@@ -686,6 +686,8 @@ spec:
                 properties:
                   alertManagerConfigSecret:
                     type: string
+                  alertManagerDefaultName:
+                    type: string
                   alertManagerResourceRequirement:
                     description: ResourceRequirements describes the compute resource
                       requirements.
@@ -713,8 +715,6 @@ spec:
                           to an implementation-defined value. More info: https://kubernetes.io/docs/concepts/configuration/manage-compute-resources-container/'
                         type: object
                     type: object
-                  alertManagerRoute:
-                    type: string
                   alertManagerVersion:
                     type: string
                   disableBlackboxExporter:
@@ -778,6 +778,8 @@ spec:
                           "value". The requirements are ANDed.
                         type: object
                     type: object
+                  grafanaDefaultName:
+                    type: string
                   grafanaOperatorResourceRequirement:
                     description: ResourceRequirements describes the compute resource
                       requirements.
@@ -1020,6 +1022,8 @@ spec:
                           "value". The requirements are ANDed.
                         type: object
                     type: object
+                  prometheusDefaultName:
+                    type: string
                   prometheusOperatorResourceRequirement:
                     description: ResourceRequirements describes the compute resource
                       requirements.
@@ -1074,8 +1078,6 @@ spec:
                           to an implementation-defined value. More info: https://kubernetes.io/docs/concepts/configuration/manage-compute-resources-container/'
                         type: object
                     type: object
-                  prometheusRoute:
-                    type: string
                   prometheusVersion:
                     type: string
                   ruleLabelSelector:

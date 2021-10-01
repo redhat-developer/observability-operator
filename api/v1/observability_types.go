@@ -76,8 +76,9 @@ type SelfContained struct {
 	ProbeNamespaceSelector                *metav1.LabelSelector    `json:"probeNamespaceSelector,omitempty"`
 	GrafanaDashboardLabelSelector         *metav1.LabelSelector    `json:"grafanaDashboardLabelSelector,omitempty"`
 	AlertManagerConfigSecret              string                   `json:"alertManagerConfigSecret,omitempty"`
-	AlertManagerRoute                     string                   `json:"alertManagerRoute,omitempty"`
-	PrometheusRoute                       string                   `json:"prometheusRoute,omitempty"`
+	AlertManagerDefaultName               string                   `json:"alertManagerDefaultName,omitempty"`
+	PrometheusDefaultName                 string                   `json:"prometheusDefaultName,omitempty"`
+	GrafanaDefaultName                    string                   `json:"grafanaDefaultName,omitempty"`
 	AlertManagerVersion                   string                   `json:"alertManagerVersion,omitempty"`
 	PrometheusVersion                     string                   `json:"prometheusVersion,omitempty"`
 	AlertManagerResourceRequirement       v1.ResourceRequirements  `json:"alertManagerResourceRequirement,omitempty"`
