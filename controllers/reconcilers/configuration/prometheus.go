@@ -6,13 +6,13 @@ import (
 	"fmt"
 	"regexp"
 
-	v1 "github.com/bf2fc6cc711aee1a0c2a/observability-operator/v3/api/v1"
-	"github.com/bf2fc6cc711aee1a0c2a/observability-operator/v3/controllers/model"
-	"github.com/bf2fc6cc711aee1a0c2a/observability-operator/v3/controllers/reconcilers/token"
-	"github.com/bf2fc6cc711aee1a0c2a/observability-operator/v3/controllers/utils"
 	"github.com/ghodss/yaml"
 	errors2 "github.com/pkg/errors"
 	prometheusv1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
+	v1 "github.com/redhat-developer/observability-operator/v3/api/v1"
+	"github.com/redhat-developer/observability-operator/v3/controllers/model"
+	"github.com/redhat-developer/observability-operator/v3/controllers/reconcilers/token"
+	"github.com/redhat-developer/observability-operator/v3/controllers/utils"
 	"github.com/sirupsen/logrus"
 	kv1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -452,6 +452,7 @@ func (r *Reconciler) reconcilePrometheus(ctx context.Context, cr *v1.Observabili
 			Alerting:                        r.getAlerting(cr),
 			Secrets:                         secrets,
 			Containers:                      sidecars,
+			Resources:                       model.GetPrometheusResourceRequirement(cr),
 		}
 		if cr.Spec.Storage != nil && cr.Spec.Storage.PrometheusStorageSpec != nil {
 			prometheus.Spec.Storage = cr.Spec.Storage.PrometheusStorageSpec

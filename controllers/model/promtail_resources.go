@@ -7,8 +7,8 @@ import (
 	"strings"
 	t "text/template"
 
-	v1 "github.com/bf2fc6cc711aee1a0c2a/observability-operator/v3/api/v1"
 	errors2 "github.com/pkg/errors"
+	v1 "github.com/redhat-developer/observability-operator/v3/api/v1"
 	v13 "k8s.io/api/apps/v1"
 	v12 "k8s.io/api/core/v1"
 	v14 "k8s.io/api/rbac/v1"

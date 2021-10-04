@@ -2,13 +2,13 @@ package prometheus_installation
 
 import (
 	"context"
-	v1 "github.com/bf2fc6cc711aee1a0c2a/observability-operator/v3/api/v1"
-	"github.com/bf2fc6cc711aee1a0c2a/observability-operator/v3/controllers/model"
-	"github.com/bf2fc6cc711aee1a0c2a/observability-operator/v3/controllers/reconcilers"
-	"github.com/bf2fc6cc711aee1a0c2a/observability-operator/v3/controllers/utils"
 	"github.com/go-logr/logr"
 	coreosv1 "github.com/operator-framework/api/pkg/operators/v1"
 	"github.com/operator-framework/api/pkg/operators/v1alpha1"
+	v1 "github.com/redhat-developer/observability-operator/v3/api/v1"
+	"github.com/redhat-developer/observability-operator/v3/controllers/model"
+	"github.com/redhat-developer/observability-operator/v3/controllers/reconcilers"
+	"github.com/redhat-developer/observability-operator/v3/controllers/utils"
 	v12 "k8s.io/api/apps/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -151,6 +151,7 @@ func (r *Reconciler) reconcileSubscription(ctx context.Context, cr *v1.Observabi
 			Package:                "prometheus",
 			Channel:                "preview",
 			InstallPlanApproval:    v1alpha1.ApprovalAutomatic,
+			Config:                 v1alpha1.SubscriptionConfig{Resources: model.GetPrometheusOperatorResourceRequirement(cr)},
 		}
 
 		return nil

@@ -7,11 +7,11 @@ import (
 	"strings"
 	t "text/template"
 
-	v1 "github.com/bf2fc6cc711aee1a0c2a/observability-operator/v3/api/v1"
 	routev1 "github.com/openshift/api/route/v1"
 	coreosv1 "github.com/operator-framework/api/pkg/operators/v1"
 	"github.com/operator-framework/api/pkg/operators/v1alpha1"
 	prometheusv1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
+	v1 "github.com/redhat-developer/observability-operator/v3/api/v1"
 	"html/template"
 	v13 "k8s.io/api/core/v1"
 	v14 "k8s.io/api/rbac/v1"
@@ -381,4 +381,18 @@ func GetPrometheusVersion(cr *v1.Observability) string {
 		return cr.Spec.SelfContained.PrometheusVersion
 	}
 	return PrometheusVersion
+}
+
+func GetPrometheusResourceRequirement(cr *v1.Observability) v13.ResourceRequirements {
+	if cr.Spec.SelfContained != nil {
+		return cr.Spec.SelfContained.PrometheusResourceRequirement
+	}
+	return v13.ResourceRequirements{}
+}
+
+func GetPrometheusOperatorResourceRequirement(cr *v1.Observability) v13.ResourceRequirements {
+	if cr.Spec.SelfContained != nil {
+		return cr.Spec.SelfContained.PrometheusOperatorResourceRequirement
+	}
+	return v13.ResourceRequirements{}
 }

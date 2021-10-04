@@ -3,9 +3,9 @@ package configuration
 import (
 	"context"
 	"fmt"
-	v1 "github.com/bf2fc6cc711aee1a0c2a/observability-operator/v3/api/v1"
 	"github.com/ghodss/yaml"
 	"github.com/integr8ly/grafana-operator/v3/pkg/apis/integreatly/v1alpha1"
+	v1 "github.com/redhat-developer/observability-operator/v3/api/v1"
 	"io/ioutil"
 	"k8s.io/apimachinery/pkg/types"
 	"net/http"
