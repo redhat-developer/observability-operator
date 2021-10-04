@@ -324,7 +324,7 @@ func (r *Reconciler) reconcilePrometheus(ctx context.Context, cr *v1.Observabili
 
 	sidecars = append(sidecars, kv1.Container{
 		Name:  "oauth-proxy",
-		Image: "quay.io/openshift/origin-oauth-proxy:4.2",
+		Image: "quay.io/openshift/origin-oauth-proxy:4.8",
 		Args: []string{
 			"-provider=openshift",
 			"-https-address=:9091",

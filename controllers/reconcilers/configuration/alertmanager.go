@@ -48,7 +48,7 @@ func (r *Reconciler) reconcileAlertmanager(ctx context.Context, cr *v1.Observabi
 		alertmanager.Spec.Containers = []v12.Container{
 			{
 				Name:  "oauth-proxy",
-				Image: "quay.io/openshift/origin-oauth-proxy:4.2",
+				Image: "quay.io/openshift/origin-oauth-proxy:4.8",
 				Args: []string{
 					"-provider=openshift",
 					"-https-address=:9091",
