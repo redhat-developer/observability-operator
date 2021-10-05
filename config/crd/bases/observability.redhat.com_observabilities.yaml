@@ -832,6 +832,8 @@ spec:
                           to an implementation-defined value. More info: https://kubernetes.io/docs/concepts/configuration/manage-compute-resources-container/'
                         type: object
                     type: object
+                  overrideSelectors:
+                    type: boolean
                   podMonitorLabelSelector:
                     description: A label selector is a label query over a set of resources.
                       The result of matchLabels and matchExpressions are ANDed. An

@@ -58,7 +58,7 @@ metadata:
         }
       ]
     capabilities: Basic Install
-    operators.operatorframework.io/builder: operator-sdk-v1.3.2
+    operators.operatorframework.io/builder: operator-sdk-v1.1.0
     operators.operatorframework.io/project_layout: go.kubebuilder.io/v2
   name: observability-operator.v3.0.6
   namespace: placeholder
