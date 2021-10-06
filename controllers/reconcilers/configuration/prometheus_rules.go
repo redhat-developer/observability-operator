@@ -114,12 +114,6 @@ func (r *Reconciler) createRequestedRules(cr *v1.Observability, ctx context.Cont
 }
 
 func (r *Reconciler) createDMSAlert(cr *v1.Observability, ctx context.Context) error {
-	// Only create the DMS alert if a custom rule selector is specified
-	if cr.Spec.SelfContained == nil || cr.Spec.SelfContained.RuleLabelSelector == nil {
-		r.logger.Info("skip creating deadmansswitch alert because no selectors are specified")
-		return nil
-	}
-
 	// Only create the DMS alert if repo sync is disabled
 	if cr.Spec.SelfContained.DisableRepoSync == nil || *cr.Spec.SelfContained.DisableRepoSync == false {
 		return nil
@@ -127,16 +121,22 @@ func (r *Reconciler) createDMSAlert(cr *v1.Observability, ctx context.Context) e
 
 	dms := model.GetDeadmansSwitch(cr)
 	_, err := controllerutil.CreateOrUpdate(ctx, r.client, dms, func() error {
-		dms.Labels = cr.Spec.SelfContained.RuleLabelSelector.MatchLabels
+		if cr.Spec.SelfContained != nil && cr.Spec.SelfContained.RuleLabelSelector != nil {
+			if dms.Labels == nil {
+				dms.Labels = make(map[string]string)
+			}
+
+			for k, v := range cr.Spec.SelfContained.RuleLabelSelector.MatchLabels {
+				dms.Labels[k] = v
+			}
+		}
 		dms.Spec.Groups = []v12.RuleGroup{
 			{
 				Name: "deadmansswitch",
 				Rules: []v12.Rule{
 					{
 						Alert: "DeadMansSwitch",
-						Expr: intstr.IntOrString{
-							StrVal: "vector(1)",
-						},
+						Expr:  intstr.FromString("vector(1)"),
 						Labels: map[string]string{
 							"name": "DeadMansSwitchAlert",
 						},
