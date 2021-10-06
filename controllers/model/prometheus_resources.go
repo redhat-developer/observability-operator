@@ -270,7 +270,7 @@ func GetPrometheusPodMonitorLabelSelectors(cr *v1.Observability, indexes []v1.Re
 	}
 
 	if cr.OverrideSelectors() && cr.Spec.SelfContained.PodMonitorLabelSelector == nil {
-		return nil
+		return &v12.LabelSelector{}
 	}
 
 	prometheusConfig := getPrometheusRepositoryIndexConfig(indexes)
@@ -289,7 +289,7 @@ func GetPrometheusServiceMonitorLabelSelectors(cr *v1.Observability, indexes []v
 	}
 
 	if cr.OverrideSelectors() && cr.Spec.SelfContained.ServiceMonitorLabelSelector == nil {
-		return nil
+		return &v12.LabelSelector{}
 	}
 
 	prometheusConfig := getPrometheusRepositoryIndexConfig(indexes)
@@ -308,7 +308,7 @@ func GetPrometheusRuleLabelSelectors(cr *v1.Observability, indexes []v1.Reposito
 	}
 
 	if cr.OverrideSelectors() && cr.Spec.SelfContained.RuleLabelSelector == nil {
-		return nil
+		return &v12.LabelSelector{}
 	}
 
 	prometheusConfig := getPrometheusRepositoryIndexConfig(indexes)
@@ -327,7 +327,7 @@ func GetProbeLabelSelectors(cr *v1.Observability, indexes []v1.RepositoryIndex) 
 	}
 
 	if cr.OverrideSelectors() && cr.Spec.SelfContained.ProbeLabelSelector == nil {
-		return nil
+		return &v12.LabelSelector{}
 	}
 
 	prometheusConfig := getPrometheusRepositoryIndexConfig(indexes)
@@ -348,7 +348,7 @@ func GetPrometheusPodMonitorNamespaceSelectors(cr *v1.Observability, indexes []v
 	}
 
 	if cr.OverrideSelectors() && cr.Spec.SelfContained.PodMonitorNamespaceSelector == nil {
-		return nil
+		return &v12.LabelSelector{}
 	}
 
 	prometheusConfig := getPrometheusRepositoryIndexConfig(indexes)
@@ -364,7 +364,7 @@ func GetPrometheusServiceMonitorNamespaceSelectors(cr *v1.Observability, indexes
 	}
 
 	if cr.OverrideSelectors() && cr.Spec.SelfContained.ServiceMonitorNamespaceSelector == nil {
-		return nil
+		return &v12.LabelSelector{}
 	}
 
 	prometheusConfig := getPrometheusRepositoryIndexConfig(indexes)
@@ -380,7 +380,7 @@ func GetPrometheusRuleNamespaceSelectors(cr *v1.Observability, indexes []v1.Repo
 	}
 
 	if cr.OverrideSelectors() && cr.Spec.SelfContained.RuleNamespaceSelector == nil {
-		return nil
+		return &v12.LabelSelector{}
 	}
 
 	prometheusConfig := getPrometheusRepositoryIndexConfig(indexes)
@@ -395,8 +395,8 @@ func GetProbeNamespaceSelectors(cr *v1.Observability, indexes []v1.RepositoryInd
 		return cr.Spec.SelfContained.ProbeNamespaceSelector
 	}
 
-	if cr.OverrideSelectors() && cr.Spec.SelfContained.RuleNamespaceSelector == nil {
-		return nil
+	if cr.OverrideSelectors() && cr.Spec.SelfContained.ProbeNamespaceSelector == nil {
+		return &v12.LabelSelector{}
 	}
 
 	prometheusConfig := getPrometheusRepositoryIndexConfig(indexes)
