@@ -426,9 +426,14 @@ func (r *Reconciler) Reconcile(ctx context.Context, cr *v1.Observability, s *v1.
 		if err != nil {
 			return v1.ResultFailed, errors2.Wrap(err, "error creating requested pod monitors")
 		}
+	} else {
+		err = r.createDMSAlert(cr, ctx)
+		if err != nil {
+			return v1.ResultFailed, errors2.Wrap(err, "error creating deadmansswitch alert")
+		}
 	}
 
-	// Promtai instances
+	// Promtail instances
 	// First cleanup any no longer requested instances
 	err = r.deleteUnrequestedDaemonsets(ctx, cr, indexes)
 	if err != nil {
