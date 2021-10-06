@@ -253,6 +253,15 @@ func GetPrometheus(cr *v1.Observability) *prometheusv1.Prometheus {
 	}
 }
 
+func GetDeadmansSwitch(cr *v1.Observability) *prometheusv1.PrometheusRule {
+	return &prometheusv1.PrometheusRule{
+		ObjectMeta: v12.ObjectMeta{
+			Name:      "generated-deadmansswitch",
+			Namespace: cr.Namespace,
+		},
+	}
+}
+
 // Label Selectors
 
 func GetPrometheusPodMonitorLabelSelectors(cr *v1.Observability, indexes []v1.RepositoryIndex) *v12.LabelSelector {

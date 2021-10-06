@@ -26,6 +26,6 @@ replace k8s.io/client-go => k8s.io/client-go v0.19.2
 
 replace github.com/opencontainers/runc => github.com/opencontainers/runc v1.0.0-rc95
 
-replace github.com/containerd/containerd => github.com/containerd/containerd v1.4.8
+replace github.com/containerd/containerd => github.com/containerd/containerd v1.4.11
 
 replace go.mongodb.org/mongo-driver => go.mongodb.org/mongo-driver v1.5.1

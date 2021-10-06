@@ -6,6 +6,8 @@ import (
 	"github.com/ghodss/yaml"
 	v12 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
 	v1 "github.com/redhat-developer/observability-operator/v3/api/v1"
+	"github.com/redhat-developer/observability-operator/v3/controllers/model"
+	"k8s.io/apimachinery/pkg/util/intstr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
@@ -109,6 +111,42 @@ func (r *Reconciler) createRequestedRules(cr *v1.Observability, ctx context.Cont
 		}
 	}
 	return nil
+}
+
+func (r *Reconciler) createDMSAlert(cr *v1.Observability, ctx context.Context) error {
+	// Only create the DMS alert if repo sync is disabled
+	if cr.Spec.SelfContained.DisableRepoSync == nil || *cr.Spec.SelfContained.DisableRepoSync == false {
+		return nil
+	}
+
+	dms := model.GetDeadmansSwitch(cr)
+	_, err := controllerutil.CreateOrUpdate(ctx, r.client, dms, func() error {
+		if cr.Spec.SelfContained != nil && cr.Spec.SelfContained.RuleLabelSelector != nil {
+			if dms.Labels == nil {
+				dms.Labels = make(map[string]string)
+			}
+
+			for k, v := range cr.Spec.SelfContained.RuleLabelSelector.MatchLabels {
+				dms.Labels[k] = v
+			}
+		}
+		dms.Spec.Groups = []v12.RuleGroup{
+			{
+				Name: "deadmansswitch",
+				Rules: []v12.Rule{
+					{
+						Alert: "DeadMansSwitch",
+						Expr:  intstr.FromString("vector(1)"),
+						Labels: map[string]string{
+							"name": "DeadMansSwitchAlert",
+						},
+					},
+				},
+			},
+		}
+		return nil
+	})
+	return err
 }
 
 func injectIdLabel(rule *v12.PrometheusRule, id string) {
