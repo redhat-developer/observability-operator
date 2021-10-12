@@ -12,6 +12,13 @@ import (
 
 var defaultGrafanaLabelSelectors = map[string]string{"app": "strimzi"}
 
+func GetDefaultNameGrafana(cr *v1.Observability) string {
+	if cr.Spec.SelfContained != nil && cr.Spec.GrafanaDefaultName != "" {
+		return cr.Spec.GrafanaDefaultName
+	}
+	return "kafka-grafana"
+}
+
 func GetGrafanaCatalogSource(cr *v1.Observability) *v1alpha1.CatalogSource {
 	return &v1alpha1.CatalogSource{
 		ObjectMeta: v12.ObjectMeta{
@@ -67,7 +74,7 @@ func GetGrafanaClusterRoleBinding(cr *v1.Observability) *v15.ClusterRoleBinding 
 func GetGrafanaCr(cr *v1.Observability) *v1alpha12.Grafana {
 	return &v1alpha12.Grafana{
 		ObjectMeta: v12.ObjectMeta{
-			Name:      "kafka-grafana",
+			Name:      GetDefaultNameGrafana(cr),
 			Namespace: cr.Namespace,
 		},
 	}

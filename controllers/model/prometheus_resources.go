@@ -22,6 +22,13 @@ var defaultPrometheusLabelSelectors = map[string]string{"app": "strimzi"}
 
 const PrometheusVersion = "v2.22.2"
 
+func GetDefaultNamePrometheus(cr *v1.Observability) string {
+	if cr.Spec.SelfContained != nil && cr.Spec.PrometheusDefaultName != "" {
+		return cr.Spec.PrometheusDefaultName
+	}
+	return "kafka-prometheus"
+}
+
 func GetPrometheusAuthTokenLifetimes(cr *v1.Observability) *v13.ConfigMap {
 	return &v13.ConfigMap{
 		ObjectMeta: v12.ObjectMeta{
@@ -82,7 +89,7 @@ func GetPrometheusServiceAccount(cr *v1.Observability) *v13.ServiceAccount {
 
 	return &v13.ServiceAccount{
 		ObjectMeta: v12.ObjectMeta{
-			Name:      "kafka-prometheus",
+			Name:      GetDefaultNamePrometheus(cr),
 			Namespace: cr.Namespace,
 			Annotations: map[string]string{
 				"serviceaccounts.openshift.io/oauth-redirectreference.primary": redirect,
@@ -94,40 +101,32 @@ func GetPrometheusServiceAccount(cr *v1.Observability) *v13.ServiceAccount {
 func GetPrometheusService(cr *v1.Observability) *v13.Service {
 	return &v13.Service{
 		ObjectMeta: v12.ObjectMeta{
-			Name:      "kafka-prometheus",
+			Name:      GetDefaultNamePrometheus(cr),
 			Namespace: cr.Namespace,
 		},
 	}
 }
 
-func GetPrometheusClusterRole() *v14.ClusterRole {
+func GetPrometheusClusterRole(cr *v1.Observability) *v14.ClusterRole {
 	return &v14.ClusterRole{
 		ObjectMeta: v12.ObjectMeta{
-			Name: "kafka-prometheus",
+			Name: GetDefaultNamePrometheus(cr),
 		},
 	}
 }
 
-func GetPrometheusClusterRoleBinding() *v14.ClusterRoleBinding {
+func GetPrometheusClusterRoleBinding(cr *v1.Observability) *v14.ClusterRoleBinding {
 	return &v14.ClusterRoleBinding{
 		ObjectMeta: v12.ObjectMeta{
-			Name: "kafka-prometheus",
+			Name: GetDefaultNamePrometheus(cr),
 		},
 	}
 }
 
 func GetPrometheusRoute(cr *v1.Observability) *routev1.Route {
-	if cr.Spec.SelfContained != nil && cr.Spec.SelfContained.PrometheusRoute != "" {
-		return &routev1.Route{
-			ObjectMeta: v12.ObjectMeta{
-				Name:      cr.Spec.SelfContained.PrometheusRoute,
-				Namespace: cr.Namespace,
-			},
-		}
-	}
 	return &routev1.Route{
 		ObjectMeta: v12.ObjectMeta{
-			Name:      "kafka-prometheus",
+			Name:      GetDefaultNamePrometheus(cr),
 			Namespace: cr.Namespace,
 		},
 	}
@@ -247,7 +246,7 @@ func GetDefaultBlackBoxConfig(cr *v1.Observability) ([]byte, string, error) {
 func GetPrometheus(cr *v1.Observability) *prometheusv1.Prometheus {
 	return &prometheusv1.Prometheus{
 		ObjectMeta: v12.ObjectMeta{
-			Name:      "kafka-prometheus",
+			Name:      GetDefaultNamePrometheus(cr),
 			Namespace: cr.Namespace,
 		},
 	}
