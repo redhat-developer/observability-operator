@@ -20,7 +20,6 @@ import (
 	"context"
 	"crypto/tls"
 	"flag"
-	"fmt"
 	"net"
 	"os"
 	"strconv"
@@ -141,15 +140,16 @@ func checkForWebhookServerReady(mgr ctrl.Manager) error {
 		InsecureSkipVerify: true, // nolint:gosec // config is used to connect to our own webhook port.
 	}
 
-	dialer := &net.Dialer{Timeout: 20 * time.Second}
+	dialer := &net.Dialer{Timeout: 30 * time.Second}
 	conn, err := tls.DialWithDialer(dialer, "tcp", net.JoinHostPort(host, strconv.Itoa(port)), config)
 	if err != nil {
-		return fmt.Errorf("webhook server is not reachable: %v", err)
+		setupLog.Error(err, "webhook server is not reachable", "webhook", "Observability")
+		return err
 	}
 	if err := conn.Close(); err != nil {
-		return fmt.Errorf("webhook server is not reachable: closing connection: %v", err)
+		setupLog.Error(err, "webhook server is not reachable: closing connection", "webhook", "Observability")
+		return err
 	}
-
 	return nil
 }
 
