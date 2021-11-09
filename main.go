@@ -18,8 +18,13 @@ package main
 
 import (
 	"context"
+	"crypto/tls"
 	"flag"
+	"fmt"
+	"net"
 	"os"
+	"strconv"
+	"time"
 
 	"github.com/go-logr/logr"
 	grafana "github.com/integr8ly/grafana-operator/v3/pkg/apis/integreatly/v1alpha1"
@@ -109,6 +114,7 @@ func main() {
 			setupLog.Error(err, "unable to create webhook", "webhook", "Observability")
 			os.Exit(1)
 		}
+		checkForWebhookServerReady(mgr)
 	}
 	// +kubebuilder:scaffold:builder
 
@@ -122,6 +128,26 @@ func main() {
 		setupLog.Error(err, "problem running manager")
 		os.Exit(1)
 	}
+}
+
+func checkForWebhookServerReady(mgr ctrl.Manager) error {
+	webhookServer := mgr.GetWebhookServer()
+	host := webhookServer.Host
+	port := webhookServer.Port
+	config := &tls.Config{
+		InsecureSkipVerify: true, // nolint:gosec // config is used to connect to our own webhook port.
+	}
+
+	dialer := &net.Dialer{Timeout: 20 * time.Second}
+	conn, err := tls.DialWithDialer(dialer, "tcp", net.JoinHostPort(host, strconv.Itoa(port)), config)
+	if err != nil {
+		return fmt.Errorf("webhook server is not reachable: %v", err)
+	}
+	if err := conn.Close(); err != nil {
+		return fmt.Errorf("webhook server is not reachable: closing connection: %v", err)
+	}
+
+	return nil
 }
 
 func injectStopHandler(mgr ctrl.Manager, o *apiv1.Observability, setupLog logr.Logger) error {
