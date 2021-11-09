@@ -114,7 +114,10 @@ func main() {
 			setupLog.Error(err, "unable to create webhook", "webhook", "Observability")
 			os.Exit(1)
 		}
-		checkForWebhookServerReady(mgr)
+		if err = checkForWebhookServerReady(mgr); err != nil {
+			setupLog.Error(err, "problem reaching webhook server", "webhook", "Observability")
+			os.Exit(1)
+		}
 	}
 	// +kubebuilder:scaffold:builder
 
