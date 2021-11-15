@@ -7,3 +7,4 @@ quay.io/bf2fc6cc711aee1a0c2a82e312df7f2e6b37baa12bd9b1f2fd752e260d93a6f8144ac730
 quay.io/rhoas/observability-operator-bundle:v3.0.4
 quay.io/rhoas/observability-operator-bundle:v3.0.5
 quay.io/rhoas/observability-operator-bundle:v3.0.6
+quay.io/rhoas/observability-operator-bundle:v3.0.7
