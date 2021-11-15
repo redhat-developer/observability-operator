@@ -75,7 +75,7 @@ func (r *Reconciler) fetchFederationConfigs(cr *v1.Observability, indexes []v1.R
 
 func (r *Reconciler) createBlackBoxConfig(cr *v1.Observability, ctx context.Context) (string, error) {
 	configMap := model.GetPrometheusBlackBoxConfig(cr)
-	cfg, hash, err := model.GetDefaultBlackBoxConfig(cr)
+	cfg, hash, err := model.GetDefaultBlackBoxConfig(cr, ctx, r.client)
 	if err != nil {
 		return hash, err
 	}
