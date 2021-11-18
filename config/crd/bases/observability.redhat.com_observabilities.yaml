@@ -721,6 +721,8 @@ spec:
                     type: object
                   alertManagerVersion:
                     type: string
+                  blackboxBearerTokenSecret:
+                    type: string
                   disableBlackboxExporter:
                     type: boolean
                   disableDeadmansSnitch:

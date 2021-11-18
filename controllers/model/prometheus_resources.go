@@ -2,8 +2,10 @@ package model
 
 import (
 	"bytes"
+	"context"
 	"crypto/sha256"
 	"fmt"
+	k8sclient "sigs.k8s.io/controller-runtime/pkg/client"
 	"strings"
 	t "text/template"
 
@@ -197,7 +199,7 @@ func GetPrometheusBlackBoxConfig(cr *v1.Observability) *v13.ConfigMap {
 	}
 }
 
-func GetDefaultBlackBoxConfig(cr *v1.Observability) ([]byte, string, error) {
+func GetDefaultBlackBoxConfig(cr *v1.Observability, ctx context.Context, client k8sclient.Client) ([]byte, string, error) {
 	blackBoxConfig := `modules:
   http_extern_2xx:
     prober: http
@@ -210,7 +212,8 @@ func GetDefaultBlackBoxConfig(cr *v1.Observability) ([]byte, string, error) {
       tls_config:
         ca_file: /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
         cert_file: /etc/tls/private/tls.crt
-        key_file: /etc/tls/private/tls.key{{ end }}
+        key_file: /etc/tls/private/tls.key{{ end }}{{ if .HasBlackboxBearerToken  }}
+      bearer_token: {{ .BearerToken }}{{ end }}
   http_post_2xx:
     prober: http
     http:
@@ -227,11 +230,18 @@ func GetDefaultBlackBoxConfig(cr *v1.Observability) ([]byte, string, error) {
 		return nil, "", err
 	}
 
+	// Get bearer token if it exists
+	hasBlackboxBearerToken, token := GetBlackboxBearerToken(cr, ctx, client)
+
 	var buffer bytes.Buffer
 	params := struct {
-		SelfSignedCerts bool
+		SelfSignedCerts        bool
+		HasBlackboxBearerToken bool
+		BearerToken            string
 	}{
-		SelfSignedCerts: cr.SelfSignedCerts(),
+		SelfSignedCerts:        cr.SelfSignedCerts(),
+		HasBlackboxBearerToken: hasBlackboxBearerToken,
+		BearerToken:            token,
 	}
 
 	err = parsed.Execute(&buffer, &params)
@@ -241,6 +251,26 @@ func GetDefaultBlackBoxConfig(cr *v1.Observability) ([]byte, string, error) {
 
 	hash := sha256.Sum256(buffer.Bytes())
 	return buffer.Bytes(), fmt.Sprintf("%x", hash), nil
+}
+
+func GetBlackboxBearerToken(cr *v1.Observability, ctx context.Context, client k8sclient.Client) (bool, string) {
+	hasSecret, secretName := cr.HasBlackboxBearerTokenSecret()
+	if hasSecret {
+		secret := &v13.Secret{}
+		selector := k8sclient.ObjectKey{
+			Namespace: cr.Namespace,
+			Name:      secretName,
+		}
+
+		err := client.Get(ctx, selector, secret)
+		if err != nil {
+			return false, ""
+		}
+
+		return true, string(secret.Data["token"])
+
+	}
+	return false, ""
 }
 
 func GetPrometheus(cr *v1.Observability) *prometheusv1.Prometheus {
