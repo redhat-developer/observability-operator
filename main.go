@@ -18,12 +18,8 @@ package main
 
 import (
 	"context"
-	"crypto/tls"
 	"flag"
-	"net"
 	"os"
-	"strconv"
-	"time"
 
 	"github.com/go-logr/logr"
 	grafana "github.com/integr8ly/grafana-operator/v3/pkg/apis/integreatly/v1alpha1"
@@ -39,11 +35,27 @@ import (
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
+	"sigs.k8s.io/controller-runtime/pkg/manager"
 
 	apiv1 "github.com/redhat-developer/observability-operator/v3/api/v1"
 	"github.com/redhat-developer/observability-operator/v3/controllers"
 	// +kubebuilder:scaffold:imports
 )
+
+type OperandInitializer struct {
+	cb func()
+}
+
+func NewOperandInitializer(cb func()) manager.Runnable {
+	return &OperandInitializer{
+		cb: cb,
+	}
+}
+
+func (r *OperandInitializer) Start(<-chan struct{}) error {
+	r.cb()
+	return nil
+}
 
 var (
 	scheme   = runtime.NewScheme()
@@ -113,16 +125,13 @@ func main() {
 			setupLog.Error(err, "unable to create webhook", "webhook", "Observability")
 			os.Exit(1)
 		}
-		if err = checkForWebhookServerReady(mgr); err != nil {
-			setupLog.Error(err, "problem reaching webhook server", "webhook", "Observability")
-			os.Exit(1)
-		}
 	}
 	// +kubebuilder:scaffold:builder
-
-	if err = observabilityReconciler.InitializeOperand(mgr); err != nil {
-		setupLog.Error(err, "unable to create operand", "controller", "Observability")
-	}
+	mgr.Add(NewOperandInitializer(func() {
+		if err = observabilityReconciler.InitializeOperand(mgr); err != nil {
+			setupLog.Error(err, "unable to create operand", "controller", "Observability")
+		}
+	}))
 
 	if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
 		// ENABLE TO AUTO-DELETE CR ON OPERATOR SIGINT/KILL FOR LOCAL DEV
@@ -130,27 +139,6 @@ func main() {
 		setupLog.Error(err, "problem running manager")
 		os.Exit(1)
 	}
-}
-
-func checkForWebhookServerReady(mgr ctrl.Manager) error {
-	webhookServer := mgr.GetWebhookServer()
-	host := webhookServer.Host
-	port := webhookServer.Port
-	config := &tls.Config{
-		InsecureSkipVerify: true, // nolint:gosec // config is used to connect to our own webhook port.
-	}
-
-	dialer := &net.Dialer{Timeout: 30 * time.Second}
-	conn, err := tls.DialWithDialer(dialer, "tcp", net.JoinHostPort(host, strconv.Itoa(port)), config)
-	if err != nil {
-		setupLog.Error(err, "webhook server is not reachable", "webhook", "Observability")
-		return err
-	}
-	if err := conn.Close(); err != nil {
-		setupLog.Error(err, "webhook server is not reachable: closing connection", "webhook", "Observability")
-		return err
-	}
-	return nil
 }
 
 func injectStopHandler(mgr ctrl.Manager, o *apiv1.Observability, setupLog logr.Logger) error {
