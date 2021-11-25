@@ -35,27 +35,12 @@ import (
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
-	"sigs.k8s.io/controller-runtime/pkg/manager"
 
 	apiv1 "github.com/redhat-developer/observability-operator/v3/api/v1"
 	"github.com/redhat-developer/observability-operator/v3/controllers"
+	"github.com/redhat-developer/observability-operator/v3/runners"
 	// +kubebuilder:scaffold:imports
 )
-
-type OperandInitializer struct {
-	cb func()
-}
-
-func NewOperandInitializer(cb func()) manager.Runnable {
-	return &OperandInitializer{
-		cb: cb,
-	}
-}
-
-func (r *OperandInitializer) Start(<-chan struct{}) error {
-	r.cb()
-	return nil
-}
 
 var (
 	scheme   = runtime.NewScheme()
@@ -127,7 +112,7 @@ func main() {
 		}
 	}
 	// +kubebuilder:scaffold:builder
-	mgr.Add(NewOperandInitializer(func() {
+	mgr.Add(runners.NewOperandInitializer(func() {
 		if err = observabilityReconciler.InitializeOperand(mgr); err != nil {
 			setupLog.Error(err, "unable to create operand", "controller", "Observability")
 		}
