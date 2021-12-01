@@ -112,10 +112,11 @@ func main() {
 		}
 	}
 	// +kubebuilder:scaffold:builder
-	mgr.Add(runners.NewOperandInitializer(func() {
+	mgr.Add(runners.NewOperandInitializer(func() error {
 		if err = observabilityReconciler.InitializeOperand(mgr); err != nil {
-			setupLog.Error(err, "unable to create operand", "controller", "Observability")
+			setupLog.Error(err, "unable to create or update operand", "controller", "Observability")
 		}
+		return err
 	}))
 
 	if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
