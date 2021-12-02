@@ -46,7 +46,7 @@ manager: generate fmt vet
 
 # Run against the configured Kubernetes cluster in ~/.kube/config
 run: generate fmt vet manifests
-	go run ./main.go -disable-webhooks
+	go run ./main.go
 
 # Install CRDs into a cluster
 install: manifests kustomize
@@ -184,3 +184,4 @@ deploy/crc/secret:
 		-p DATASOURCES=${DATASOURCES} \
 		-p PROMETHEUS=${PROMETHEUS} \
 		| oc apply -f - -n openshift-monitoring
+		
