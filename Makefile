@@ -46,7 +46,7 @@ manager: generate fmt vet
 
 # Run against the configured Kubernetes cluster in ~/.kube/config
 run: generate fmt vet manifests
-	go run ./main.go
+	go run ./main.go -disable-webhooks
 
 # Install CRDs into a cluster
 install: manifests kustomize
@@ -152,3 +152,35 @@ opm-build:
 .PHONY: index-push
 index-push:
 	docker push $(INDEX_IMG)
+
+# deploy required secrets to cluster
+NAMESPACE ?= "$(shell oc project | sed -e 's/Using project \"\([^"]*\)\".*/\1/g')"
+OBSERVATORIUM_TENANT ?= "managedKafka"
+OBSERVATORIUM_GATEWAY ?= "https://observatorium-mst.api.stage.openshift.com"
+OBSERVATORIUM_AUTH_TYPE ?= "redhat"
+OBSERVATORIUM_RHSSO_URL ?= "https://sso.redhat.com/auth/"
+OBSERVATORIUM_RHSSO_REALM ?= "redhat-external"
+.PHONY: deploy/secrets
+deploy/secrets:
+	@oc process -f ./templates/secrets-template.yml \
+		-p OBSERVATORIUM_TENANT="${OBSERVATORIUM_TENANT}" \
+		-p OBSERVATORIUM_GATEWAY="${OBSERVATORIUM_GATEWAY}" \
+		-p OBSERVATORIUM_AUTH_TYPE="${OBSERVATORIUM_AUTH_TYPE}" \
+		-p OBSERVATORIUM_RHSSO_URL="${OBSERVATORIUM_RHSSO_URL}" \
+		-p OBSERVATORIUM_RHSSO_REALM="${OBSERVATORIUM_RHSSO_REALM}" \
+		-p OBSERVATORIUM_RHSSO_METRICS_CLIENT_ID="${OBSERVATORIUM_RHSSO_METRICS_CLIENT_ID}" \
+		-p OBSERVATORIUM_RHSSO_METRICS_SECRET="${OBSERVATORIUM_RHSSO_METRICS_SECRET}" \
+		-p OBSERVATORIUM_RHSSO_LOGS_CLIENT_ID="${OBSERVATORIUM_RHSSO_LOGS_CLIENT_ID}" \
+		-p OBSERVATORIUM_RHSSO_LOGS_SECRET="${OBSERVATORIUM_RHSSO_LOGS_SECRET}" \
+		-p GITHUB_ACCESS_TOKEN="${GITHUB_ACCESS_TOKEN}" \
+		| oc apply -f - -n $(NAMESPACE)
+
+# deploy grafana-datasource secret required for CRC cluster
+DATASOURCES ?= "ZHVtbXk="
+PROMETHEUS ?= "ZHVtbXk="
+.PHONY: deploy/crc/secret
+deploy/crc/secret:
+	@oc process -f ./templates/crc-secret-template.yml \
+		-p DATASOURCES=${DATASOURCES} \
+		-p PROMETHEUS=${PROMETHEUS} \
+		| oc apply -f - -n openshift-monitoring
