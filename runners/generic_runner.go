@@ -13,6 +13,5 @@ func NewOperandInitializer(cb func() error) manager.Runnable {
 }
 
 func (r *OperandInitializer) Start(<-chan struct{}) error {
-	err := r.cb()
-	return err
+	return r.cb()
 }
