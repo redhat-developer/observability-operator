@@ -15,7 +15,7 @@ require (
 	github.com/pkg/errors v0.9.1
 	github.com/prometheus-operator/prometheus-operator v0.43.0
 	github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring v0.43.0
-	github.com/sirupsen/logrus v1.7.0
+	github.com/sirupsen/logrus v1.8.1
 	k8s.io/api v0.19.2
 	k8s.io/apimachinery v0.19.2
 	k8s.io/client-go v12.0.0+incompatible
@@ -24,7 +24,7 @@ require (
 
 replace k8s.io/client-go => k8s.io/client-go v0.19.2
 
-replace github.com/opencontainers/runc => github.com/opencontainers/runc v1.0.0-rc95
+replace github.com/opencontainers/runc => github.com/opencontainers/runc v1.0.3
 
 replace github.com/containerd/containerd => github.com/containerd/containerd v1.4.12
 
