@@ -230,7 +230,7 @@ previously mentioned
 
 ### Prerequisite Tools
 
-* golang 1.15+
+* golang 1.16+
 * operator-sdk v1.1.0
 * [CodeReady Containers](https://github.com/code-ready/crc) 1.18 (OCP 4.6.1) or later
 * [OpenShift command line tool](https://developers.redhat.com/openshift/command-line-tools)
