@@ -284,6 +284,45 @@ review the content of each!
       ```
       oc apply -f config/samples/secrets/observability_secret.yaml
       ```
+
+* The required secrets listed above can be configured and deployed using
+  ```
+  make deploy/secrets
+  ```
+
+    * The following parameters can be modified:
+      * NAMESPACE: Defaults to current namespace in use.
+      * OBSERVATORIUM_TENANT:       Defaults to `managedKafka`
+      * OBSERVATORIUM_GATEWAY:      Defaults to `https://observatorium-mst.api.stage.openshift.com`
+      * OBSERVATORIUM_AUTH_TYPE:    Defaults to `redhat`
+      * OBSERVATORIUM_RHSSO_URL:    Defaults to `https://sso.redhat.com/auth/`
+      * OBSERVATORIUM_RHSSO_REALM:  Defaults to `redhat-external`
+
+      * OBSERVATORIUM_RHSSO_METRICS_CLIENT_ID: **No default provided**
+      * OBSERVATORIUM_RHSSO_METRICS_SECRET: **No default provided**
+      * OBSERVATORIUM_RHSSO_LOGS_CLIENT_ID: **No default provided**
+      * OBSERVATORIUM_RHSSO_LOGS_SECRET: **No default provided**
+      * GITHUB_ACCESS_TOKEN: **No default provided**
+    * More information about configurable parameters can be found by running:
+    ```
+    oc process --parameters -f ./templates/secrets-template.yml
+    ```
+
+* For users deploying to CRC, an additional secret is required in the `openshift-monitoring` namespace for grafana datasources. This secret can be deployed with the command:
+  ```
+  make deploy/crc/secret
+  ```
+  * The following parameters can be modified:
+    * DATASOURCES: Defaults to `ZHVtbXk=`
+    * PROMETHEUS: Defaults to `ZHVtbXk=`
+
+  * More information about configurable parameters can be found by running:
+  
+  ```
+  oc process --parameters -f ./templates/crc-secret-template.yml
+  ```
+
+
 * Priority Class
   * If the Observability Operator was not installed using OLM, you need to create the requried Priority Class yourself. Use the command to add the necessary Priority Class:
   ```
