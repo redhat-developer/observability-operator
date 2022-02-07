@@ -5,16 +5,18 @@ import (
 	"context"
 	"crypto/sha256"
 	"fmt"
-	k8sclient "sigs.k8s.io/controller-runtime/pkg/client"
 	"strings"
 	t "text/template"
+
+	k8sclient "sigs.k8s.io/controller-runtime/pkg/client"
+
+	"html/template"
 
 	routev1 "github.com/openshift/api/route/v1"
 	coreosv1 "github.com/operator-framework/api/pkg/operators/v1"
 	"github.com/operator-framework/api/pkg/operators/v1alpha1"
 	prometheusv1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
 	v1 "github.com/redhat-developer/observability-operator/v3/api/v1"
-	"html/template"
 	v13 "k8s.io/api/core/v1"
 	v14 "k8s.io/api/rbac/v1"
 	v12 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -22,7 +24,10 @@ import (
 
 var defaultPrometheusLabelSelectors = map[string]string{"app": "strimzi"}
 
-const PrometheusVersion = "v2.22.2"
+const (
+	PrometheusVersion        = "v2.22.2"
+	PrometheusDefaultStorage = "250Gi"
+)
 
 func GetDefaultNamePrometheus(cr *v1.Observability) string {
 	if cr.Spec.SelfContained != nil && cr.Spec.PrometheusDefaultName != "" {
@@ -469,4 +474,12 @@ func GetPrometheusOperatorResourceRequirement(cr *v1.Observability) v13.Resource
 		return cr.Spec.SelfContained.PrometheusOperatorResourceRequirement
 	}
 	return v13.ResourceRequirements{}
+}
+func GetPrometheusStorageSize(cr *v1.Observability, indexes []v1.RepositoryIndex) string {
+	customPrometheusStorageSize := PrometheusDefaultStorage
+	prometheusConfig := getPrometheusRepositoryIndexConfig(indexes)
+	if prometheusConfig != nil && prometheusConfig.OverridePrometheusPvcSize != "" {
+		customPrometheusStorageSize = prometheusConfig.OverridePrometheusPvcSize
+	}
+	return customPrometheusStorageSize
 }

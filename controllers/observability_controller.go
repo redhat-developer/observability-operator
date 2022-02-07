@@ -4,17 +4,19 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	prometheusv1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
 	"io/ioutil"
-	storage "k8s.io/api/storage/v1"
-	"k8s.io/apimachinery/pkg/api/resource"
 	"os"
 	"reflect"
 	"strings"
 	"time"
 
+	prometheusv1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
+	storage "k8s.io/api/storage/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
+
 	"github.com/go-logr/logr"
 	"github.com/prometheus-operator/prometheus-operator/pkg/k8sutil"
+	"github.com/redhat-developer/observability-operator/v3/controllers/model"
 	"github.com/redhat-developer/observability-operator/v3/controllers/reconcilers"
 	"github.com/redhat-developer/observability-operator/v3/controllers/reconcilers/alertmanager_installation"
 	"github.com/redhat-developer/observability-operator/v3/controllers/reconcilers/configuration"
@@ -344,7 +346,7 @@ func observabilityInstanceWithStorage(namespace string) apiv1.Observability {
 						Spec: v1.PersistentVolumeClaimSpec{
 							Resources: v1.ResourceRequirements{
 								Requests: map[v1.ResourceName]resource.Quantity{
-									v1.ResourceStorage: resource.MustParse("50Gi"),
+									v1.ResourceStorage: resource.MustParse(model.PrometheusDefaultStorage),
 								},
 							},
 						},

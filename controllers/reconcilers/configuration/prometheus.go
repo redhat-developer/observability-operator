@@ -16,6 +16,7 @@ import (
 	"github.com/sirupsen/logrus"
 	kv1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -455,7 +456,11 @@ func (r *Reconciler) reconcilePrometheus(ctx context.Context, cr *v1.Observabili
 			Resources:                       model.GetPrometheusResourceRequirement(cr),
 		}
 		if cr.Spec.Storage != nil && cr.Spec.Storage.PrometheusStorageSpec != nil {
-			prometheus.Spec.Storage = cr.Spec.Storage.PrometheusStorageSpec
+			prometheusStorageSpec, err := getPrometheusStorageSpecHelper(cr, indexes)
+			if err != nil {
+				return err
+			}
+			prometheus.Spec.Storage = prometheusStorageSpec
 		}
 		if cr.Spec.Tolerations != nil {
 			prometheus.Spec.Tolerations = cr.Spec.Tolerations
@@ -471,6 +476,42 @@ func (r *Reconciler) reconcilePrometheus(ctx context.Context, cr *v1.Observabili
 	}
 
 	return nil
+}
+
+//resource.Quantity should be greater than than the default 250Gi
+func validateOverridePrometheusStorageSize(q resource.Quantity, cr *v1.Observability) bool {
+	currentStorage := cr.Spec.Storage.PrometheusStorageSpec.VolumeClaimTemplate.Spec.Resources.Requests.Storage()
+	return q.CmpInt64(currentStorage.Value()) >= 0
+}
+
+//construct Prometheus storage spec with either default or override value from resources
+func getPrometheusStorageSpecHelper(cr *v1.Observability, indexes []v1.RepositoryIndex) (*prometheusv1.StorageSpec, error) {
+	prometheusStorageSpec := cr.Spec.Storage.PrometheusStorageSpec
+	customStorageSize := model.GetPrometheusStorageSize(cr, indexes)
+	if customStorageSize == "" {
+		return prometheusStorageSpec, nil
+	}
+	q, err := resource.ParseQuantity(customStorageSize) //check if resources value is valid
+	if err != nil {
+		return prometheusStorageSpec, err
+	}
+	if validateOverridePrometheusStorageSize(q, cr) { //check if storage override is not empty string and is greater than current storage value
+		prometheusStorageSpec = &prometheusv1.StorageSpec{
+			VolumeClaimTemplate: prometheusv1.EmbeddedPersistentVolumeClaim{
+				EmbeddedObjectMetadata: prometheusv1.EmbeddedObjectMetadata{
+					Name: "managed-services",
+				},
+				Spec: kv1.PersistentVolumeClaimSpec{
+					Resources: kv1.ResourceRequirements{
+						Requests: map[kv1.ResourceName]resource.Quantity{
+							kv1.ResourceStorage: resource.MustParse(customStorageSize),
+						},
+					},
+				},
+			},
+		}
+	}
+	return prometheusStorageSpec, nil
 }
 
 func getRetentionHelper(cr *v1.Observability) string {
