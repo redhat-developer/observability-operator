@@ -3,6 +3,7 @@ module github.com/redhat-developer/observability-operator/v3
 go 1.16
 
 require (
+	github.com/blang/semver v3.5.1+incompatible
 	github.com/ghodss/yaml v1.0.0
 	github.com/go-logr/logr v0.2.1
 	github.com/go-logr/zapr v0.2.0 // indirect

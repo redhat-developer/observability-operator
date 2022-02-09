@@ -23,8 +23,11 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
 
-const PrometheusBaseImage = "quay.io/prometheus/prometheus"
-const PrometheusRetention = "45d"
+const (
+	PrometheusBaseImage       = "quay.io/prometheus/prometheus"
+	PrometheusRetention       = "45d"
+	OpenshiftVersionToCompare = "4.10.0"
+)
 
 func (r *Reconciler) fetchFederationConfigs(cr *v1.Observability, indexes []v1.RepositoryIndex) ([]string, error) {
 	var result []string
@@ -122,12 +125,27 @@ func (r *Reconciler) createAdditionalScrapeConfigSecret(cr *v1.Observability, ct
 
 func (r *Reconciler) getOpenshiftMonitoringCredentials(ctx context.Context) (string, string, error) {
 	secret := &kv1.Secret{}
-	selector := client.ObjectKey{
-		Namespace: "openshift-monitoring",
-		Name:      "grafana-datasources",
+	var isDatasourceV2 bool
+
+	currentOSVersionString, err := utils.GetClusterOSVersion(ctx, r.client)
+	if err != nil {
+		return "", "", err
+	}
+	//this checks if Openshift 4.10+ is present as grafana-datasources secret data in v4.10+ has different structure to previous versions
+	isDatasourceV2, err = utils.HasNewerOrSameClusterVersion(currentOSVersionString, OpenshiftVersionToCompare)
+	if err != nil {
+		return "", "", err
 	}
 
-	err := r.client.Get(ctx, selector, secret)
+	secretName := "grafana-datasources-v2"
+	if !isDatasourceV2 {
+		secretName = "grafana-datasources"
+	}
+	selector := client.ObjectKey{
+		Namespace: "openshift-monitoring",
+		Name:      secretName,
+	}
+	err = r.client.Get(ctx, selector, secret)
 	if err != nil {
 		return "", "", err
 	}
@@ -135,9 +153,14 @@ func (r *Reconciler) getOpenshiftMonitoringCredentials(ctx context.Context) (str
 	// It says yaml but it's actually json
 	j := secret.Data["prometheus.yaml"]
 
+	//secureJsonData is used in grafana-datasources-v2 secret
+	type datasourceSecureData struct {
+		BasicAuthPassword string `json:"basicAuthPassword,omitempty"`
+	}
 	type datasource struct {
-		BasicAuthUser     string `json:"basicAuthUser"`
-		BasicAuthPassword string `json:"basicAuthPassword"`
+		BasicAuthUser     string               `json:"basicAuthUser"`
+		BasicAuthPassword string               `json:"basicAuthPassword,omitempty"`
+		SecureJsonData    datasourceSecureData `json:"secureJsonData,omitempty"`
 	}
 
 	type datasources struct {
@@ -150,7 +173,10 @@ func (r *Reconciler) getOpenshiftMonitoringCredentials(ctx context.Context) (str
 		return "", "", err
 	}
 
-	return ds.Sources[0].BasicAuthUser, ds.Sources[0].BasicAuthPassword, nil
+	if !isDatasourceV2 {
+		return ds.Sources[0].BasicAuthUser, ds.Sources[0].BasicAuthPassword, nil
+	}
+	return ds.Sources[0].BasicAuthUser, ds.Sources[0].SecureJsonData.BasicAuthPassword, nil
 }
 
 func (r *Reconciler) getTokenSecrets(ctx context.Context, cr *v1.Observability) ([]string, error) {

@@ -2,8 +2,8 @@ package prometheus_configuration
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
+
 	"github.com/go-logr/logr"
 	routev1 "github.com/openshift/api/route/v1"
 	v1 "github.com/redhat-developer/observability-operator/v3/api/v1"
@@ -375,39 +375,6 @@ func (r *Reconciler) waitForRoute(ctx context.Context, cr *v1.Observability) (v1
 	}
 
 	return v1.ResultInProgress, nil
-}
-
-func (r *Reconciler) getOpenshiftMonitoringCredentials(ctx context.Context) (string, string, error) {
-	secret := &core.Secret{}
-	selector := client.ObjectKey{
-		Namespace: "openshift-monitoring",
-		Name:      "grafana-datasources",
-	}
-
-	err := r.client.Get(ctx, selector, secret)
-	if err != nil {
-		return "", "", err
-	}
-
-	// It says yaml but it's actually json
-	j := secret.Data["prometheus.yaml"]
-
-	type datasource struct {
-		BasicAuthUser     string `json:"basicAuthUser"`
-		BasicAuthPassword string `json:"basicAuthPassword"`
-	}
-
-	type datasources struct {
-		Sources []datasource `json:"datasources"`
-	}
-
-	ds := &datasources{}
-	err = json.Unmarshal(j, ds)
-	if err != nil {
-		return "", "", err
-	}
-
-	return ds.Sources[0].BasicAuthUser, ds.Sources[0].BasicAuthPassword, nil
 }
 
 func (r *Reconciler) fetchClusterId(ctx context.Context, cr *v1.Observability, nextStatus *v1.ObservabilityStatus) (v1.ObservabilityStageStatus, error) {
