@@ -450,7 +450,11 @@ func (r *Reconciler) Reconcile(ctx context.Context, cr *v1.Observability, s *v1.
 	}
 
 	// Next status: update timestamp
-	s.LastSynced = time.Now().Unix()
+	if cr.ExternalSyncDisabled() {
+		s.LastSynced = 0
+	} else {
+		s.LastSynced = time.Now().Unix()
+	}
 	return v1.ResultSuccess, nil
 }
 
