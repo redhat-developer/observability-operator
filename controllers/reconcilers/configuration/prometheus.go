@@ -504,7 +504,7 @@ func (r *Reconciler) reconcilePrometheus(ctx context.Context, cr *v1.Observabili
 	return nil
 }
 
-//resource.Quantity should be greater than than the default 250Gi
+//resource.Quantity should be greater than the default 250Gi
 func validateOverridePrometheusStorageSize(q resource.Quantity, cr *v1.Observability) bool {
 	currentStorage := cr.Spec.Storage.PrometheusStorageSpec.VolumeClaimTemplate.Spec.Resources.Requests.Storage()
 	return q.CmpInt64(currentStorage.Value()) >= 0
