@@ -504,12 +504,6 @@ func (r *Reconciler) reconcilePrometheus(ctx context.Context, cr *v1.Observabili
 	return nil
 }
 
-//resource.Quantity should be greater than the default 250Gi
-func validateOverridePrometheusStorageSize(q resource.Quantity, cr *v1.Observability) bool {
-	currentStorage := cr.Spec.Storage.PrometheusStorageSpec.VolumeClaimTemplate.Spec.Resources.Requests.Storage()
-	return q.CmpInt64(currentStorage.Value()) >= 0
-}
-
 //construct Prometheus storage spec with either default or override value from resources
 func getPrometheusStorageSpecHelper(cr *v1.Observability, indexes []v1.RepositoryIndex) (*prometheusv1.StorageSpec, error) {
 	prometheusStorageSpec := cr.Spec.Storage.PrometheusStorageSpec
@@ -517,27 +511,9 @@ func getPrometheusStorageSpecHelper(cr *v1.Observability, indexes []v1.Repositor
 	if customStorageSize == "" {
 		return prometheusStorageSpec, nil
 	}
-	q, err := resource.ParseQuantity(customStorageSize) //check if resources value is valid
-	if err != nil {
-		return prometheusStorageSpec, err
-	}
-	if validateOverridePrometheusStorageSize(q, cr) { //check if storage override is not empty string and is greater than current storage value
-		prometheusStorageSpec = &prometheusv1.StorageSpec{
-			VolumeClaimTemplate: prometheusv1.EmbeddedPersistentVolumeClaim{
-				EmbeddedObjectMetadata: prometheusv1.EmbeddedObjectMetadata{
-					Name: "managed-services",
-				},
-				Spec: kv1.PersistentVolumeClaimSpec{
-					Resources: kv1.ResourceRequirements{
-						Requests: map[kv1.ResourceName]resource.Quantity{
-							kv1.ResourceStorage: resource.MustParse(customStorageSize),
-						},
-					},
-				},
-			},
-		}
-	}
-	return prometheusStorageSpec, nil
+
+	_, err := resource.ParseQuantity(customStorageSize) //check if resources value is valid
+	return cr.Spec.Storage.PrometheusStorageSpec, err
 }
 
 func getRetentionHelper(cr *v1.Observability) string {

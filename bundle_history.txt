@@ -8,3 +8,5 @@ quay.io/rhoas/observability-operator-bundle:v3.0.4
 quay.io/rhoas/observability-operator-bundle:v3.0.5
 quay.io/rhoas/observability-operator-bundle:v3.0.6
 quay.io/rhoas/observability-operator-bundle:v3.0.7
+quay.io/rhoas/observability-operator-bundle:v3.0.8
+quay.io/rhoas/observability-operator-bundle:v3.0.9
