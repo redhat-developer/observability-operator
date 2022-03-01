@@ -77,7 +77,7 @@ func main() {
 	flag.BoolVar(&enableLeaderElection, "enable-leader-election", false,
 		"Enable leader election for controller manager. "+
 			"Enabling this will ensure there is only one active controller manager.")
-	flag.BoolVar(&disableWebhooks, "disable-webhooks", false, "disable webhooks for running on local environment")
+	flag.BoolVar(&disableWebhooks, "disable-webhooks", true, "disable webhooks for running on local environment")
 	flag.Parse()
 
 	ctrl.SetLogger(zap.New(zap.UseDevMode(true)))

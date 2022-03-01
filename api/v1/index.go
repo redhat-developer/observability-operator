@@ -78,6 +78,9 @@ type AlertmanagerIndex struct {
 	PagerDutySecretNamespace      string `json:"pagerDutySecretNamespace"`
 	DeadmansSnitchSecretName      string `json:"deadmansSnitchSecretName"`
 	DeadmansSnitchSecretNamespace string `json:"deadmansSnitchSecretNamespace"`
+	SmtpSecretName                string `json:"smtpSecretName"`
+	SmtpSecretNamespace           string `json:"smtpSecretNamespace"`
+	ToEmailAddress                string `json:"toEmailAddress"`
 }
 
 type PrometheusIndex struct {

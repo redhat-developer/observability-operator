@@ -733,6 +733,8 @@ spec:
                     type: boolean
                   disableRepoSync:
                     type: boolean
+                  disableSmtp:
+                    type: boolean
                   federatedMetrics:
                     items:
                       type: string

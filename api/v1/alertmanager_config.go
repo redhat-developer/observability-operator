@@ -1,7 +1,10 @@
 package v1
 
 type AlertmanagerConfigGlobal struct {
-	ResolveTimeout string `json:"resolve_timeout"`
+	ResolveTimeout   string `json:"resolve_timeout"`
+	SmtpAuthUserName string `json:"smtp_auth_username,omitempty"`
+	SmtpAuthPassword string `json:"smtp_auth_password,omitempty"`
+	SmtpSmartHost    string `json:"smtp_smarthost,omitempty"`
 }
 
 type AlertmanagerConfigRoute struct {
@@ -11,8 +14,12 @@ type AlertmanagerConfigRoute struct {
 	Routes         []AlertmanagerConfigRoute `json:"routes,omitempty"`
 }
 
+type EmailConfig struct {
+	Html string `json:"html,omitempty"`
+}
+
 type PagerDutyConfig struct {
-	ServiceKey string `json:"service_key"`
+	ServiceKey string `json:"service_key,omitempty"`
 }
 
 type WebhookConfig struct {
@@ -23,6 +30,7 @@ type AlertmanagerConfigReceiver struct {
 	Name             string            `json:"name"`
 	PagerDutyConfigs []PagerDutyConfig `json:"pagerduty_configs,omitempty"`
 	WebhookConfigs   []WebhookConfig   `json:"webhook_configs,omitempty"`
+	EmailConfigs     []EmailConfig     `json:"email_configs,omitempty"`
 }
 
 type AlertmanagerConfigRoot struct {
