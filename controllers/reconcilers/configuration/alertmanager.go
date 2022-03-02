@@ -3,7 +3,8 @@ package configuration
 import (
 	"context"
 	"fmt"
-	"github.com/ghodss/yaml"
+
+	goyaml "github.com/goccy/go-yaml"
 	v1 "github.com/redhat-developer/observability-operator/v3/api/v1"
 	"github.com/redhat-developer/observability-operator/v3/controllers/model"
 	"github.com/redhat-developer/observability-operator/v3/controllers/utils"
@@ -154,11 +155,11 @@ func (r *Reconciler) reconcileAlertmanagerSecret(ctx context.Context, cr *v1.Obs
 			})
 
 			root.Routes = append(root.Routes, v1.AlertmanagerConfigRoute{
-				Receiver: pagerDutyReceiver,
 				Match: map[string]string{
 					"severity":                  "critical",
 					PrometheusRuleIdentifierKey: index.Id,
 				},
+				Receiver: pagerDutyReceiver,
 			})
 		}
 
@@ -196,15 +197,16 @@ func (r *Reconciler) reconcileAlertmanagerSecret(ctx context.Context, cr *v1.Obs
 
 			config.Receivers = append(config.Receivers, v1.AlertmanagerConfigReceiver{
 				Name: smtpReceiver,
-				EmailConfigs: []v1.EmailConfig{
+				EmailConfig: []v1.EmailConfig{
 					{
-						Html: "html",
+						SendResolved: true,
+						To:           index.Config.Alertmanager.ToEmailAddress,
 					},
 				},
 			})
 
 			root.Routes = append(root.Routes, v1.AlertmanagerConfigRoute{
-				Receiver: smtpReceiver,
+				Receiver:       smtpReceiver,
 				Match: map[string]string{
 					"severity":                  "warning",
 					PrometheusRuleIdentifierKey: index.Id,
@@ -213,7 +215,7 @@ func (r *Reconciler) reconcileAlertmanagerSecret(ctx context.Context, cr *v1.Obs
 		}
 	}
 
-	configBytes, err := yaml.Marshal(&config)
+	configBytes, err := goyaml.Marshal(&config)
 	if err != nil {
 		return err
 	}
@@ -350,7 +352,9 @@ func (r *Reconciler) getSmtpSecret(ctx context.Context, cr *v1.Observability, co
 
 func (r *Reconciler) createGlobalConfig(ctx context.Context, cr *v1.Observability, indexes []v1.RepositoryIndex) (*v1.AlertmanagerConfigGlobal, error) {
 
-	globalConfig := &v1.AlertmanagerConfigGlobal{}
+	globalConfig := &v1.AlertmanagerConfigGlobal{
+		ResolveTimeout: "5m",
+	}
 
 	if !cr.SmtpDisabled() && indexes[0].Config.Alertmanager.ToEmailAddress != "" {
 
@@ -368,11 +372,14 @@ func (r *Reconciler) createGlobalConfig(ctx context.Context, cr *v1.Observabilit
 			smtpSecret["host"] = []byte("dummy")
 		}
 
+		// smartHost := fmt.Sprintf("%s:%s", string(smtpSecret["host"]), string(smtpSecret["port"]))
+
 		globalConfig = &v1.AlertmanagerConfigGlobal{
 			ResolveTimeout:   "5m",
 			SmtpAuthUserName: string(smtpSecret["username"]),
 			SmtpAuthPassword: string(smtpSecret["password"]),
-			SmtpSmartHost:    fmt.Sprintf("%s:%s", string(smtpSecret["host"]), string(smtpSecret["port"])),
+			SmtpSmartHost:    "localhost:25",
+			SmtpFrom:         "alerts@redhat.com",
 		}
 
 	} else {
