@@ -237,7 +237,7 @@ previously mentioned
 - We recommend targeting a local CRC instance for daily development. Though we're hedging our bets a bit with these 
 amounts, we do feel additional memory config params are essential in having a stable platform to run against:
 ```
-crc start --pull-secret-file $HOME/.crc/cache/pull-secret.txt --cpus 6 --memory 24576`
+crc start --pull-secret-file $HOME/.crc/cache/pull-secret.txt --cpus 6 --memory 24576
 ```
 - Once your cluster is up and running, determine which (or create a new) namespace to target with various generated 
 files. The operator will look in this namespace for an Observability operand (CR) and if not found, generate its own. 
@@ -312,24 +312,12 @@ review the content of each!
   ```
   make deploy/crc/secret
   ```
-  * The following parameters can be modified:
-    * DATASOURCES: Defaults to `ZHVtbXk=`
-    * PROMETHEUS: Defaults to `ZHVtbXk=`
-
-  * More information about configurable parameters can be found by running:
-  
-  ```
-  oc process --parameters -f ./templates/crc-secret-template.yml
-  ```
-
 
 * Priority Class
   * If the Observability Operator was not installed using OLM, you need to create the requried Priority Class yourself. Use the command to add the necessary Priority Class:
   ```
   oc apply -f config/samples/prioclass.yaml
   ```
-
-
 
 ### Running via `Makefile`
 If this is the first time you've run against the cluster (or your CRD has changed and been uninstalled):

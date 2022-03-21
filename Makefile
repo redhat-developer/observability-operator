@@ -176,12 +176,6 @@ deploy/secrets:
 		| oc apply -f - -n $(NAMESPACE)
 
 # deploy grafana-datasource secret required for CRC cluster
-DATASOURCES ?= "ZHVtbXk="
-PROMETHEUS ?= "ZHVtbXk="
 .PHONY: deploy/crc/secret
 deploy/crc/secret:
-	@oc process -f ./templates/crc-secret-template.yml \
-		-p DATASOURCES=${DATASOURCES} \
-		-p PROMETHEUS=${PROMETHEUS} \
-		| oc apply -f - -n openshift-monitoring
-		
+	@oc process -f ./templates/crc-secret-template.yml | oc apply -f - -n openshift-monitoring
