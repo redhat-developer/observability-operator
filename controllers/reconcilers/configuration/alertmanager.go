@@ -3,7 +3,6 @@ package configuration
 import (
 	"context"
 	"fmt"
-
 	goyaml "github.com/goccy/go-yaml"
 	v1 "github.com/redhat-developer/observability-operator/v3/api/v1"
 	"github.com/redhat-developer/observability-operator/v3/controllers/model"
@@ -110,11 +109,13 @@ func (r *Reconciler) reconcileAlertmanager(ctx context.Context, cr *v1.Observabi
 
 func (r *Reconciler) reconcileAlertmanagerSecret(ctx context.Context, cr *v1.Observability, indexes []v1.RepositoryIndex) error {
 	root := &v1.AlertmanagerConfigRoute{
-		Receiver: "default-receiver",
-		Routes:   []v1.AlertmanagerConfigRoute{},
+		Receiver:       "default-receiver",
+		GroupInterval:  "30s",
+		GroupWait:      "5m",
+		RepeatInterval: "12h",
+		Routes:         []v1.AlertmanagerConfigRoute{},
 	}
 
-	// The global config depends on if SMTP is enabled or not, with SMTP values being populated in enabled
 	globalConfig, err := r.createGlobalConfig(ctx, cr, indexes)
 
 	if err != nil {
@@ -155,11 +156,11 @@ func (r *Reconciler) reconcileAlertmanagerSecret(ctx context.Context, cr *v1.Obs
 			})
 
 			root.Routes = append(root.Routes, v1.AlertmanagerConfigRoute{
+				Receiver: pagerDutyReceiver,
 				Match: map[string]string{
 					"severity":                  "critical",
 					PrometheusRuleIdentifierKey: index.Id,
 				},
-				Receiver: pagerDutyReceiver,
 			})
 		}
 
@@ -206,12 +207,14 @@ func (r *Reconciler) reconcileAlertmanagerSecret(ctx context.Context, cr *v1.Obs
 			})
 
 			root.Routes = append(root.Routes, v1.AlertmanagerConfigRoute{
-				Receiver:       smtpReceiver,
+				Receiver: smtpReceiver,
 				Match: map[string]string{
 					"severity":                  "warning",
 					PrometheusRuleIdentifierKey: index.Id,
 				},
 			})
+		} else if !cr.SmtpDisabled() && index.Config.Alertmanager.ToEmailAddress == "" {
+			r.logger.Info("smtp enabled but no to email address set in the index file")
 		}
 	}
 
@@ -356,7 +359,9 @@ func (r *Reconciler) createGlobalConfig(ctx context.Context, cr *v1.Observabilit
 		ResolveTimeout: "5m",
 	}
 
-	if !cr.SmtpDisabled() && indexes[0].Config.Alertmanager.ToEmailAddress != "" {
+	if !cr.SmtpDisabled() && indexes[0].Config.Alertmanager.ToEmailAddress == "" {
+		r.logger.Info("smtp enabled but no to email address set in the index file")
+	} else if !cr.SmtpDisabled() && indexes[0].Config.Alertmanager.ToEmailAddress != "" {
 
 		smtpSecret, err := r.getSmtpSecret(ctx, cr, indexes[0].Config.Alertmanager)
 
@@ -370,16 +375,15 @@ func (r *Reconciler) createGlobalConfig(ctx context.Context, cr *v1.Observabilit
 			smtpSecret["password"] = []byte("dummy")
 			smtpSecret["username"] = []byte("dummy")
 			smtpSecret["host"] = []byte("dummy")
+			smtpSecret["port"] = []byte("dummy")
 		}
-
-		// smartHost := fmt.Sprintf("%s:%s", string(smtpSecret["host"]), string(smtpSecret["port"]))
 
 		globalConfig = &v1.AlertmanagerConfigGlobal{
 			ResolveTimeout:   "5m",
 			SmtpAuthUserName: string(smtpSecret["username"]),
 			SmtpAuthPassword: string(smtpSecret["password"]),
-			SmtpSmartHost:    "localhost:25",
-			SmtpFrom:         "alerts@redhat.com",
+			SmtpSmartHost:    fmt.Sprintf("%s:%s", string(smtpSecret["host"]), string(smtpSecret["port"])),
+			SmtpFrom:         indexes[0].Config.Alertmanager.FromEmailAddress,
 		}
 
 	} else {

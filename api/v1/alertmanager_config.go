@@ -10,8 +10,11 @@ type AlertmanagerConfigGlobal struct {
 }
 
 type AlertmanagerConfigRoute struct {
-	Match          map[string]string         `json:"match,omitempty"`
 	Receiver       string                    `json:"receiver,omitempty"`
+	GroupWait      string                    `json:"group_wait,omitempty"`
+	GroupInterval  string                    `json:"group_interval,omitempty"`
+	RepeatInterval string                    `json:"repeat_interval,omitempty"`
+	Match          map[string]string         `json:"match,omitempty"`
 	Routes         []AlertmanagerConfigRoute `json:"routes,omitempty"`
 }
 
@@ -27,7 +30,7 @@ type EmailConfig struct {
 }
 
 type PagerDutyConfig struct {
-	ServiceKey string `json:"service_key,omitempty"`
+	ServiceKey string `json:"service_key"`
 }
 
 type WebhookConfig struct {
