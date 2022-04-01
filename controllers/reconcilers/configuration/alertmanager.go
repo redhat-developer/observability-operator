@@ -11,6 +11,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+	"strings"
 )
 
 func (r *Reconciler) reconcileAlertmanager(ctx context.Context, cr *v1.Observability) error {
@@ -110,8 +111,6 @@ func (r *Reconciler) reconcileAlertmanager(ctx context.Context, cr *v1.Observabi
 func (r *Reconciler) reconcileAlertmanagerSecret(ctx context.Context, cr *v1.Observability, indexes []v1.RepositoryIndex) error {
 	root := &v1.AlertmanagerConfigRoute{
 		Receiver:       "default-receiver",
-		GroupInterval:  "30s",
-		GroupWait:      "5m",
 		RepeatInterval: "12h",
 		Routes:         []v1.AlertmanagerConfigRoute{},
 	}
@@ -192,16 +191,23 @@ func (r *Reconciler) reconcileAlertmanagerSecret(ctx context.Context, cr *v1.Obs
 			})
 		}
 
-		if !cr.SmtpDisabled() && index.Config.Alertmanager.ToEmailAddress != "" {
+		if !cr.SmtpDisabled() && len(index.Config.Alertmanager.SmtpToEmailAddress) > 0 && index.Config.Alertmanager.SmtpFromEmailAddress != "" {
 
 			smtpReceiver := fmt.Sprintf("%s-%s", index.Id, "smtp")
+
+			toEmailAddress := ""
+			if len(index.Config.Alertmanager.SmtpToEmailAddress) > 1 {
+				toEmailAddress = strings.Join(index.Config.Alertmanager.SmtpToEmailAddress, ",")
+			} else {
+				toEmailAddress = index.Config.Alertmanager.SmtpToEmailAddress[0]
+			}
 
 			config.Receivers = append(config.Receivers, v1.AlertmanagerConfigReceiver{
 				Name: smtpReceiver,
 				EmailConfig: []v1.EmailConfig{
 					{
 						SendResolved: true,
-						To:           index.Config.Alertmanager.ToEmailAddress,
+						To:           toEmailAddress,
 					},
 				},
 			})
@@ -213,8 +219,8 @@ func (r *Reconciler) reconcileAlertmanagerSecret(ctx context.Context, cr *v1.Obs
 					PrometheusRuleIdentifierKey: index.Id,
 				},
 			})
-		} else if !cr.SmtpDisabled() && index.Config.Alertmanager.ToEmailAddress == "" {
-			r.logger.Info("smtp enabled but no to email address set in the index file")
+		} else if (!cr.SmtpDisabled() && len(index.Config.Alertmanager.SmtpToEmailAddress) == 0) || (!cr.SmtpDisabled() && index.Config.Alertmanager.SmtpFromEmailAddress == "") {
+			r.logger.Info("both the to and from email address in the index.json file need to be set when smtp is enabled")
 		}
 	}
 
@@ -359,9 +365,9 @@ func (r *Reconciler) createGlobalConfig(ctx context.Context, cr *v1.Observabilit
 		ResolveTimeout: "5m",
 	}
 
-	if !cr.SmtpDisabled() && indexes[0].Config.Alertmanager.ToEmailAddress == "" {
-		r.logger.Info("smtp enabled but no to email address set in the index file")
-	} else if !cr.SmtpDisabled() && indexes[0].Config.Alertmanager.ToEmailAddress != "" {
+	if (!cr.SmtpDisabled() && len(indexes[0].Config.Alertmanager.SmtpToEmailAddress) == 0) || (!cr.SmtpDisabled() && indexes[0].Config.Alertmanager.SmtpFromEmailAddress == "") {
+		r.logger.Info("both the to and from email address in the index.json file need to be set when smtp is enabled")
+	} else if !cr.SmtpDisabled() && len(indexes[0].Config.Alertmanager.SmtpToEmailAddress) > 0 && indexes[0].Config.Alertmanager.SmtpFromEmailAddress != "" {
 
 		smtpSecret, err := r.getSmtpSecret(ctx, cr, indexes[0].Config.Alertmanager)
 
@@ -383,7 +389,7 @@ func (r *Reconciler) createGlobalConfig(ctx context.Context, cr *v1.Observabilit
 			SmtpAuthUserName: string(smtpSecret["username"]),
 			SmtpAuthPassword: string(smtpSecret["password"]),
 			SmtpSmartHost:    fmt.Sprintf("%s:%s", string(smtpSecret["host"]), string(smtpSecret["port"])),
-			SmtpFrom:         indexes[0].Config.Alertmanager.FromEmailAddress,
+			SmtpFrom:         indexes[0].Config.Alertmanager.SmtpFromEmailAddress,
 		}
 
 	} else {

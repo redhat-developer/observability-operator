@@ -74,14 +74,14 @@ type RemoteWriteIndex struct {
 }
 
 type AlertmanagerIndex struct {
-	PagerDutySecretName           string `json:"pagerDutySecretName"`
-	PagerDutySecretNamespace      string `json:"pagerDutySecretNamespace"`
-	DeadmansSnitchSecretName      string `json:"deadmansSnitchSecretName"`
-	DeadmansSnitchSecretNamespace string `json:"deadmansSnitchSecretNamespace"`
-	SmtpSecretName                string `json:"smtpSecretName"`
-	SmtpSecretNamespace           string `json:"smtpSecretNamespace"`
-	ToEmailAddress                string `json:"toEmailAddress"`
-	FromEmailAddress              string `json:"FromEmailAddress"`
+	PagerDutySecretName           string   `json:"pagerDutySecretName"`
+	PagerDutySecretNamespace      string   `json:"pagerDutySecretNamespace"`
+	DeadmansSnitchSecretName      string   `json:"deadmansSnitchSecretName"`
+	DeadmansSnitchSecretNamespace string   `json:"deadmansSnitchSecretNamespace"`
+	SmtpSecretName                string   `json:"smtpSecretName"`
+	SmtpSecretNamespace           string   `json:"smtpSecretNamespace"`
+	SmtpToEmailAddress            []string `json:"smtpToEmailAddress"`
+	SmtpFromEmailAddress          string   `json:"smtpFromEmailAddress"`
 }
 
 type PrometheusIndex struct {
