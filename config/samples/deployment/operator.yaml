@@ -236,7 +236,7 @@ spec:
           ports:
             - containerPort: 60000
               name: metrics
-          imagePullPolicy: Always
+          imagePullPolicy: IfNotPresent
           env:
             - name: WATCH_NAMESPACE
               valueFrom:
