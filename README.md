@@ -260,6 +260,16 @@ review the content of each!
   oc apply -f config/samples/secrets/deadmanssnitch.yaml
   ```
 
+* DeadmansSnitch secret:
+  ```
+  oc apply -f config/samples/secrets/deadmanssnitch.yaml
+  ```
+
+* Sendgrid secret:
+  ```
+  oc apply -f config/samples/secrets/sendgrid.yaml
+  ```
+
 * Auth provider config secret:
   
   Users can choose between two auth configurations; dex or Red Hat SSO 

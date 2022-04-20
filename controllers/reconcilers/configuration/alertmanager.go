@@ -3,7 +3,7 @@ package configuration
 import (
 	"context"
 	"fmt"
-	"github.com/ghodss/yaml"
+	goyaml "github.com/goccy/go-yaml"
 	v1 "github.com/redhat-developer/observability-operator/v3/api/v1"
 	"github.com/redhat-developer/observability-operator/v3/controllers/model"
 	"github.com/redhat-developer/observability-operator/v3/controllers/utils"
@@ -11,6 +11,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+	"strings"
 )
 
 func (r *Reconciler) reconcileAlertmanager(ctx context.Context, cr *v1.Observability) error {
@@ -109,15 +110,20 @@ func (r *Reconciler) reconcileAlertmanager(ctx context.Context, cr *v1.Observabi
 
 func (r *Reconciler) reconcileAlertmanagerSecret(ctx context.Context, cr *v1.Observability, indexes []v1.RepositoryIndex) error {
 	root := &v1.AlertmanagerConfigRoute{
-		Receiver: "default-receiver",
-		Routes:   []v1.AlertmanagerConfigRoute{},
+		Receiver:       "default-receiver",
+		RepeatInterval: "12h",
+		Routes:         []v1.AlertmanagerConfigRoute{},
+	}
+
+	globalConfig, err := r.createGlobalConfig(ctx, cr, indexes)
+
+	if err != nil {
+		return err
 	}
 
 	config := v1.AlertmanagerConfigRoot{
-		Global: &v1.AlertmanagerConfigGlobal{
-			ResolveTimeout: "5m",
-		},
-		Route: root,
+		Global: globalConfig,
+		Route:  root,
 		Receivers: []v1.AlertmanagerConfigReceiver{
 			{
 				Name: "default-receiver",
@@ -184,9 +190,41 @@ func (r *Reconciler) reconcileAlertmanagerSecret(ctx context.Context, cr *v1.Obs
 				},
 			})
 		}
+
+		if !cr.SmtpDisabled() && len(index.Config.Alertmanager.SmtpToEmailAddress) > 0 && index.Config.Alertmanager.SmtpFromEmailAddress != "" {
+
+			smtpReceiver := fmt.Sprintf("%s-%s", index.Id, "smtp")
+
+			toEmailAddress := ""
+			if len(index.Config.Alertmanager.SmtpToEmailAddress) > 1 {
+				toEmailAddress = strings.Join(index.Config.Alertmanager.SmtpToEmailAddress, ",")
+			} else {
+				toEmailAddress = index.Config.Alertmanager.SmtpToEmailAddress[0]
+			}
+
+			config.Receivers = append(config.Receivers, v1.AlertmanagerConfigReceiver{
+				Name: smtpReceiver,
+				EmailConfig: []v1.EmailConfig{
+					{
+						SendResolved: true,
+						To:           toEmailAddress,
+					},
+				},
+			})
+
+			root.Routes = append(root.Routes, v1.AlertmanagerConfigRoute{
+				Receiver: smtpReceiver,
+				Match: map[string]string{
+					"severity":                  "warning",
+					PrometheusRuleIdentifierKey: index.Id,
+				},
+			})
+		} else if (!cr.SmtpDisabled() && len(index.Config.Alertmanager.SmtpToEmailAddress) == 0) || (!cr.SmtpDisabled() && index.Config.Alertmanager.SmtpFromEmailAddress == "") {
+			r.logger.Info("both the to and from email address in the index.json file need to be set when smtp is enabled")
+		}
 	}
 
-	configBytes, err := yaml.Marshal(&config)
+	configBytes, err := goyaml.Marshal(&config)
 	if err != nil {
 		return err
 	}
@@ -273,4 +311,91 @@ func (r *Reconciler) getDeadMansSnitchUrl(ctx context.Context, cr *v1.Observabil
 	}
 
 	return url, nil
+}
+
+func (r *Reconciler) getSmtpSecret(ctx context.Context, cr *v1.Observability, config *v1.AlertmanagerIndex) (map[string][]byte, error) {
+
+	secrets := make(map[string][]byte)
+
+	if config == nil {
+		return secrets, nil
+	}
+
+	if config.SmtpSecretName == "" {
+		return secrets, nil
+	}
+
+	ns := cr.Namespace
+	if config.SmtpSecretNamespace != "" {
+		ns = config.SmtpSecretNamespace
+	}
+
+	SmtpSecret := &v12.Secret{}
+	selector := client.ObjectKey{
+		Namespace: ns,
+		Name:      config.SmtpSecretName,
+	}
+	err := r.client.Get(ctx, selector, SmtpSecret)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(SmtpSecret.Data["password"]) != 0 {
+		secrets["password"] = SmtpSecret.Data["password"]
+	}
+
+	if len(SmtpSecret.Data["username"]) != 0 {
+		secrets["username"] = SmtpSecret.Data["username"]
+	}
+
+	if len(SmtpSecret.Data["host"]) != 0 {
+		secrets["host"] = SmtpSecret.Data["host"]
+	}
+
+	if len(SmtpSecret.Data["port"]) != 0 {
+		secrets["port"] = SmtpSecret.Data["port"]
+	}
+
+	return secrets, nil
+}
+
+func (r *Reconciler) createGlobalConfig(ctx context.Context, cr *v1.Observability, indexes []v1.RepositoryIndex) (*v1.AlertmanagerConfigGlobal, error) {
+
+	globalConfig := &v1.AlertmanagerConfigGlobal{
+		ResolveTimeout: "5m",
+	}
+
+	if (!cr.SmtpDisabled() && len(indexes[0].Config.Alertmanager.SmtpToEmailAddress) == 0) || (!cr.SmtpDisabled() && indexes[0].Config.Alertmanager.SmtpFromEmailAddress == "") {
+		r.logger.Info("both the to and from email address in the index.json file need to be set when smtp is enabled")
+	} else if !cr.SmtpDisabled() && len(indexes[0].Config.Alertmanager.SmtpToEmailAddress) > 0 && indexes[0].Config.Alertmanager.SmtpFromEmailAddress != "" {
+
+		smtpSecret, err := r.getSmtpSecret(ctx, cr, indexes[0].Config.Alertmanager)
+
+		if err != nil {
+			r.logger.Error(err, fmt.Sprintf("smtp secret %v not found", indexes[0].Config.Alertmanager.SmtpSecretName))
+			return nil, err
+		}
+
+		// If the secret is empty provide it with dummy values
+		if len(smtpSecret) == 0 {
+			smtpSecret["password"] = []byte("dummy")
+			smtpSecret["username"] = []byte("dummy")
+			smtpSecret["host"] = []byte("dummy")
+			smtpSecret["port"] = []byte("dummy")
+		}
+
+		globalConfig = &v1.AlertmanagerConfigGlobal{
+			ResolveTimeout:   "5m",
+			SmtpAuthUserName: string(smtpSecret["username"]),
+			SmtpAuthPassword: string(smtpSecret["password"]),
+			SmtpSmartHost:    fmt.Sprintf("%s:%s", string(smtpSecret["host"]), string(smtpSecret["port"])),
+			SmtpFrom:         indexes[0].Config.Alertmanager.SmtpFromEmailAddress,
+		}
+
+	} else {
+		globalConfig = &v1.AlertmanagerConfigGlobal{
+			ResolveTimeout: "5m",
+		}
+	}
+	return globalConfig, nil
 }
