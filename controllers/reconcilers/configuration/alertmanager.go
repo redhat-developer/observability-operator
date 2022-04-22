@@ -219,8 +219,6 @@ func (r *Reconciler) reconcileAlertmanagerSecret(ctx context.Context, cr *v1.Obs
 					PrometheusRuleIdentifierKey: index.Id,
 				},
 			})
-		} else if (!cr.SmtpDisabled() && len(index.Config.Alertmanager.SmtpToEmailAddress) == 0) || (!cr.SmtpDisabled() && index.Config.Alertmanager.SmtpFromEmailAddress == "") {
-			r.logger.Info("both the to and from email address in the index.json file need to be set when smtp is enabled")
 		}
 	}
 
