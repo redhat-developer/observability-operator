@@ -2,6 +2,8 @@ package grafana_installation
 
 import (
 	"context"
+	"strings"
+
 	"github.com/go-logr/logr"
 	coreosv1 "github.com/operator-framework/api/pkg/operators/v1"
 	"github.com/operator-framework/api/pkg/operators/v1alpha1"
@@ -13,7 +15,6 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
-	"strings"
 )
 
 type Reconciler struct {
@@ -158,7 +159,7 @@ func (r *Reconciler) reconcileCatalogSource(ctx context.Context, cr *v1.Observab
 	_, err := controllerutil.CreateOrUpdate(ctx, r.client, source, func() error {
 		source.Spec = v1alpha1.CatalogSourceSpec{
 			SourceType: v1alpha1.SourceTypeGrpc,
-			Image:      "quay.io/rhoas/grafana-operator-index:v3.10.4",
+			Image:      "quay.io/rhoas/grafana-operator-index:v3.10.5",
 		}
 		return nil
 	})
@@ -180,7 +181,7 @@ func (r *Reconciler) reconcileSubscription(ctx context.Context, cr *v1.Observabi
 			CatalogSourceNamespace: source.Namespace,
 			Package:                "grafana-operator",
 			Channel:                "alpha",
-			StartingCSV:            "grafana-operator.v3.10.4",
+			StartingCSV:            "grafana-operator.v3.10.5",
 			Config:                 v1alpha1.SubscriptionConfig{Resources: model.GetGrafanaOperatorResourceRequirement(cr)},
 		}
 		return nil
