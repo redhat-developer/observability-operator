@@ -75,7 +75,7 @@ as specified in the Observability CR (more on that in a bit):
 
 ## What's supported via external config?
 
-Within a given resources folder an [index.json file](https://github.com/bf2fc6cc711aee1a0c2a/observability-resources-mk/blob/main/development/index.json) 
+Within a given resources folder an [index.json file](https://github.com/bf2fc6cc711aee1a0c2a/observability-resources-mk/blob/main/resources/index.json) 
 containing, at a minimum, `id` and `config` fields must exist:
  ```yaml 
  {
@@ -117,7 +117,6 @@ of Prometheus PagerDuty & Alertmanager integrations:
       "deadmansSnitchSecretName": "deadmanssnitch"
     },
   ```
-* `config.promtail.observatorium` specifies the id of an observatorium config where the logs are written to
 * `config.prometheus.pod_monitors` expects an array list of `sub/directory/file.yaml` entries, each pointing to a complete 
 Prometheus [PodMonitor YAML definition](https://docs.openshift.com/container-platform/4.6/rest_api/monitoring_apis/podmonitor-monitoring-coreos-com-v1.html) 
 file:
@@ -253,11 +252,6 @@ review the content of each!
 * PagerDuty secret:
   ```
   oc apply -f config/samples/secrets/pagerduty.yaml
-  ```
-
-* DeadmansSnitch secret:
-  ```
-  oc apply -f config/samples/secrets/deadmanssnitch.yaml
   ```
 
 * DeadmansSnitch secret:
