@@ -373,7 +373,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, cr *v1.Observability, s *v1.
 		return v1.ResultFailed, err
 	}
 	// Alertmanager CR
-	err = r.reconcileAlertmanager(ctx, cr)
+	err = r.reconcileAlertmanager(ctx, cr, indexes)
 	if err != nil {
 		return v1.ResultFailed, errors2.Wrap(err, "error reconciling alertmanager")
 	}

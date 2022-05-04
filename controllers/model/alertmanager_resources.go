@@ -10,6 +10,8 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+const AlertManagerDefaultStorage = "1Gi"
+
 func GetDefaultNameAlertmanager(cr *v1.Observability) string {
 	if cr.Spec.SelfContained != nil && cr.Spec.AlertManagerDefaultName != "" {
 		return cr.Spec.AlertManagerDefaultName
@@ -126,4 +128,30 @@ func GetAlertmanagerResourceRequirement(cr *v1.Observability) v13.ResourceRequir
 		return cr.Spec.SelfContained.AlertManagerResourceRequirement
 	}
 	return v13.ResourceRequirements{}
+}
+
+func GetAlertmanagerStorageSize(cr *v1.Observability, indexes []v1.RepositoryIndex) string {
+	customAlertmanagerStorageSize := AlertManagerDefaultStorage
+	if cr.Spec.Storage != nil &&
+		cr.Spec.Storage.AlertManagerStorageSpec != nil &&
+		cr.Spec.Storage.AlertManagerStorageSpec.VolumeClaimTemplate.Spec.Resources.Requests != nil &&
+		cr.Spec.Storage.AlertManagerStorageSpec.VolumeClaimTemplate.Spec.Resources.Requests.Storage() != nil {
+		customAlertmanagerStorageSize = cr.Spec.Storage.AlertManagerStorageSpec.VolumeClaimTemplate.Spec.Resources.Requests.Storage().String()
+	}
+	alertmanagerConfig := getAlertmanagerRepositoryIndexConfig(indexes)
+	if alertmanagerConfig != nil && alertmanagerConfig.OverrideAlertmanagerPvcSize != "" {
+		customAlertmanagerStorageSize = alertmanagerConfig.OverrideAlertmanagerPvcSize
+	}
+	return customAlertmanagerStorageSize
+}
+
+// returns the Alertmanager configuration from the repository index
+//?
+func getAlertmanagerRepositoryIndexConfig(indexes []v1.RepositoryIndex) *v1.AlertmanagerIndex {
+	if len(indexes) > 0 {
+		if indexes[0].Config != nil {
+			return indexes[0].Config.Alertmanager
+		}
+	}
+	return &v1.AlertmanagerIndex{}
 }

@@ -4,17 +4,19 @@ import (
 	"context"
 	"fmt"
 	goyaml "github.com/goccy/go-yaml"
+	prometheusv1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
 	v1 "github.com/redhat-developer/observability-operator/v3/api/v1"
 	"github.com/redhat-developer/observability-operator/v3/controllers/model"
 	"github.com/redhat-developer/observability-operator/v3/controllers/utils"
 	v12 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/resource"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"strings"
 )
 
-func (r *Reconciler) reconcileAlertmanager(ctx context.Context, cr *v1.Observability) error {
+func (r *Reconciler) reconcileAlertmanager(ctx context.Context, cr *v1.Observability, indexes []v1.RepositoryIndex) error {
 	alertmanager := model.GetAlertmanagerCr(cr)
 	configSecretName := model.GetAlertmanagerSecretName(cr)
 	proxySecret := model.GetAlertmanagerProxySecret(cr)
@@ -98,6 +100,13 @@ func (r *Reconciler) reconcileAlertmanager(ctx context.Context, cr *v1.Observabi
 		}
 		alertmanager.Spec.Version = model.GetAlertmanagerVersion(cr)
 		alertmanager.Spec.Resources = model.GetAlertmanagerResourceRequirement(cr)
+		if cr.Spec.Storage != nil && cr.Spec.Storage.AlertManagerStorageSpec != nil {
+			alertManagerStorageSpec, err := getAlertManagerStorageSpecHelper(cr, indexes)
+			if err != nil {
+				return err
+			}
+			alertmanager.Spec.Storage = alertManagerStorageSpec
+		}
 		return nil
 	})
 	if err != nil {
@@ -106,6 +115,17 @@ func (r *Reconciler) reconcileAlertmanager(ctx context.Context, cr *v1.Observabi
 
 	return err
 
+}
+
+//construct Alertmanager storage spec with either default or override value from resources
+func getAlertManagerStorageSpecHelper(cr *v1.Observability, indexes []v1.RepositoryIndex) (*prometheusv1.StorageSpec, error) {
+	alertManagerStorageSpec := cr.Spec.Storage.AlertManagerStorageSpec
+	customStorageSize := model.GetAlertmanagerStorageSize(cr, indexes)
+	if customStorageSize == "" {
+		return alertManagerStorageSpec, nil
+	}
+	_, err := resource.ParseQuantity(customStorageSize) //check if resources value is valid
+	return cr.Spec.Storage.AlertManagerStorageSpec, err
 }
 
 func (r *Reconciler) reconcileAlertmanagerSecret(ctx context.Context, cr *v1.Observability, indexes []v1.RepositoryIndex) error {
