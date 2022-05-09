@@ -40,17 +40,26 @@ test: generate fmt vet manifests
 	test -f $(ENVTEST_ASSETS_DIR)/setup-envtest.sh || curl -sSLo $(ENVTEST_ASSETS_DIR)/setup-envtest.sh https://raw.githubusercontent.com/kubernetes-sigs/controller-runtime/v0.6.3/hack/setup-envtest.sh
 	source $(ENVTEST_ASSETS_DIR)/setup-envtest.sh; fetch_envtest_tools $(ENVTEST_ASSETS_DIR); setup_envtest_env $(ENVTEST_ASSETS_DIR); go test ./... -coverprofile cover.out
 
+pkgs = $(shell go list ./...)
+
 # Run unit tests
+# Individual packages can be specified for testing by using the PKG argument
+# For example make test/unit PKG=api/v1 
 .PHONY: test/unit
 test/unit: generate fmt vet manifests
-	go test $(shell go list ./...) -coverprofile cover.out.tmp -tags unit
+	@if [ $(PKG) ]; then go test -coverprofile cover.out.tmp -tags unit ./$(PKG); else go test -coverprofile cover.out.tmp -tags unit $(pkgs); fi;
 	grep -v "zz_generated" cover.out.tmp > cover.out
 	rm cover.out.tmp
 
 # Check coverage of unit tests and display by HTML 
-.PHONY: test/unit/coverage
-test/unit/coverage:
+.PHONY: test/coverage/html
+test/coverage/html:
 	@if [ -f cover.out ]; then go tool cover -html=cover.out; else echo "cover.out file not found"; fi;
+
+#Check coverage of unit tests and display by standard output
+.PHONY: test/coverage/output
+test/coverage/output:
+	@if [ -f cover.out ]; then go tool cover -func=cover.out; else echo "cover.out file not found"; fi;
 
 # Build manager binary
 manager: generate fmt vet

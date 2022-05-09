@@ -1,12 +1,13 @@
 package v1
 
 import (
+	"testing"
+
 	v12 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	"testing"
 )
 
-func TestObservability_ValidateUpdate(t *testing.T) {
+func TestObservabilityWebhook_ValidateUpdate(t *testing.T) {
 	type fields struct {
 		TypeMeta   v12.TypeMeta
 		ObjectMeta v12.ObjectMeta
@@ -22,12 +23,23 @@ func TestObservability_ValidateUpdate(t *testing.T) {
 		args    args
 		wantErr bool
 	}{
+
 		{
-			name: "AlertManagerDefaultName - error if it's old is nil and new got set",
+			name: "AlertManagerDefaultName - error if old is empty and new got set",
 			fields: fields{
 				Spec: ObservabilitySpec{
-					SelfContained: &SelfContained{},
+					AlertManagerDefaultName: "something",
 				},
+			},
+			args: args{old: &Observability{
+				Spec: ObservabilitySpec{},
+			}},
+			wantErr: true,
+		},
+		{
+			name: "AlertManagerDefaultName - error if old is set and new empty",
+			fields: fields{
+				Spec: ObservabilitySpec{},
 			},
 			args: args{old: &Observability{
 				Spec: ObservabilitySpec{
@@ -40,12 +52,12 @@ func TestObservability_ValidateUpdate(t *testing.T) {
 			name: "AlertManagerDefaultName - error if changed",
 			fields: fields{
 				Spec: ObservabilitySpec{
-					AlertManagerDefaultName: "something",
+					AlertManagerDefaultName: "somethingelse",
 				},
 			},
 			args: args{old: &Observability{
 				Spec: ObservabilitySpec{
-					AlertManagerDefaultName: "somethingelse",
+					AlertManagerDefaultName: "something",
 				},
 			}},
 			wantErr: true,
@@ -65,21 +77,21 @@ func TestObservability_ValidateUpdate(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name: "AlertManagerDefaultName -  no error on nil alertmanager objects",
+			name: "PrometheusDefaultName - error if old is empty and new got set",
 			fields: fields{
-				Spec: ObservabilitySpec{},
+				Spec: ObservabilitySpec{
+					PrometheusDefaultName: "something",
+				},
 			},
 			args: args{old: &Observability{
 				Spec: ObservabilitySpec{},
 			}},
-			wantErr: false,
+			wantErr: true,
 		},
 		{
-			name: "PrometheusDefaultName - error if it's old is nil and new got set",
+			name: "PrometheusDefaultName - error if old is set and new is empty",
 			fields: fields{
-				Spec: ObservabilitySpec{
-					SelfContained: &SelfContained{},
-				},
+				Spec: ObservabilitySpec{},
 			},
 			args: args{old: &Observability{
 				Spec: ObservabilitySpec{
@@ -92,12 +104,12 @@ func TestObservability_ValidateUpdate(t *testing.T) {
 			name: "PrometheusDefaultName - error if changed",
 			fields: fields{
 				Spec: ObservabilitySpec{
-					PrometheusDefaultName: "something",
+					PrometheusDefaultName: "somethingelse",
 				},
 			},
 			args: args{old: &Observability{
 				Spec: ObservabilitySpec{
-					PrometheusDefaultName: "somethingelse",
+					PrometheusDefaultName: "something",
 				},
 			}},
 			wantErr: true,
@@ -117,21 +129,19 @@ func TestObservability_ValidateUpdate(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name: "PrometheusDefaultName -  no error on nil prometheus objects",
+			name: "GrafanaDefaultName - error if old is nil and new got set",
 			fields: fields{
 				Spec: ObservabilitySpec{
-					AlertManagerDefaultName: "",
+					GrafanaDefaultName: "something",
 				},
 			},
 			args: args{old: &Observability{
-				Spec: ObservabilitySpec{
-					AlertManagerDefaultName: "",
-				},
+				Spec: ObservabilitySpec{},
 			}},
-			wantErr: false,
+			wantErr: true,
 		},
 		{
-			name: "GrafanaDefaultName - error if it's old is nil and new got set",
+			name: "GrafanaDefaultName - error if old is set and new is empty",
 			fields: fields{
 				Spec: ObservabilitySpec{},
 			},
@@ -146,12 +156,12 @@ func TestObservability_ValidateUpdate(t *testing.T) {
 			name: "GrafanaDefaultName - error if changed",
 			fields: fields{
 				Spec: ObservabilitySpec{
-					GrafanaDefaultName: "something",
+					GrafanaDefaultName: "somethingelse",
 				},
 			},
 			args: args{old: &Observability{
 				Spec: ObservabilitySpec{
-					GrafanaDefaultName: "somethingelse",
+					GrafanaDefaultName: "something",
 				},
 			}},
 			wantErr: true,
@@ -171,18 +181,12 @@ func TestObservability_ValidateUpdate(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name: "GrafanaDefaultName -  no error on nil prometheus objects",
+			name: "Common -  no error on empty objects",
 			fields: fields{
-				Spec: ObservabilitySpec{
-					AlertManagerDefaultName: "",
-					PrometheusDefaultName:   "",
-				},
+				Spec: ObservabilitySpec{},
 			},
 			args: args{old: &Observability{
-				Spec: ObservabilitySpec{
-					AlertManagerDefaultName: "",
-					PrometheusDefaultName:   "",
-				},
+				Spec: ObservabilitySpec{},
 			}},
 			wantErr: false,
 		},
