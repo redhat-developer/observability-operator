@@ -2,6 +2,7 @@ package model
 
 import (
 	"fmt"
+
 	routev1 "github.com/openshift/api/route/v1"
 	v12 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
 	v1 "github.com/redhat-developer/observability-operator/v3/api/v1"
@@ -9,8 +10,6 @@ import (
 	v14 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
-
-const AlertManagerDefaultStorage = "1Gi"
 
 func GetDefaultNameAlertmanager(cr *v1.Observability) string {
 	if cr.Spec.SelfContained != nil && cr.Spec.AlertManagerDefaultName != "" {
@@ -131,7 +130,7 @@ func GetAlertmanagerResourceRequirement(cr *v1.Observability) v13.ResourceRequir
 }
 
 func GetAlertmanagerStorageSize(cr *v1.Observability, indexes []v1.RepositoryIndex) string {
-	customAlertmanagerStorageSize := AlertManagerDefaultStorage
+	var customAlertmanagerStorageSize string
 	if cr.Spec.Storage != nil &&
 		cr.Spec.Storage.AlertManagerStorageSpec != nil &&
 		cr.Spec.Storage.AlertManagerStorageSpec.VolumeClaimTemplate.Spec.Resources.Requests != nil &&
@@ -139,14 +138,13 @@ func GetAlertmanagerStorageSize(cr *v1.Observability, indexes []v1.RepositoryInd
 		customAlertmanagerStorageSize = cr.Spec.Storage.AlertManagerStorageSpec.VolumeClaimTemplate.Spec.Resources.Requests.Storage().String()
 	}
 	alertmanagerConfig := getAlertmanagerRepositoryIndexConfig(indexes)
-	if alertmanagerConfig != nil && alertmanagerConfig.OverrideAlertmanagerPvcSize != "" {
+	if alertmanagerConfig != nil && alertmanagerConfig.OverrideAlertmanagerPvcSize != "" { //currently no override in resources repo
 		customAlertmanagerStorageSize = alertmanagerConfig.OverrideAlertmanagerPvcSize
 	}
 	return customAlertmanagerStorageSize
 }
 
 // returns the Alertmanager configuration from the repository index
-//?
 func getAlertmanagerRepositoryIndexConfig(indexes []v1.RepositoryIndex) *v1.AlertmanagerIndex {
 	if len(indexes) > 0 {
 		if indexes[0].Config != nil {
