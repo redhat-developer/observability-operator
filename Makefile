@@ -48,7 +48,13 @@ pkgs = $(shell go list ./...)
 .PHONY: test/unit
 test/unit: generate fmt vet manifests
 	@if [ $(PKG) ]; then go test -coverprofile cover.out.tmp -tags unit ./$(PKG); else go test -coverprofile cover.out.tmp -tags unit $(pkgs); fi;
-	grep -v -e "zz_generated" -e "priorityclass_resources.go" cover.out.tmp > cover.out
+	grep -v -e "zz_generated" \
+	-e "priorityclass_resources.go" \
+	-e "github.com/redhat-developer/observability-operator/v3/controllers/reconcilers/configuration/alertmanager.go" \
+	-e "github.com/redhat-developer/observability-operator/v3/controllers/reconcilers/configuration/configuration_reconciler.go" \
+	-e "github.com/redhat-developer/observability-operator/v3/controllers/reconcilers/configuration/grafana.go" \
+	-e "github.com/redhat-developer/observability-operator/v3/controllers/reconcilers/configuration/promtail.go" \
+	cover.out.tmp > cover.out
 	rm cover.out.tmp
 
 # Check coverage of unit tests and display by HTML 

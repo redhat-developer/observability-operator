@@ -6,10 +6,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
-	v14 "k8s.io/api/networking/v1"
 	"net/http"
 	"net/url"
 	"time"
+
+	v14 "k8s.io/api/networking/v1"
 
 	"github.com/go-logr/logr"
 	"github.com/integr8ly/grafana-operator/v3/pkg/apis/integreatly/v1alpha1"
@@ -493,7 +494,7 @@ func (r *Reconciler) deleteUnrequestedCredentialSecrets(ctx context.Context, cr 
 	}
 
 	for _, secret := range list.Items {
-		if secretExpected(secret.Name) == false {
+		if !secretExpected(secret.Name) {
 			err := r.client.Delete(ctx, &secret)
 			if err != nil {
 				return errors2.Wrap(err, fmt.Sprintf("error deleting unrequested token secret %v", secret.Name))

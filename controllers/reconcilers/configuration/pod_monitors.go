@@ -3,6 +3,7 @@ package configuration
 import (
 	"context"
 	"fmt"
+
 	"github.com/ghodss/yaml"
 	v12 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
 	v1 "github.com/redhat-developer/observability-operator/v3/api/v1"
@@ -69,7 +70,7 @@ func (r *Reconciler) deleteUnrequestedPodMonitors(cr *v1.Observability, ctx cont
 
 	// Check which pod monitors are no longer requested and delete them
 	for _, monitor := range existingMonitors.Items {
-		if isRequested(monitor.Name) == false {
+		if !isRequested(monitor.Name) {
 			err = r.client.Delete(ctx, monitor)
 			if err != nil {
 				return err
