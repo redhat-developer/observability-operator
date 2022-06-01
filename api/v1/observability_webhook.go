@@ -53,11 +53,11 @@ func (in *Observability) ValidateCreate() error {
 func (in *Observability) ValidateUpdate(old runtime.Object) error {
 	observabilitylog.Info("validate update", "name", in.Name)
 
-	// For each value the following cannot be done
-	// unset it if it's already present
-	//	// set it if it's not set - the default kafka entry is already used
-	//	// change it if it's set already
-	// cannot remove the self contained block if it contained the value
+	// For each value the following cannot be done:
+	// 	- unset it if it's already present
+	//	- set it if it's not set - unless deprecated default names are used.
+	//    This is done within the initialization to keep backwards compatability.
+	//	- change it if it's set already
 
 	oldObsSpec := &old.(*Observability).Spec
 	newObsSpec := &in.Spec
@@ -69,7 +69,9 @@ func (in *Observability) ValidateUpdate(old runtime.Object) error {
 	}
 
 	if oldObsSpec.AlertManagerDefaultName == "" &&
-		newObsSpec.AlertManagerDefaultName != "" {
+		newObsSpec.AlertManagerDefaultName != "" &&
+		// Special case: Allow updates iff the deprecated default name is used.
+		strings.Compare(newObsSpec.AlertManagerDefaultName, "kafka-alertmanager") != 0 {
 		return errors.New("cannot set AlertManagerDefaultName after cr creation")
 	}
 
@@ -86,7 +88,9 @@ func (in *Observability) ValidateUpdate(old runtime.Object) error {
 	}
 
 	if oldObsSpec.GrafanaDefaultName == "" &&
-		newObsSpec.GrafanaDefaultName != "" {
+		newObsSpec.GrafanaDefaultName != "" &&
+		// Special case: Allow updates iff the deprecated default name is used.
+		strings.Compare(newObsSpec.AlertManagerDefaultName, "kafka-grafana") != 0 {
 		return errors.New("cannot set GrafanaDefaultName after cr creation")
 	}
 
@@ -103,7 +107,9 @@ func (in *Observability) ValidateUpdate(old runtime.Object) error {
 	}
 
 	if oldObsSpec.PrometheusDefaultName == "" &&
-		newObsSpec.PrometheusDefaultName != "" {
+		newObsSpec.PrometheusDefaultName != "" &&
+		// Special case: Allow updates iff the deprecated default name is used.
+		strings.Compare(newObsSpec.AlertManagerDefaultName, "kafka-prometheus") != 0 {
 		return errors.New("cannot set PrometheusDefaultName after cr creation")
 	}
 
