@@ -251,6 +251,10 @@ func (r *ObservabilityReconciler) InitializeOperand(mgr ctrl.Manager) error {
 
 	found := false
 	for _, existing := range instances.Items {
+		if err := r.migrateDeprecatedDefaultNames(&existing); err != nil {
+			r.Log.Error(err, "failed to update operand to handle new default names")
+			return err
+		}
 		if existing.Labels["managed-by"] != "observability-operator" {
 			r.Log.Info("removing pre-existing operand missing or mismatching managed label")
 			if err := r.UpdateOperand(&existing, &instance); err != nil {
@@ -419,4 +423,82 @@ func (r *ObservabilityReconciler) getReconcilerForStage(stage apiv1.Observabilit
 	default:
 		return nil
 	}
+}
+
+type migrateObject func(cr *apiv1.Observability)
+
+func (r *ObservabilityReconciler) migrateDeprecatedDefaultNames(cr *apiv1.Observability) error {
+	// Disregard CRs that are not finalized yet.
+	if !(cr.Status.StageStatus == apiv1.ResultSuccess && cr.Status.Stage == apiv1.Configuration) {
+		return nil
+	}
+
+	r.Log.Info("Checking whether the observability uses deprecated default names")
+	// We need to check for the following resources:
+	// 		- Alert Manager (the default name changed).
+	//		- Prometheus (the default name and label name changed).
+	//		- Grafana (the default name and label name changed).
+	objectsAndMigrators := map[runtime.Object]migrateObject{
+		model.GetAlertmanagerCr(cr): model.MigrateAlertManagerDefaults,
+		model.GetGrafanaCr(cr):      model.MigrateGrafanaDefaults,
+		model.GetPrometheus(cr):     model.MigratePrometheusDefaults,
+	}
+	updatedCR := cr.DeepCopy()
+
+	requireUpdate := false
+	for obj, migrator := range objectsAndMigrators {
+		key, err := client.ObjectKeyFromObject(obj)
+		if err != nil {
+			r.Log.Error(err, "failed to create object key from object")
+			return err
+		}
+		err = r.Client.Get(context.Background(), key, obj)
+		// No error means we can retrieve the object successfully, thus either the new default name is used or a custom
+		// name. No need to migrate existing resources with old names to new ones.
+		if err == nil {
+			continue
+		}
+		// Handle errors that do not indicate that the object is not found.
+		if !apierrors.IsNotFound(err) {
+			r.Log.Error(err, "failed to retrieve object", "object", key.String())
+			return err
+		}
+
+		// The object is not found, this means we have old resources with old default names deployed. Patch the respective
+		// fields within the Observability to override the new default names with the old default name.
+		migrator(updatedCR)
+
+		requireUpdate = true
+	}
+
+	if requireUpdate {
+		r.Log.Info("Updating the observability to handle deprecated default names")
+		// Update the CR, if changes have been made.
+		if err := r.UpdateOperand(cr, updatedCR); err != nil {
+			return err
+		}
+		// Verify that the updates worked, and we are now able to successfully retrieve all objects.
+		if err := r.verifyUpdatedObservability(cr); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (r *ObservabilityReconciler) verifyUpdatedObservability(cr *apiv1.Observability) error {
+	objs := []runtime.Object{model.GetAlertmanagerCr(cr), model.GetGrafanaCr(cr), model.GetPrometheus(cr)}
+
+	for _, obj := range objs {
+		key, err := client.ObjectKeyFromObject(obj)
+		if err != nil {
+			r.Log.Error(err, "failed to create object key from object")
+			return err
+		}
+		if err := r.Client.Get(context.Background(), key, obj); err != nil {
+			r.Log.Error(err, "failed to retrieve object after migrating old default names", "object", key.String())
+			return err
+		}
+	}
+
+	return nil
 }
