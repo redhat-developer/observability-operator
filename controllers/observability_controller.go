@@ -443,6 +443,13 @@ func (r *ObservabilityReconciler) migrateDeprecatedDefaultNames(cr *apiv1.Observ
 		model.GetGrafanaCr(cr):      model.MigrateGrafanaDefaults,
 		model.GetPrometheus(cr):     model.MigratePrometheusDefaults,
 	}
+
+	mapDefaultNameToKafkaName := map[string]string{
+		model.DefaultAlertManagerName: model.DefaultKafkaAlertManagerName,
+		model.DefaultGrafanaName:      model.DefaultKafkaGrafanaName,
+		model.DefaultPrometheusName:   model.DefaultKafkaPrometheusName,
+	}
+
 	updatedCR := cr.DeepCopy()
 
 	requireUpdate := false
@@ -464,8 +471,18 @@ func (r *ObservabilityReconciler) migrateDeprecatedDefaultNames(cr *apiv1.Observ
 			return err
 		}
 
-		// The object is not found, this means we have old resources with old default names deployed. Patch the respective
-		// fields within the Observability to override the new default names with the old default name.
+		// The object is not found. Try with the old, deprecated name instead.
+		key.Name = mapDefaultNameToKafkaName[key.Name]
+		err = r.Client.Get(context.Background(), key, obj)
+		// Handle errors. We do not need to specifically handle the not found error, as the expectation here is to find
+		// the resource.
+		if err != nil {
+			r.Log.Error(err, "failed to retrieve object with kafka default name",
+				"object", key.String())
+		}
+
+		// The resource was found, meaning we have deployed resources with the kafka default name, no override within
+		// the Observability. Now, we migrate the Observability and override the default name to the kafka default name.
 		migrator(updatedCR)
 
 		requireUpdate = true

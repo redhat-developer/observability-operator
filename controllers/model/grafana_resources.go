@@ -10,15 +10,20 @@ import (
 	v12 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+const (
+	DefaultGrafanaName      = "observability-grafana"
+	DefaultKafkaGrafanaName = "kafka-grafana"
+)
+
 func GetDefaultNameGrafana(cr *v1.Observability) string {
 	if cr.Spec.SelfContained != nil && cr.Spec.GrafanaDefaultName != "" {
 		return cr.Spec.GrafanaDefaultName
 	}
-	return "observability-grafana"
+	return DefaultGrafanaName
 }
 
 func MigrateGrafanaDefaults(cr *v1.Observability) {
-	cr.Spec.GrafanaDefaultName = "kafka-grafana"
+	cr.Spec.GrafanaDefaultName = DefaultKafkaGrafanaName
 	if cr.Spec.SelfContained != nil && cr.Spec.SelfContained.GrafanaDashboardLabelSelector == nil {
 		cr.Spec.SelfContained.GrafanaDashboardLabelSelector = &v12.LabelSelector{MatchLabels: map[string]string{"app": "strimzi"}}
 	}

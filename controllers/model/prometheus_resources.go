@@ -25,19 +25,21 @@ import (
 var defaultPrometheusLabelSelectors = map[string]string{"app": "observability"}
 
 const (
-	PrometheusVersion        = "v2.22.2"
-	PrometheusDefaultStorage = "250Gi"
+	PrometheusVersion          = "v2.22.2"
+	PrometheusDefaultStorage   = "250Gi"
+	DefaultPrometheusName      = "observability-prometheus"
+	DefaultKafkaPrometheusName = "kafka-prometheus"
 )
 
 func GetDefaultNamePrometheus(cr *v1.Observability) string {
 	if cr.Spec.SelfContained != nil && cr.Spec.PrometheusDefaultName != "" {
 		return cr.Spec.PrometheusDefaultName
 	}
-	return "observability-prometheus"
+	return DefaultPrometheusName
 }
 
 func MigratePrometheusDefaults(cr *v1.Observability) {
-	cr.Spec.PrometheusDefaultName = "kafka-prometheus"
+	cr.Spec.PrometheusDefaultName = DefaultKafkaPrometheusName
 	oldDefaultLabelSelector := &v12.LabelSelector{MatchLabels: map[string]string{"app": "strimzi"}}
 	if cr.Spec.SelfContained == nil {
 		return
