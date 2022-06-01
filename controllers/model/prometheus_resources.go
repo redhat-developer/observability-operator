@@ -22,7 +22,7 @@ import (
 	v12 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-var defaultPrometheusLabelSelectors = map[string]string{"app": "strimzi"}
+var defaultPrometheusLabelSelectors = map[string]string{"app": "observability"}
 
 const (
 	PrometheusVersion        = "v2.22.2"
@@ -33,7 +33,28 @@ func GetDefaultNamePrometheus(cr *v1.Observability) string {
 	if cr.Spec.SelfContained != nil && cr.Spec.PrometheusDefaultName != "" {
 		return cr.Spec.PrometheusDefaultName
 	}
-	return "kafka-prometheus"
+	return "observability-prometheus"
+}
+
+func MigratePrometheusDefaults(cr *v1.Observability) {
+	cr.Spec.PrometheusDefaultName = "kafka-prometheus"
+	oldDefaultLabelSelector := &v12.LabelSelector{MatchLabels: map[string]string{"app": "strimzi"}}
+	if cr.Spec.SelfContained == nil {
+		return
+	}
+
+	if cr.Spec.SelfContained.ProbeLabelSelector == nil {
+		cr.Spec.SelfContained.ProbeLabelSelector = oldDefaultLabelSelector
+	}
+	if cr.Spec.SelfContained.PodMonitorLabelSelector == nil {
+		cr.Spec.SelfContained.PodMonitorLabelSelector = oldDefaultLabelSelector
+	}
+	if cr.Spec.SelfContained.RuleLabelSelector == nil {
+		cr.Spec.SelfContained.RuleLabelSelector = oldDefaultLabelSelector
+	}
+	if cr.Spec.SelfContained.ServiceMonitorLabelSelector == nil {
+		cr.Spec.SelfContained.ServiceMonitorLabelSelector = oldDefaultLabelSelector
+	}
 }
 
 func GetPrometheusAuthTokenLifetimes(cr *v1.Observability) *v13.ConfigMap {

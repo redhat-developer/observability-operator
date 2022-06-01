@@ -14,7 +14,11 @@ func GetDefaultNameAlertmanager(cr *v1.Observability) string {
 	if cr.Spec.SelfContained != nil && cr.Spec.AlertManagerDefaultName != "" {
 		return cr.Spec.AlertManagerDefaultName
 	}
-	return "kafka-alertmanager"
+	return "observability-alertmanager"
+}
+
+func MigrateAlertManagerDefaults(cr *v1.Observability) {
+	cr.Spec.AlertManagerDefaultName = "kafka-alertmanager"
 }
 
 func GetAlertmanagerProxySecret(cr *v1.Observability) *v13.Secret {
