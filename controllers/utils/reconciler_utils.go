@@ -43,7 +43,7 @@ func GetClusterOSVersion(ctx context.Context, client k8sclient.Client) (string, 
 }
 
 //returns true if test cluster version string is same or newer than compareTo version string
-func HasNewerOrSameClusterVersion(test string, compareTo string) (bool, error) {
+func HasNewerOrSameClusterMinorVersion(test string, compareTo string) (bool, error) {
 	var testVersion semver.Version
 	compareToVersion, err := semver.Make(compareTo)
 	if err != nil {

@@ -132,7 +132,7 @@ func (r *Reconciler) getOpenshiftMonitoringCredentials(ctx context.Context) (str
 		return "", "", err
 	}
 	//this checks if Openshift 4.10+ is present as grafana-datasources secret data in v4.10+ has different structure to previous versions
-	isDatasourceV2, err = utils.HasNewerOrSameClusterVersion(currentOSVersionString, OpenshiftVersionToCompare)
+	isDatasourceV2, err = utils.HasNewerOrSameClusterMinorVersion(currentOSVersionString, OpenshiftVersionToCompare)
 	if err != nil {
 		return "", "", err
 	}
