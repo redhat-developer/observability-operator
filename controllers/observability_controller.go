@@ -352,6 +352,20 @@ func observabilityInstanceWithStorage(namespace string) apiv1.Observability {
 						},
 					},
 				},
+				AlertManagerStorageSpec: &prometheusv1.StorageSpec{
+					VolumeClaimTemplate: prometheusv1.EmbeddedPersistentVolumeClaim{
+						EmbeddedObjectMetadata: prometheusv1.EmbeddedObjectMetadata{
+							Name: "managed-services",
+						},
+						Spec: v1.PersistentVolumeClaimSpec{
+							Resources: v1.ResourceRequirements{
+								Requests: map[v1.ResourceName]resource.Quantity{
+									v1.ResourceStorage: resource.MustParse(model.AlertManagerDefaultStorage),
+								},
+							},
+						},
+					},
+				},
 			},
 			SelfContained: &apiv1.SelfContained{
 				DisableBlackboxExporter: &([]bool{true})[0],
