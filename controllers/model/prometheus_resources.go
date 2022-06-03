@@ -477,7 +477,8 @@ func GetPrometheusOperatorResourceRequirement(cr *v1.Observability) v13.Resource
 }
 func GetPrometheusStorageSize(cr *v1.Observability, indexes []v1.RepositoryIndex) string {
 	customPrometheusStorageSize := PrometheusDefaultStorage
-	if cr.Spec.Storage != nil &&
+	if cr.Spec.SelfContained != nil &&
+		cr.Spec.Storage != nil &&
 		cr.Spec.Storage.PrometheusStorageSpec != nil &&
 		cr.Spec.Storage.PrometheusStorageSpec.VolumeClaimTemplate.Spec.Resources.Requests != nil &&
 		cr.Spec.Storage.PrometheusStorageSpec.VolumeClaimTemplate.Spec.Resources.Requests.Storage() != nil {

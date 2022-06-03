@@ -108,7 +108,7 @@ func GetGrafanaDashboardLabelSelectors(cr *v1.Observability, indexes []v1.Reposi
 	}
 
 	return &v12.LabelSelector{
-		MatchLabels: defaultPrometheusLabelSelectors,
+		MatchLabels: defaultGrafanaLabelSelectors,
 	}
 }
 func GetGrafanaResourceRequirement(cr *v1.Observability) *v14.ResourceRequirements {
