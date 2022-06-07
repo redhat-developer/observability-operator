@@ -54,6 +54,7 @@ test/unit: generate fmt vet manifests
 	-e "github.com/redhat-developer/observability-operator/v3/controllers/reconcilers/configuration/configuration_reconciler.go" \
 	-e "github.com/redhat-developer/observability-operator/v3/controllers/reconcilers/configuration/grafana.go" \
 	-e "github.com/redhat-developer/observability-operator/v3/controllers/reconcilers/configuration/promtail.go" \
+	-e "github.com/redhat-developer/observability-operator/v3/controllers/reconcilers/token/token_reconciler.go" \
 	cover.out.tmp > cover.out
 	rm cover.out.tmp
 
