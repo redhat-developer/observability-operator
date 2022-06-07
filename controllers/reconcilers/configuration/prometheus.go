@@ -68,7 +68,7 @@ func (r *Reconciler) fetchFederationConfigs(cr *v1.Observability, indexes []v1.R
 		}
 
 		for _, pattern := range indexConfig.Match {
-			if hasPattern(pattern) == false {
+			if !hasPattern(pattern) {
 				result = append(result, fmt.Sprintf("'%s'", pattern))
 			}
 		}
@@ -511,9 +511,22 @@ func getPrometheusStorageSpecHelper(cr *v1.Observability, indexes []v1.Repositor
 	if customStorageSize == "" {
 		return prometheusStorageSpec, nil
 	}
-
-	_, err := resource.ParseQuantity(customStorageSize) //check if resources value is valid
-	return cr.Spec.Storage.PrometheusStorageSpec, err
+	parsedQuantity, err := resource.ParseQuantity(customStorageSize) //check if resources value is valid
+	if err == nil {
+		prometheusStorageSpec = &prometheusv1.StorageSpec{
+			VolumeClaimTemplate: prometheusv1.EmbeddedPersistentVolumeClaim{
+				EmbeddedObjectMetadata: prometheusv1.EmbeddedObjectMetadata{
+					Name: "managed-services",
+				},
+				Spec: kv1.PersistentVolumeClaimSpec{
+					Resources: kv1.ResourceRequirements{
+						Requests: map[kv1.ResourceName]resource.Quantity{kv1.ResourceStorage: parsedQuantity},
+					},
+				},
+			},
+		}
+	}
+	return prometheusStorageSpec, err
 }
 
 func getRetentionHelper(cr *v1.Observability) string {

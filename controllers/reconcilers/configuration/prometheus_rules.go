@@ -3,6 +3,7 @@ package configuration
 import (
 	"context"
 	"fmt"
+
 	"github.com/ghodss/yaml"
 	v12 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
 	v1 "github.com/redhat-developer/observability-operator/v3/api/v1"
@@ -69,7 +70,7 @@ func (r *Reconciler) deleteUnrequestedRules(cr *v1.Observability, ctx context.Co
 	// Check which rules are no longer requested and
 	// delete them
 	for _, rule := range existingRules.Items {
-		if isRequested(rule.Name) == false {
+		if !isRequested(rule.Name) {
 			err = r.client.Delete(ctx, rule)
 			if err != nil {
 				return err
@@ -115,7 +116,7 @@ func (r *Reconciler) createRequestedRules(cr *v1.Observability, ctx context.Cont
 
 func (r *Reconciler) createDMSAlert(cr *v1.Observability, ctx context.Context) error {
 	// Only create the DMS alert if repo sync is disabled
-	if cr.Spec.SelfContained.DisableRepoSync == nil || *cr.Spec.SelfContained.DisableRepoSync == false {
+	if cr.Spec.SelfContained.DisableRepoSync == nil || !*cr.Spec.SelfContained.DisableRepoSync {
 		return nil
 	}
 

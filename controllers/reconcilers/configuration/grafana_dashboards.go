@@ -3,16 +3,17 @@ package configuration
 import (
 	"context"
 	"fmt"
+	"io/ioutil"
+	"net/http"
+	url2 "net/url"
+	"strings"
+
 	"github.com/ghodss/yaml"
 	"github.com/integr8ly/grafana-operator/v3/pkg/apis/integreatly/v1alpha1"
 	v1 "github.com/redhat-developer/observability-operator/v3/api/v1"
-	"io/ioutil"
 	"k8s.io/apimachinery/pkg/types"
-	"net/http"
-	url2 "net/url"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
-	"strings"
 )
 
 type SourceType int
@@ -86,7 +87,7 @@ func (r *Reconciler) deleteUnrequestedDashboards(cr *v1.Observability, ctx conte
 	// Check which dashboards are no longer requested and
 	// delete them
 	for _, dashboard := range existingDashboards.Items {
-		if isRequested(dashboard.Name) == false {
+		if !isRequested(dashboard.Name) {
 			err = r.client.Delete(ctx, &dashboard)
 			if err != nil {
 				return err
