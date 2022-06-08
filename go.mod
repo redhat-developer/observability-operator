@@ -40,7 +40,7 @@ require (
 
 replace k8s.io/client-go => k8s.io/client-go v0.19.2
 
-replace github.com/opencontainers/runc => github.com/opencontainers/runc v1.0.3
+replace github.com/opencontainers/runc => github.com/opencontainers/runc v1.1.2
 
 replace github.com/containerd/containerd => github.com/containerd/containerd v1.4.13
 
