@@ -17,7 +17,7 @@ func (r *Reconciler) reconcileGrafanaCr(ctx context.Context, cr *v1.Observabilit
 
 	var f = false
 	var t = true
-	version := model.GetGrafanaVersion(cr, indexes)
+	version := model.GetGrafanaVersion(indexes)
 
 	_, err := controllerutil.CreateOrUpdate(ctx, r.client, grafana, func() error {
 		grafana.Spec = v1alpha1.GrafanaSpec{
