@@ -118,14 +118,14 @@ func GetGrafanaResourceRequirement(cr *v1.Observability) *v14.ResourceRequiremen
 	return &v14.ResourceRequirements{}
 }
 
-func GetGrafanaVersion(cr *v1.Observability, indexes []v1.RepositoryIndex) string {
-	if cr.Spec.SelfContained != nil && cr.Spec.SelfContained.GrafanaVersion != nil {
-		config := indexes[0].Config
+func GetGrafanaVersion(indexes []v1.RepositoryIndex) string {
+	config := indexes[0].Config
+	if config.Grafana.GrafanaVersion != "" {
 		return config.Grafana.GrafanaVersion
+	} else {
+		return "7.3.10"
 	}
-	return "7.3.10"
 }
-
 
 func GetGrafanaOperatorResourceRequirement(cr *v1.Observability) v14.ResourceRequirements {
 	if cr.Spec.SelfContained != nil {
