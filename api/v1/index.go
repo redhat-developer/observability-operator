@@ -17,6 +17,7 @@ type RepositoryInfo struct {
 type GrafanaIndex struct {
 	Dashboards             []string           `json:"dashboards"`
 	DashboardLabelSelector *v13.LabelSelector `json:"dashboardLabelSelector,omitempty"`
+	GrafanaVersion         string             `json:"grafanaVersion,omitempty"`
 }
 
 type DexConfig struct {

@@ -17,6 +17,7 @@ func (r *Reconciler) reconcileGrafanaCr(ctx context.Context, cr *v1.Observabilit
 
 	var f = false
 	var t = true
+	version := model.GetGrafanaVersion(cr, indexes)
 
 	_, err := controllerutil.CreateOrUpdate(ctx, r.client, grafana, func() error {
 		grafana.Spec = v1alpha1.GrafanaSpec{
@@ -79,6 +80,7 @@ func (r *Reconciler) reconcileGrafanaCr(ctx context.Context, cr *v1.Observabilit
 					},
 				},
 			},
+			BaseImage: "docker.io/grafana/grafana:" + version,
 			DashboardLabelSelector: []*metav1.LabelSelector{
 				model.GetGrafanaDashboardLabelSelectors(cr, indexes),
 			},
