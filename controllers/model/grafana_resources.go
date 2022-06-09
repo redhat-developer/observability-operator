@@ -122,8 +122,8 @@ func GetGrafanaVersion(indexes []v1.RepositoryIndex) string {
 	config := indexes[0].Config
 	if config.Grafana.GrafanaVersion != "" {
 		return config.Grafana.GrafanaVersion
-	} else {
-		return "7.3.10"
+	}else{
+		return ""
 	}
 }
 
