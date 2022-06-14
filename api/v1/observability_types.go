@@ -87,7 +87,6 @@ type SelfContained struct {
 	PrometheusOperatorResourceRequirement v1.ResourceRequirements  `json:"prometheusOperatorResourceRequirement,omitempty"`
 	GrafanaResourceRequirement            *v1.ResourceRequirements `json:"grafanaResourceRequirement,omitempty"`
 	GrafanaOperatorResourceRequirement    v1.ResourceRequirements  `json:"grafanaOperatorResourceRequirement,omitempty"`
-	GrafanaVersion                        string                   `json:"grafanaVersion,omitempty"`
 }
 
 // ObservabilitySpec defines the desired state of Observability
