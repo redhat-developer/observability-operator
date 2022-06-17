@@ -3,6 +3,7 @@ package configuration
 import (
 	"context"
 
+	"github.com/blang/semver"
 	"github.com/integr8ly/grafana-operator/v3/pkg/apis/integreatly/v1alpha1"
 	v1 "github.com/redhat-developer/observability-operator/v3/api/v1"
 	"github.com/redhat-developer/observability-operator/v3/controllers/model"
@@ -18,9 +19,10 @@ func (r *Reconciler) reconcileGrafanaCr(ctx context.Context, cr *v1.Observabilit
 	var f = false
 	var t = true
 
-	version := "docker.io/grafana/grafana:" + model.GetGrafanaVersion(indexes)
-	if version == "docker.io/grafana/grafana:" {
-		version = ""
+	specVer, verError := semver.ParseTolerant(model.GetGrafanaVersion(indexes))
+	version := ""
+	if specVer.String() != "0.0.0" && verError == nil {
+		version = "docker.io/grafana/grafana:" + specVer.String()
 	}
 
 	_, err := controllerutil.CreateOrUpdate(ctx, r.client, grafana, func() error {
