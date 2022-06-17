@@ -119,9 +119,11 @@ func GetGrafanaResourceRequirement(cr *v1.Observability) *v14.ResourceRequiremen
 }
 
 func GetGrafanaVersion(indexes []v1.RepositoryIndex) string {
-	config := indexes[0].Config
-	if config != nil && config.Grafana.GrafanaVersion != "" {
-		return config.Grafana.GrafanaVersion
+	if len(indexes) > 0 {
+		config := indexes[0].Config
+		if config != nil && config.Grafana.GrafanaVersion != "" {
+			return config.Grafana.GrafanaVersion
+		}
 	}
 	return ""
 }
