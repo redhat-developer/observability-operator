@@ -1,0 +1,11 @@
+comment:
+  layout: "reach, diff, files"
+
+coverage:
+  status:
+    project:
+      default:
+        informational: true
+    patch:
+      default:
+        informational: true
