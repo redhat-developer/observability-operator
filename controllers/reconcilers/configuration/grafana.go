@@ -13,6 +13,10 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
 
+const (
+	GrafanaBaseImage = "docker.io/grafana/grafana:"
+)
+
 func (r *Reconciler) reconcileGrafanaCr(ctx context.Context, cr *v1.Observability, indexes []v1.RepositoryIndex) error {
 	grafana := model.GetGrafanaCr(cr)
 
@@ -20,9 +24,9 @@ func (r *Reconciler) reconcileGrafanaCr(ctx context.Context, cr *v1.Observabilit
 	var t = true
 
 	specVer, verError := semver.ParseTolerant(model.GetGrafanaVersion(indexes))
-	version := ""
+	GrafanaImage := ""
 	if specVer.String() != "0.0.0" && verError == nil {
-		version = "docker.io/grafana/grafana:" + specVer.String()
+		GrafanaImage = GrafanaBaseImage + specVer.String()
 	}
 
 	_, err := controllerutil.CreateOrUpdate(ctx, r.client, grafana, func() error {
@@ -86,7 +90,7 @@ func (r *Reconciler) reconcileGrafanaCr(ctx context.Context, cr *v1.Observabilit
 					},
 				},
 			},
-			BaseImage: version,
+			BaseImage: GrafanaImage,
 			DashboardLabelSelector: []*metav1.LabelSelector{
 				model.GetGrafanaDashboardLabelSelectors(cr, indexes),
 			},
