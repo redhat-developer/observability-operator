@@ -90,7 +90,7 @@ func (in *Observability) ValidateUpdate(old runtime.Object) error {
 	if oldObsSpec.GrafanaDefaultName == "" &&
 		newObsSpec.GrafanaDefaultName != "" &&
 		// Special case: Allow updates iff the deprecated default name is used.
-		strings.Compare(newObsSpec.AlertManagerDefaultName, "kafka-grafana") != 0 {
+		strings.Compare(newObsSpec.GrafanaDefaultName, "kafka-grafana") != 0 {
 		return errors.New("cannot set GrafanaDefaultName after cr creation")
 	}
 
@@ -109,7 +109,7 @@ func (in *Observability) ValidateUpdate(old runtime.Object) error {
 	if oldObsSpec.PrometheusDefaultName == "" &&
 		newObsSpec.PrometheusDefaultName != "" &&
 		// Special case: Allow updates if, and only if, the deprecated default name is used.
-		strings.Compare(newObsSpec.AlertManagerDefaultName, "kafka-prometheus") != 0 {
+		strings.Compare(newObsSpec.PrometheusDefaultName, "kafka-prometheus") != 0 {
 		return errors.New("cannot set PrometheusDefaultName after cr creation")
 	}
 
