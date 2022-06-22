@@ -70,7 +70,7 @@ func (in *Observability) ValidateUpdate(old runtime.Object) error {
 
 	if oldObsSpec.AlertManagerDefaultName == "" &&
 		newObsSpec.AlertManagerDefaultName != "" &&
-		// Special case: Allow updates iff the deprecated default name is used.
+		// Special case: Allow updates if, and only if, the deprecated default name is used.
 		strings.Compare(newObsSpec.AlertManagerDefaultName, "kafka-alertmanager") != 0 {
 		return errors.New("cannot set AlertManagerDefaultName after cr creation")
 	}
@@ -108,7 +108,7 @@ func (in *Observability) ValidateUpdate(old runtime.Object) error {
 
 	if oldObsSpec.PrometheusDefaultName == "" &&
 		newObsSpec.PrometheusDefaultName != "" &&
-		// Special case: Allow updates iff the deprecated default name is used.
+		// Special case: Allow updates if, and only if, the deprecated default name is used.
 		strings.Compare(newObsSpec.AlertManagerDefaultName, "kafka-prometheus") != 0 {
 		return errors.New("cannot set PrometheusDefaultName after cr creation")
 	}
