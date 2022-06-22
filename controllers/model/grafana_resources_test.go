@@ -17,6 +17,16 @@ var (
 	defaultGrafanaName         = "kafka-grafana"
 	objectMetaWithNamespace    = v12.ObjectMeta{Namespace: testNamespace}
 	labelSelectorWithNamespace = &v12.LabelSelector{MatchLabels: map[string]string{"namespace": "test"}}
+	testRepoConfig             = []v1.RepositoryIndex{
+		{
+			Config: &v1.RepositoryConfig{
+				Grafana: &v1.GrafanaIndex{
+					DashboardLabelSelector: labelSelectorWithNamespace,
+					GrafanaVersion:         "8.4.1",
+				},
+			},
+		},
+	}
 )
 
 func TestGrafanaResources_GetDefaultNameGrafana(t *testing.T) {
@@ -87,6 +97,41 @@ func TestGrafanaResources_GetGrafanaCatalogSource(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result := GetGrafanaCatalogSource(tt.args.cr)
+			Expect(result).To(Equal(tt.want))
+		})
+	}
+}
+
+func TestGrafanaResources_GetGrafanaVersion(t *testing.T) {
+	type args struct {
+		indexes []v1.RepositoryIndex
+	}
+
+	tests := []struct {
+		name string
+		args args
+		want string
+	}{
+		{
+			name: "returns empty string if no version is declared in the Repository Index",
+			args: args{
+				indexes: []v1.RepositoryIndex{},
+			},
+			want: "",
+		},
+		{
+			name: "return version specified in the Repository Index",
+			args: args{
+				indexes: testRepoConfig,
+			},
+			want: "8.4.1",
+		},
+	}
+
+	RegisterTestingT(t)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := GetGrafanaVersion(tt.args.indexes)
 			Expect(result).To(Equal(tt.want))
 		})
 	}

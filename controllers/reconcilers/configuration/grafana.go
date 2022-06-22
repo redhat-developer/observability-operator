@@ -3,6 +3,7 @@ package configuration
 import (
 	"context"
 
+	"github.com/blang/semver"
 	"github.com/integr8ly/grafana-operator/v3/pkg/apis/integreatly/v1alpha1"
 	v1 "github.com/redhat-developer/observability-operator/v3/api/v1"
 	"github.com/redhat-developer/observability-operator/v3/controllers/model"
@@ -12,11 +13,21 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
 
+const (
+	GrafanaBaseImage = "docker.io/grafana/grafana:"
+)
+
 func (r *Reconciler) reconcileGrafanaCr(ctx context.Context, cr *v1.Observability, indexes []v1.RepositoryIndex) error {
 	grafana := model.GetGrafanaCr(cr)
 
 	var f = false
 	var t = true
+
+	specVer, verError := semver.ParseTolerant(model.GetGrafanaVersion(indexes))
+	GrafanaImage := ""
+	if specVer.String() != "0.0.0" && verError == nil {
+		GrafanaImage = GrafanaBaseImage + specVer.String()
+	}
 
 	_, err := controllerutil.CreateOrUpdate(ctx, r.client, grafana, func() error {
 		grafana.Spec = v1alpha1.GrafanaSpec{
@@ -79,6 +90,7 @@ func (r *Reconciler) reconcileGrafanaCr(ctx context.Context, cr *v1.Observabilit
 					},
 				},
 			},
+			BaseImage: GrafanaImage,
 			DashboardLabelSelector: []*metav1.LabelSelector{
 				model.GetGrafanaDashboardLabelSelectors(cr, indexes),
 			},
