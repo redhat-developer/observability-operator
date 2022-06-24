@@ -13,69 +13,6 @@ const (
 	InvalidVersionString = "invalid"
 )
 
-func TestReconcilerUtils_HasNewerOrSameClusterVersion(t *testing.T) {
-	type args struct {
-		test      string
-		compareTo string
-	}
-
-	tests := []struct {
-		name    string
-		args    args
-		want    bool
-		wantErr bool
-	}{
-		{
-			name: "error when compareTo is NOT valid version",
-			args: args{
-				test:      ValidVersionString,
-				compareTo: InvalidVersionString,
-			},
-			wantErr: true,
-		},
-		{
-			name: "error when test is NOT valid version",
-			args: args{
-				test:      InvalidVersionString,
-				compareTo: ValidVersionString,
-			},
-			wantErr: true,
-		},
-		{
-			name: "return true when test version major is greater than compareTo version major",
-			args: args{
-				test:      "4.0.0",
-				compareTo: ValidVersionString,
-			},
-			want: true,
-		},
-		{
-			name: "return true when test version minor is greater than or equal to compareTo version minor",
-			args: args{
-				test:      "3.1.5",
-				compareTo: ValidVersionString,
-			},
-			want: true,
-		},
-		{
-			name: "return false when test version minor is less than compareTo version minor",
-			args: args{
-				test:      "3.0.5",
-				compareTo: ValidVersionString,
-			},
-		},
-	}
-
-	g := NewWithT(t)
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result, err := HasNewerOrSameClusterMinorVersion(tt.args.test, tt.args.compareTo)
-			g.Expect(err != nil).To(Equal(tt.wantErr))
-			g.Expect(result).To(Equal(tt.want))
-		})
-	}
-}
-
 func TestReconcilerUtils_IsRouteReady(t *testing.T) {
 	type args struct {
 		route *routev1.Route
