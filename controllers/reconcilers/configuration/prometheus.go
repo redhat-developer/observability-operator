@@ -17,17 +17,29 @@ import (
 	kv1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
-	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
 
 const (
-	PrometheusBaseImage       = "quay.io/prometheus/prometheus"
-	PrometheusRetention       = "45d"
-	OpenshiftVersionToCompare = "4.10.0"
+	PrometheusBaseImage = "quay.io/prometheus/prometheus"
+	PrometheusRetention = "45d"
 )
+
+type datasourceSecureData struct {
+	BasicAuthPassword string `json:"basicAuthPassword,omitempty"`
+}
+type datasource struct {
+	BasicAuthUser     string `json:"basicAuthUser"`
+	BasicAuthPassword string `json:"basicAuthPassword,omitempty"`
+	//secureJsonData is used in grafana-datasources-v2 secret
+	SecureJsonData datasourceSecureData `json:"secureJsonData,omitempty"`
+}
+
+type datasources struct {
+	Sources []datasource `json:"datasources"`
+}
 
 func (r *Reconciler) fetchFederationConfigs(cr *v1.Observability, indexes []v1.RepositoryIndex) ([]string, error) {
 	var result []string
@@ -124,82 +136,46 @@ func (r *Reconciler) createAdditionalScrapeConfigSecret(cr *v1.Observability, ct
 }
 
 func (r *Reconciler) getOpenshiftMonitoringCredentials(ctx context.Context) (string, string, error) {
-	secret := &kv1.Secret{}
-	var isDatasourceV2 bool
-
-	currentOSVersionString, err := utils.GetClusterOSVersion(ctx, r.client)
+	secret, err := r.getGrafanaDatasourcesSecret(ctx)
 	if err != nil {
-		return "", "", err
-	}
-	//this checks if Openshift 4.10+ is present as grafana-datasources secret data in v4.10+ has different structure to previous versions
-	isDatasourceV2, err = utils.HasNewerOrSameClusterMinorVersion(currentOSVersionString, OpenshiftVersionToCompare)
-	if err != nil {
-		return "", "", err
-	}
-
-	secretName := "grafana-datasources-v2"
-	if !isDatasourceV2 {
-		secretName = "grafana-datasources"
-	}
-	selector := client.ObjectKey{
-		Namespace: "openshift-monitoring",
-		Name:      secretName,
-	}
-	err = r.client.Get(ctx, selector, secret)
-	if err != nil {
+		r.logger.Error(err, "unable to find grafana datasources secret")
 		return "", "", err
 	}
 
 	// It says yaml but it's actually json
 	j := secret.Data["prometheus.yaml"]
-
-	//secureJsonData is used in grafana-datasources-v2 secret
-	type datasourceSecureData struct {
-		BasicAuthPassword string `json:"basicAuthPassword,omitempty"`
-	}
-	type datasource struct {
-		BasicAuthUser     string               `json:"basicAuthUser"`
-		BasicAuthPassword string               `json:"basicAuthPassword,omitempty"`
-		SecureJsonData    datasourceSecureData `json:"secureJsonData,omitempty"`
-	}
-
-	type datasources struct {
-		Sources []datasource `json:"datasources"`
-	}
-
 	ds := &datasources{}
 	err = json.Unmarshal(j, ds)
 	if err != nil {
 		return "", "", err
 	}
 
-	if !isDatasourceV2 {
+	if secret.Name == "grafana-datasources" {
 		return ds.Sources[0].BasicAuthUser, ds.Sources[0].BasicAuthPassword, nil
 	}
 	return ds.Sources[0].BasicAuthUser, ds.Sources[0].SecureJsonData.BasicAuthPassword, nil
 }
 
-func (r *Reconciler) getTokenSecrets(ctx context.Context, cr *v1.Observability) ([]string, error) {
-	list := &kv1.SecretList{}
-	opts := &client.ListOptions{
-		LabelSelector: labels.SelectorFromSet(map[string]string{
-			"managed-by": "observability-operator",
-			"purpose":    "observatorium-token-secret",
-		}),
-		Namespace: cr.Namespace,
+// grafana-datasources secret can have 2 different names/structures so need to check for correct secret
+func (r *Reconciler) getGrafanaDatasourcesSecret(ctx context.Context) (*kv1.Secret, error) {
+	secret := &kv1.Secret{}
+	selector := &client.ObjectKey{
+		Namespace: "openshift-monitoring",
+		Name:      "grafana-datasources-v2",
 	}
 
-	err := r.client.List(ctx, list, opts)
+	//check if grafana-datasources-v2 exists
+	err := r.client.Get(ctx, *selector, secret)
 	if err != nil {
-		return nil, err
+		//check if grafana-datasources exists
+		selector.Name = "grafana-datasources"
+		err = r.client.Get(ctx, *selector, secret)
+		if err != nil {
+			return nil, err
+		}
 	}
 
-	var result []string
-	for _, secret := range list.Items {
-		result = append(result, secret.Name)
-	}
-
-	return result, nil
+	return secret, nil
 }
 
 func (r *Reconciler) getRemoteWriteIndex(index v1.RepositoryIndex) (*v1.RemoteWriteIndex, error) {

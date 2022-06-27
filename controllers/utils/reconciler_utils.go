@@ -5,7 +5,6 @@ import (
 	"crypto/rand"
 	"encoding/base64"
 
-	"github.com/blang/semver"
 	v13 "github.com/openshift/api/config/v1"
 	routev1 "github.com/openshift/api/route/v1"
 	v12 "github.com/operator-framework/api/pkg/operators/v1"
@@ -40,27 +39,6 @@ func GetClusterOSVersion(ctx context.Context, client k8sclient.Client) (string, 
 		return "", err
 	}
 	return v.Status.Desired.Version, nil
-}
-
-//returns true if test cluster version string is same or newer than compareTo version string
-func HasNewerOrSameClusterMinorVersion(test string, compareTo string) (bool, error) {
-	var testVersion semver.Version
-	compareToVersion, err := semver.Make(compareTo)
-	if err != nil {
-		return false, err
-	}
-	testVersion, err = semver.Make(test)
-	if err != nil {
-		return false, err
-	}
-
-	if testVersion.Major > compareToVersion.Major {
-		return true, nil
-	} else if testVersion.Major == compareToVersion.Major && testVersion.Minor >= compareToVersion.Minor {
-		return true, nil
-	}
-
-	return false, nil
 }
 
 // We need to figure out if a sync set needs to be created
