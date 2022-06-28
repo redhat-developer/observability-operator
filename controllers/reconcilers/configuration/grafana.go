@@ -23,7 +23,7 @@ func (r *Reconciler) reconcileGrafanaCr(ctx context.Context, cr *v1.Observabilit
 	var f = false
 	var t = true
 
-	specVer, verError := semver.ParseTolerant(model.GetGrafanaVersion(indexes))
+	specVer, verError := semver.ParseTolerant(model.GetGrafanaVersion(indexes, cr))
 	GrafanaImage := ""
 	if specVer.String() != "0.0.0" && verError == nil {
 		GrafanaImage = GrafanaBaseImage + specVer.String()
