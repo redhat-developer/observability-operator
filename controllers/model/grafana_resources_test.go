@@ -105,6 +105,7 @@ func TestGrafanaResources_GetGrafanaCatalogSource(t *testing.T) {
 func TestGrafanaResources_GetGrafanaVersion(t *testing.T) {
 	type args struct {
 		indexes []v1.RepositoryIndex
+		cr      *v1.Observability
 	}
 
 	tests := []struct {
@@ -115,6 +116,7 @@ func TestGrafanaResources_GetGrafanaVersion(t *testing.T) {
 		{
 			name: "returns empty string if no version is declared in the Repository Index",
 			args: args{
+				cr:      buildObservabilityCR(nil),
 				indexes: []v1.RepositoryIndex{},
 			},
 			want: "",
@@ -123,15 +125,36 @@ func TestGrafanaResources_GetGrafanaVersion(t *testing.T) {
 			name: "return version specified in the Repository Index",
 			args: args{
 				indexes: testRepoConfig,
+				cr:      buildObservabilityCR(nil),
 			},
 			want: "8.4.1",
+		},
+		{
+			name: "returns empty string if no version is declared in the Repository Index",
+			args: args{
+				cr: buildObservabilityCR(func(obsCR *v1.Observability) {
+					obsCR.Spec.SelfContained = &v1.SelfContained{}
+					obsCR.Spec.SelfContained.GrafanaVersion = "8.4.1"
+				}),
+			},
+			want: "8.4.1",
+		},
+		{
+			name: "return version specified in SelfContained",
+			args: args{
+				cr: buildObservabilityCR(func(obsCR *v1.Observability) {
+					obsCR.Spec.SelfContained = &v1.SelfContained{}
+					obsCR.Spec.SelfContained.GrafanaVersion = ""
+				}),
+			},
+			want: "",
 		},
 	}
 
 	RegisterTestingT(t)
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := GetGrafanaVersion(tt.args.indexes)
+			result := GetGrafanaVersion(tt.args.indexes, tt.args.cr)
 			Expect(result).To(Equal(tt.want))
 		})
 	}
