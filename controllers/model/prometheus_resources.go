@@ -27,7 +27,7 @@ var defaultPrometheusLabelSelectors = map[string]string{"app": "strimzi"}
 const (
 	PrometheusVersion        = "v2.22.2"
 	PrometheusDefaultStorage = "250Gi"
-	PrometheusOldRouteName   = "kafka-prometheus"
+	PrometheusOldDefaultName = "kafka-prometheus"
 )
 
 func GetPrometheusNamespace(cr *v1.Observability) *v13.Namespace {
