@@ -483,6 +483,10 @@ func (r *Reconciler) reconcilePrometheus(ctx context.Context, cr *v1.Observabili
 //construct Prometheus storage spec with either default or override value from resources
 func getPrometheusStorageSpecHelper(cr *v1.Observability, indexes []v1.RepositoryIndex) (*prometheusv1.StorageSpec, error) {
 	prometheusStorageSpec := cr.Spec.Storage.PrometheusStorageSpec
+	if cr.ExternalSyncDisabled() {
+		return prometheusStorageSpec, nil
+	}
+
 	customStorageSize := model.GetPrometheusStorageSize(cr, indexes)
 	if customStorageSize == "" {
 		return prometheusStorageSpec, nil
