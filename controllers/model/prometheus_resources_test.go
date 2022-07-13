@@ -20,7 +20,7 @@ var (
 	defaultPrometheusName              = "kafka-prometheus"
 	serviceAccountPrometheusAnnotation = map[string]string{"serviceaccounts.openshift.io/oauth-redirectreference.primary": "{\"kind\":\"OAuthRedirectReference\",\"apiVersion\":\"v1\",\"reference\":{\"kind\":\"Route\",\"name\":\"kafka-prometheus\"}}"}
 	testPattern                        = []string{"test1", "test2"}
-	testFederationConfig               = `
+	testFederationConfigBasicAuth      = `
 - job_name: openshift-monitoring-federation
   honor_labels: true
   kubernetes_sd_configs:
@@ -47,8 +47,34 @@ var (
     username: testuser
     password: testpass
 `
-	configAsByteArray = []byte(testFederationConfig)
-	testRepoIndexes   = []v1.RepositoryIndex{
+	testFederationConfigBearerToken = `
+- job_name: openshift-monitoring-federation
+  honor_labels: true
+  kubernetes_sd_configs:
+    - role: service
+      namespaces:
+        names:
+          - openshift-monitoring
+  scrape_interval: 120s
+  scrape_timeout: 60s
+  metrics_path: /federate
+  relabel_configs:
+    - action: keep
+      source_labels: [ '__meta_kubernetes_service_name' ]
+      regex: prometheus-k8s
+    - action: keep
+      source_labels: [ '__meta_kubernetes_service_port_name' ]
+      regex: web
+  params:
+    match[]: [test1,test2]
+  scheme: https
+  bearer_token_file: "/var/run/secrets/kubernetes.io/serviceaccount/token"
+  tls_config:
+    insecure_skip_verify: true
+`
+	configAsByteArrayBasicAuth   = []byte(testFederationConfigBasicAuth)
+	configAsByteArrayBearerToken = []byte(testFederationConfigBearerToken)
+	testRepoIndexes              = []v1.RepositoryIndex{
 		{
 			Config: &v1.RepositoryConfig{
 				Grafana: &v1.GrafanaIndex{
@@ -482,7 +508,7 @@ func TestPrometheusResources_GetPrometheusRoute(t *testing.T) {
 	}
 }
 
-func TestPrometheusResources_GetFederationConfig(t *testing.T) {
+func TestPrometheusResources_GetFederationConfigBasicAuth(t *testing.T) {
 	type args struct {
 		user     string
 		pass     string
@@ -503,14 +529,45 @@ func TestPrometheusResources_GetFederationConfig(t *testing.T) {
 				patterns: testPattern,
 			},
 			wantErr: false,
-			want:    configAsByteArray,
+			want:    configAsByteArrayBasicAuth,
 		},
 	}
 
 	RegisterTestingT(t)
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result, err := GetFederationConfig(tt.args.user, tt.args.pass, tt.args.patterns)
+			result, err := GetFederationConfigBasicAuth(tt.args.user, tt.args.pass, tt.args.patterns)
+			Expect(err != nil).To(Equal(tt.wantErr))
+			Expect(result).To(Equal(tt.want))
+		})
+	}
+}
+
+func TestPrometheusResources_GetFederationConfigBearerToken(t *testing.T) {
+	type args struct {
+		patterns []string
+	}
+
+	tests := []struct {
+		name    string
+		args    args
+		wantErr bool
+		want    []byte
+	}{
+		{
+			name: "returns correct federation config with no error",
+			args: args{
+				patterns: testPattern,
+			},
+			wantErr: false,
+			want:    configAsByteArrayBearerToken,
+		},
+	}
+
+	RegisterTestingT(t)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result, err := GetFederationConfigBearerToken(tt.args.patterns)
 			Expect(err != nil).To(Equal(tt.wantErr))
 			Expect(result).To(Equal(tt.want))
 		})

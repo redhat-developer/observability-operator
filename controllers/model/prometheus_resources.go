@@ -139,7 +139,7 @@ func GetPrometheusRoute(cr *v1.Observability) *routev1.Route {
 	}
 }
 
-func GetFederationConfig(user, pass string, patterns []string) ([]byte, error) {
+func GetFederationConfigBasicAuth(user, pass string, patterns []string) ([]byte, error) {
 	const config = `
 - job_name: openshift-monitoring-federation
   honor_labels: true
@@ -177,6 +177,45 @@ func GetFederationConfig(user, pass string, patterns []string) ([]byte, error) {
 	}{
 		User:     user,
 		Pass:     pass,
+		Patterns: strings.Join(patterns, ","),
+	})
+
+	return buffer.Bytes(), err
+}
+
+func GetFederationConfigBearerToken(patterns []string) ([]byte, error) {
+	fmt.Println("gotFedconfig")
+	const config = `
+- job_name: openshift-monitoring-federation
+  honor_labels: true
+  kubernetes_sd_configs:
+    - role: service
+      namespaces:
+        names:
+          - openshift-monitoring
+  scrape_interval: 120s
+  scrape_timeout: 60s
+  metrics_path: /federate
+  relabel_configs:
+    - action: keep
+      source_labels: [ '__meta_kubernetes_service_name' ]
+      regex: prometheus-k8s
+    - action: keep
+      source_labels: [ '__meta_kubernetes_service_port_name' ]
+      regex: web
+  params:
+    match[]: [{{ .Patterns }}]
+  scheme: https
+  bearer_token_file: "/var/run/secrets/kubernetes.io/serviceaccount/token"
+  tls_config:
+    insecure_skip_verify: true
+`
+
+	template := t.Must(t.New("template").Parse(config))
+	var buffer bytes.Buffer
+	err := template.Execute(&buffer, struct {
+		Patterns string
+	}{
 		Patterns: strings.Join(patterns, ","),
 	})
 

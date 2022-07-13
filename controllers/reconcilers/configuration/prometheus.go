@@ -110,12 +110,17 @@ func (r *Reconciler) createBlackBoxConfig(cr *v1.Observability, ctx context.Cont
 func (r *Reconciler) createAdditionalScrapeConfigSecret(cr *v1.Observability, ctx context.Context, patterns []string) error {
 	secret := model.GetPrometheusAdditionalScrapeConfig(cr)
 
-	user, password, err := r.getOpenshiftMonitoringCredentials(ctx)
-	if err != nil {
-		return err
+	user, password, _ := r.getOpenshiftMonitoringCredentials(ctx)
+
+	var federationConfig []byte
+	var err error
+	// If we haven't found a user or password from a grafana secret fall back to using bearer token
+	if user != "" && password != "" {
+		federationConfig, err = model.GetFederationConfigBasicAuth(user, password, patterns)
+	} else {
+		federationConfig, err = model.GetFederationConfigBearerToken(patterns)
 	}
 
-	federationConfig, err := model.GetFederationConfig(user, password, patterns)
 	if err != nil {
 		return err
 	}
@@ -138,8 +143,8 @@ func (r *Reconciler) createAdditionalScrapeConfigSecret(cr *v1.Observability, ct
 func (r *Reconciler) getOpenshiftMonitoringCredentials(ctx context.Context) (string, string, error) {
 	secret, err := r.getGrafanaDatasourcesSecret(ctx)
 	if err != nil {
-		r.logger.Error(err, "unable to find grafana datasources secret")
-		return "", "", err
+		r.logger.Info("unable to find grafana datasources secret")
+		return "", "", nil
 	}
 
 	// It says yaml but it's actually json
@@ -147,7 +152,7 @@ func (r *Reconciler) getOpenshiftMonitoringCredentials(ctx context.Context) (str
 	ds := &datasources{}
 	err = json.Unmarshal(j, ds)
 	if err != nil {
-		return "", "", err
+		return "", "", nil
 	}
 
 	if secret.Name == "grafana-datasources" {
