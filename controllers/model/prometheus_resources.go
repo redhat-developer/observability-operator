@@ -184,7 +184,6 @@ func GetFederationConfigBasicAuth(user, pass string, patterns []string) ([]byte,
 }
 
 func GetFederationConfigBearerToken(patterns []string) ([]byte, error) {
-	fmt.Println("gotFedconfig")
 	const config = `
 - job_name: openshift-monitoring-federation
   honor_labels: true
