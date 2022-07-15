@@ -20,34 +20,7 @@ var (
 	defaultPrometheusName              = "kafka-prometheus"
 	serviceAccountPrometheusAnnotation = map[string]string{"serviceaccounts.openshift.io/oauth-redirectreference.primary": "{\"kind\":\"OAuthRedirectReference\",\"apiVersion\":\"v1\",\"reference\":{\"kind\":\"Route\",\"name\":\"kafka-prometheus\"}}"}
 	testPattern                        = []string{"test1", "test2"}
-	testFederationConfigBasicAuth      = `
-- job_name: openshift-monitoring-federation
-  honor_labels: true
-  kubernetes_sd_configs:
-    - role: service
-      namespaces:
-        names:
-          - openshift-monitoring
-  scrape_interval: 120s
-  scrape_timeout: 60s
-  metrics_path: /federate
-  relabel_configs:
-    - action: keep
-      source_labels: [ '__meta_kubernetes_service_name' ]
-      regex: prometheus-k8s
-    - action: keep
-      source_labels: [ '__meta_kubernetes_service_port_name' ]
-      regex: web
-  params:
-    match[]: [test1,test2]
-  scheme: https
-  tls_config:
-    insecure_skip_verify: true
-  basic_auth:
-    username: testuser
-    password: testpass
-`
-	testFederationConfigBearerToken = `
+	testFederationConfigBearerToken    = `
 - job_name: openshift-monitoring-federation
   honor_labels: true
   kubernetes_sd_configs:
@@ -72,7 +45,6 @@ var (
   tls_config:
     insecure_skip_verify: true
 `
-	configAsByteArrayBasicAuth   = []byte(testFederationConfigBasicAuth)
 	configAsByteArrayBearerToken = []byte(testFederationConfigBearerToken)
 	testRepoIndexes              = []v1.RepositoryIndex{
 		{
@@ -503,41 +475,6 @@ func TestPrometheusResources_GetPrometheusRoute(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result := GetPrometheusRoute(tt.args.cr)
-			Expect(result).To(Equal(tt.want))
-		})
-	}
-}
-
-func TestPrometheusResources_GetFederationConfigBasicAuth(t *testing.T) {
-	type args struct {
-		user     string
-		pass     string
-		patterns []string
-	}
-
-	tests := []struct {
-		name    string
-		args    args
-		wantErr bool
-		want    []byte
-	}{
-		{
-			name: "returns correct federation config with no error",
-			args: args{
-				user:     "testuser",
-				pass:     "testpass",
-				patterns: testPattern,
-			},
-			wantErr: false,
-			want:    configAsByteArrayBasicAuth,
-		},
-	}
-
-	RegisterTestingT(t)
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result, err := GetFederationConfigBasicAuth(tt.args.user, tt.args.pass, tt.args.patterns)
-			Expect(err != nil).To(Equal(tt.wantErr))
 			Expect(result).To(Equal(tt.want))
 		})
 	}
