@@ -2,7 +2,6 @@ package configuration
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"regexp"
 
@@ -26,20 +25,6 @@ const (
 	PrometheusBaseImage = "quay.io/prometheus/prometheus"
 	PrometheusRetention = "45d"
 )
-
-type datasourceSecureData struct {
-	BasicAuthPassword string `json:"basicAuthPassword,omitempty"`
-}
-type datasource struct {
-	BasicAuthUser     string `json:"basicAuthUser"`
-	BasicAuthPassword string `json:"basicAuthPassword,omitempty"`
-	//secureJsonData is used in grafana-datasources-v2 secret
-	SecureJsonData datasourceSecureData `json:"secureJsonData,omitempty"`
-}
-
-type datasources struct {
-	Sources []datasource `json:"datasources"`
-}
 
 func (r *Reconciler) fetchFederationConfigs(cr *v1.Observability, indexes []v1.RepositoryIndex) ([]string, error) {
 	var result []string
@@ -109,13 +94,7 @@ func (r *Reconciler) createBlackBoxConfig(cr *v1.Observability, ctx context.Cont
 // This expects the aggregation of all federation configs across all indexes
 func (r *Reconciler) createAdditionalScrapeConfigSecret(cr *v1.Observability, ctx context.Context, patterns []string) error {
 	secret := model.GetPrometheusAdditionalScrapeConfig(cr)
-
-	user, password, err := r.getOpenshiftMonitoringCredentials(ctx)
-	if err != nil {
-		return err
-	}
-
-	federationConfig, err := model.GetFederationConfig(user, password, patterns)
+	federationConfig, err := model.GetFederationConfigBearerToken(patterns)
 	if err != nil {
 		return err
 	}
@@ -133,49 +112,6 @@ func (r *Reconciler) createAdditionalScrapeConfigSecret(cr *v1.Observability, ct
 	}
 
 	return nil
-}
-
-func (r *Reconciler) getOpenshiftMonitoringCredentials(ctx context.Context) (string, string, error) {
-	secret, err := r.getGrafanaDatasourcesSecret(ctx)
-	if err != nil {
-		r.logger.Error(err, "unable to find grafana datasources secret")
-		return "", "", err
-	}
-
-	// It says yaml but it's actually json
-	j := secret.Data["prometheus.yaml"]
-	ds := &datasources{}
-	err = json.Unmarshal(j, ds)
-	if err != nil {
-		return "", "", err
-	}
-
-	if secret.Name == "grafana-datasources" {
-		return ds.Sources[0].BasicAuthUser, ds.Sources[0].BasicAuthPassword, nil
-	}
-	return ds.Sources[0].BasicAuthUser, ds.Sources[0].SecureJsonData.BasicAuthPassword, nil
-}
-
-// grafana-datasources secret can have 2 different names/structures so need to check for correct secret
-func (r *Reconciler) getGrafanaDatasourcesSecret(ctx context.Context) (*kv1.Secret, error) {
-	secret := &kv1.Secret{}
-	selector := &client.ObjectKey{
-		Namespace: "openshift-monitoring",
-		Name:      "grafana-datasources-v2",
-	}
-
-	//check if grafana-datasources-v2 exists
-	err := r.client.Get(ctx, *selector, secret)
-	if err != nil {
-		//check if grafana-datasources exists
-		selector.Name = "grafana-datasources"
-		err = r.client.Get(ctx, *selector, secret)
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	return secret, nil
 }
 
 func (r *Reconciler) getRemoteWriteIndex(index v1.RepositoryIndex) (*v1.RemoteWriteIndex, error) {

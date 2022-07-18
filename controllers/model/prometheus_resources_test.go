@@ -20,7 +20,7 @@ var (
 	defaultPrometheusName              = "kafka-prometheus"
 	serviceAccountPrometheusAnnotation = map[string]string{"serviceaccounts.openshift.io/oauth-redirectreference.primary": "{\"kind\":\"OAuthRedirectReference\",\"apiVersion\":\"v1\",\"reference\":{\"kind\":\"Route\",\"name\":\"kafka-prometheus\"}}"}
 	testPattern                        = []string{"test1", "test2"}
-	testFederationConfig               = `
+	testFederationConfigBearerToken    = `
 - job_name: openshift-monitoring-federation
   honor_labels: true
   kubernetes_sd_configs:
@@ -41,14 +41,12 @@ var (
   params:
     match[]: [test1,test2]
   scheme: https
+  bearer_token_file: "/var/run/secrets/kubernetes.io/serviceaccount/token"
   tls_config:
     insecure_skip_verify: true
-  basic_auth:
-    username: testuser
-    password: testpass
 `
-	configAsByteArray = []byte(testFederationConfig)
-	testRepoIndexes   = []v1.RepositoryIndex{
+	configAsByteArrayBearerToken = []byte(testFederationConfigBearerToken)
+	testRepoIndexes              = []v1.RepositoryIndex{
 		{
 			Config: &v1.RepositoryConfig{
 				Grafana: &v1.GrafanaIndex{
@@ -482,10 +480,8 @@ func TestPrometheusResources_GetPrometheusRoute(t *testing.T) {
 	}
 }
 
-func TestPrometheusResources_GetFederationConfig(t *testing.T) {
+func TestPrometheusResources_GetFederationConfigBearerToken(t *testing.T) {
 	type args struct {
-		user     string
-		pass     string
 		patterns []string
 	}
 
@@ -498,19 +494,17 @@ func TestPrometheusResources_GetFederationConfig(t *testing.T) {
 		{
 			name: "returns correct federation config with no error",
 			args: args{
-				user:     "testuser",
-				pass:     "testpass",
 				patterns: testPattern,
 			},
 			wantErr: false,
-			want:    configAsByteArray,
+			want:    configAsByteArrayBearerToken,
 		},
 	}
 
 	RegisterTestingT(t)
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result, err := GetFederationConfig(tt.args.user, tt.args.pass, tt.args.patterns)
+			result, err := GetFederationConfigBearerToken(tt.args.patterns)
 			Expect(err != nil).To(Equal(tt.wantErr))
 			Expect(result).To(Equal(tt.want))
 		})

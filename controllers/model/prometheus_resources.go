@@ -139,7 +139,7 @@ func GetPrometheusRoute(cr *v1.Observability) *routev1.Route {
 	}
 }
 
-func GetFederationConfig(user, pass string, patterns []string) ([]byte, error) {
+func GetFederationConfigBearerToken(patterns []string) ([]byte, error) {
 	const config = `
 - job_name: openshift-monitoring-federation
   honor_labels: true
@@ -161,22 +161,16 @@ func GetFederationConfig(user, pass string, patterns []string) ([]byte, error) {
   params:
     match[]: [{{ .Patterns }}]
   scheme: https
+  bearer_token_file: "/var/run/secrets/kubernetes.io/serviceaccount/token"
   tls_config:
     insecure_skip_verify: true
-  basic_auth:
-    username: {{ .User }}
-    password: {{ .Pass }}
 `
 
 	template := t.Must(t.New("template").Parse(config))
 	var buffer bytes.Buffer
 	err := template.Execute(&buffer, struct {
-		User     string
-		Pass     string
 		Patterns string
 	}{
-		User:     user,
-		Pass:     pass,
 		Patterns: strings.Join(patterns, ","),
 	})
 
