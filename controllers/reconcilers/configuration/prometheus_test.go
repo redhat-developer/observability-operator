@@ -30,6 +30,20 @@ var (
 			},
 		},
 	}
+	crStorageSpec = &prometheusv1.StorageSpec{
+		VolumeClaimTemplate: prometheusv1.EmbeddedPersistentVolumeClaim{
+			EmbeddedObjectMetadata: prometheusv1.EmbeddedObjectMetadata{
+				Name: "managed-services",
+			},
+			Spec: kv1.PersistentVolumeClaimSpec{
+				Resources: kv1.ResourceRequirements{
+					Requests: map[kv1.ResourceName]resource.Quantity{
+						kv1.ResourceStorage: resource.MustParse("2Gi"),
+					},
+				},
+			},
+		},
+	}
 	overrideStorageSpec = &prometheusv1.StorageSpec{
 		VolumeClaimTemplate: prometheusv1.EmbeddedPersistentVolumeClaim{
 			EmbeddedObjectMetadata: prometheusv1.EmbeddedObjectMetadata{
@@ -44,10 +58,10 @@ var (
 			},
 		},
 	}
-	crStorageSpec = &prometheusv1.StorageSpec{
+	selfContainedStorageSpec = &prometheusv1.StorageSpec{
 		VolumeClaimTemplate: prometheusv1.EmbeddedPersistentVolumeClaim{
 			EmbeddedObjectMetadata: prometheusv1.EmbeddedObjectMetadata{
-				Name: "managed-services",
+				Name: "self-contained",
 			},
 			Spec: kv1.PersistentVolumeClaimSpec{
 				Resources: kv1.ResourceRequirements{
@@ -72,6 +86,30 @@ var (
 			},
 		},
 	}
+	selfContainedCR = &v1.Observability{
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: "test-namespace",
+		},
+		Spec: v1.ObservabilitySpec{
+			SelfContained: &v1.SelfContained{
+				DisableRepoSync: &([]bool{true})[0],
+			},
+			Storage: &v1.Storage{
+				PrometheusStorageSpec: &prometheusv1.StorageSpec{
+					VolumeClaimTemplate: prometheusv1.EmbeddedPersistentVolumeClaim{
+						EmbeddedObjectMetadata: prometheusv1.EmbeddedObjectMetadata{
+							Name: "self-contained",
+						},
+						Spec: kv1.PersistentVolumeClaimSpec{
+							Resources: kv1.ResourceRequirements{
+								Requests: map[kv1.ResourceName]resource.Quantity{kv1.ResourceStorage: resource.MustParse("2Gi")},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
 )
 
 func buildObservabilityCRForPrometheus(modifyFn func(obsCR *v1.Observability)) *v1.Observability {
@@ -84,9 +122,7 @@ func buildObservabilityCRForPrometheus(modifyFn func(obsCR *v1.Observability)) *
 			Storage: &v1.Storage{
 				PrometheusStorageSpec: &prometheusv1.StorageSpec{
 					VolumeClaimTemplate: prometheusv1.EmbeddedPersistentVolumeClaim{
-						EmbeddedObjectMetadata: prometheusv1.EmbeddedObjectMetadata{
-							Name: "managed-services",
-						},
+						EmbeddedObjectMetadata: prometheusv1.EmbeddedObjectMetadata{},
 						Spec: kv1.PersistentVolumeClaimSpec{
 							Resources: kv1.ResourceRequirements{
 								Requests: map[kv1.ResourceName]resource.Quantity{kv1.ResourceStorage: resource.MustParse("2Gi")},
@@ -118,25 +154,27 @@ func TestPrometheus_GetPrometheusStorageSpecHelper(t *testing.T) {
 		{
 			name: "success when valid override storage size provided in repo",
 			args: args{
-				cr:      buildObservabilityCRForPrometheus(nil),
+				cr: buildObservabilityCRForPrometheus(func(obsCR *v1.Observability) {
+					obsCR.Spec.Storage.PrometheusStorageSpec.VolumeClaimTemplate.EmbeddedObjectMetadata.Name = "managed-services"
+				}),
 				indexes: testRepoValidStorageOverride,
 			},
 			want: overrideStorageSpec,
 		},
 		{
-			name: "cr storage is returned when cr is self-contained and repo override empty",
+			name: "cr storage is returned when cr is self-contained and repo sync disabled",
 			args: args{
-				cr: buildObservabilityCRForPrometheus(func(obsCR *v1.Observability) {
-					obsCR.Spec.SelfContained = &v1.SelfContained{}
-				}),
+				cr:      selfContainedCR,
 				indexes: emptyRepoIndexes,
 			},
-			want: crStorageSpec,
+			want: selfContainedStorageSpec,
 		},
 		{
 			name: "error when override storage size is not valid and cr storage is returned",
 			args: args{
-				cr:      buildObservabilityCRForPrometheus(nil),
+				cr: buildObservabilityCRForPrometheus(func(obsCR *v1.Observability) {
+					obsCR.Spec.Storage.PrometheusStorageSpec.VolumeClaimTemplate.EmbeddedObjectMetadata.Name = "managed-services"
+				}),
 				indexes: testRepoInvalidStorageOverride,
 			},
 			want:    crStorageSpec,
