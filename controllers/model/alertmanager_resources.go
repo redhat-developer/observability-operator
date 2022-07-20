@@ -11,11 +11,15 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+const (
+	AlertManagerOldDefaultName = "kafka-alertmanager"
+)
+
 func GetDefaultNameAlertmanager(cr *v1.Observability) string {
 	if cr.Spec.SelfContained != nil && cr.Spec.AlertManagerDefaultName != "" {
 		return cr.Spec.AlertManagerDefaultName
 	}
-	return "kafka-alertmanager"
+	return "observability-alertmanager"
 }
 
 func GetAlertmanagerProxySecret(cr *v1.Observability) *v13.Secret {
