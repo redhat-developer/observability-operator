@@ -22,7 +22,7 @@ func GetAlertmanagerProxySecret(cr *v1.Observability) *v13.Secret {
 	return &v13.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "alertmanager-proxy",
-			Namespace: cr.Namespace,
+			Namespace: cr.GetPrometheusOperatorNamespace(),
 		},
 	}
 }
@@ -31,7 +31,7 @@ func GetAlertmanagerTLSSecret(cr *v1.Observability) *v13.Secret {
 	return &v13.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "alertmanager-k8s-tls",
-			Namespace: cr.Namespace,
+			Namespace: cr.GetPrometheusOperatorNamespace(),
 		},
 	}
 }
@@ -40,7 +40,7 @@ func GetAlertmanagerRoute(cr *v1.Observability) *routev1.Route {
 	return &routev1.Route{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      GetDefaultNameAlertmanager(cr),
-			Namespace: cr.Namespace,
+			Namespace: cr.GetPrometheusOperatorNamespace(),
 		},
 	}
 }
@@ -52,7 +52,7 @@ func GetAlertmanagerServiceAccount(cr *v1.Observability) *v13.ServiceAccount {
 	return &v13.ServiceAccount{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      GetDefaultNameAlertmanager(cr),
-			Namespace: cr.Namespace,
+			Namespace: cr.GetPrometheusOperatorNamespace(),
 			Annotations: map[string]string{
 				"serviceaccounts.openshift.io/oauth-redirectreference.primary": redirect,
 			},
@@ -80,7 +80,7 @@ func GetAlertmanagerCr(cr *v1.Observability) *v12.Alertmanager {
 	return &v12.Alertmanager{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      GetDefaultNameAlertmanager(cr),
-			Namespace: cr.Namespace,
+			Namespace: cr.GetPrometheusOperatorNamespace(),
 		},
 	}
 }
@@ -91,7 +91,7 @@ func GetAlertmanagerSecret(cr *v1.Observability) *v13.Secret {
 	return &v13.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      fmt.Sprintf("alertmanager-%s", alertmanager.Name),
-			Namespace: cr.Namespace,
+			Namespace: cr.GetPrometheusOperatorNamespace(),
 		},
 	}
 }
@@ -110,7 +110,7 @@ func GetAlertmanagerService(cr *v1.Observability) *v13.Service {
 	return &v13.Service{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      GetDefaultNameAlertmanager(cr),
-			Namespace: cr.Namespace,
+			Namespace: cr.GetPrometheusOperatorNamespace(),
 		},
 	}
 }
@@ -122,11 +122,11 @@ func GetAlertmanagerVersion(cr *v1.Observability) string {
 	return ""
 }
 
-func GetAlertmanagerResourceRequirement(cr *v1.Observability) v13.ResourceRequirements {
-	if cr.Spec.SelfContained != nil {
+func GetAlertmanagerResourceRequirement(cr *v1.Observability) *v13.ResourceRequirements {
+	if cr.Spec.SelfContained != nil && cr.Spec.SelfContained.AlertManagerResourceRequirement != nil {
 		return cr.Spec.SelfContained.AlertManagerResourceRequirement
 	}
-	return v13.ResourceRequirements{}
+	return &v13.ResourceRequirements{}
 }
 
 func GetAlertmanagerStorageSize(cr *v1.Observability, indexes []v1.RepositoryIndex) string {

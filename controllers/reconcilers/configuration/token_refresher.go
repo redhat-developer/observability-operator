@@ -259,7 +259,7 @@ func (r *Reconciler) deleteUnrequestedNetworkPolicies(ctx context.Context, cr *v
 		"app.kubernetes.io/component": "authentication-proxy",
 	})
 	opts := &client.ListOptions{
-		Namespace:     cr.Namespace,
+		Namespace:     cr.GetPrometheusOperatorNamespace(),
 		LabelSelector: selector,
 	}
 
@@ -320,7 +320,7 @@ func (r *Reconciler) deleteUnrequestedTokenRefreshers(ctx context.Context, cr *v
 		"app.kubernetes.io/component": "authentication-proxy",
 	})
 	opts := &client.ListOptions{
-		Namespace:     cr.Namespace,
+		Namespace:     cr.GetPrometheusOperatorNamespace(),
 		LabelSelector: selector,
 	}
 

@@ -71,10 +71,25 @@ func (r *Reconciler) Cleanup(ctx context.Context, cr *v1.Observability) (v1.Obse
 		}
 	}
 
+	if cr.DescopedModeEnabled() {
+		namespace := model.GetPrometheusNamespace(cr)
+		err = r.client.Delete(ctx, namespace)
+		if err != nil && !errors.IsNotFound(err) {
+			return v1.ResultFailed, err
+		}
+	}
+
 	return v1.ResultSuccess, nil
 }
 
 func (r *Reconciler) Reconcile(ctx context.Context, cr *v1.Observability, s *v1.ObservabilityStatus) (v1.ObservabilityStageStatus, error) {
+	if cr.DescopedModeEnabled() {
+		status, err := r.reconcileNamespace(ctx, cr)
+		if err != nil {
+			return status, err
+		}
+	}
+
 	// Catalog source
 	status, err := r.reconcileCatalogSource(ctx, cr)
 	if status != v1.ResultSuccess {
@@ -105,7 +120,7 @@ func (r *Reconciler) waitForPrometheusOperator(ctx context.Context, cr *v1.Obser
 	// We have to remove the prometheus operator deployment manually
 	deployments := &v12.DeploymentList{}
 	opts := &client.ListOptions{
-		Namespace: cr.Namespace,
+		Namespace: cr.GetPrometheusOperatorNamespace(),
 	}
 	err := r.client.List(ctx, deployments, opts)
 	if err != nil {
@@ -120,6 +135,20 @@ func (r *Reconciler) waitForPrometheusOperator(ctx context.Context, cr *v1.Obser
 		}
 	}
 	return v1.ResultInProgress, nil
+}
+
+func (r *Reconciler) reconcileNamespace(ctx context.Context, cr *v1.Observability) (v1.ObservabilityStageStatus, error) {
+	namespace := model.GetPrometheusNamespace(cr)
+
+	_, err := controllerutil.CreateOrUpdate(ctx, r.client, namespace, func() error {
+		return nil
+	})
+
+	if err != nil {
+		return v1.ResultFailed, err
+	}
+
+	return v1.ResultSuccess, nil
 }
 
 func (r *Reconciler) reconcileCatalogSource(ctx context.Context, cr *v1.Observability) (v1.ObservabilityStageStatus, error) {
@@ -147,11 +176,11 @@ func (r *Reconciler) reconcileSubscription(ctx context.Context, cr *v1.Observabi
 	_, err := controllerutil.CreateOrUpdate(ctx, r.client, subscription, func() error {
 		subscription.Spec = &v1alpha1.SubscriptionSpec{
 			CatalogSource:          source.Name,
-			CatalogSourceNamespace: cr.Namespace,
+			CatalogSourceNamespace: cr.GetPrometheusOperatorNamespace(),
 			Package:                "prometheus",
 			Channel:                "preview",
 			InstallPlanApproval:    v1alpha1.ApprovalAutomatic,
-			Config:                 v1alpha1.SubscriptionConfig{Resources: model.GetPrometheusOperatorResourceRequirement(cr)},
+			Config:                 v1alpha1.SubscriptionConfig{Resources: *model.GetPrometheusOperatorResourceRequirement(cr)},
 		}
 
 		return nil
@@ -178,7 +207,7 @@ func (r *Reconciler) reconcileOperatorgroup(ctx context.Context, cr *v1.Observab
 
 	_, err = controllerutil.CreateOrUpdate(ctx, r.client, operatorgroup, func() error {
 		operatorgroup.Spec = coreosv1.OperatorGroupSpec{
-			TargetNamespaces: []string{cr.Namespace},
+			TargetNamespaces: []string{cr.GetPrometheusOperatorNamespace()},
 		}
 
 		return nil

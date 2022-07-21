@@ -151,7 +151,7 @@ func (r *Reconciler) getRemoteWriteSpecForDex(index v1.RepositoryIndex, observat
 // Proxy requests through the token refresher
 func (r *Reconciler) getRemoteWriteSpecForRedHat(cr *v1.Observability, index v1.RepositoryIndex, observatoriumConfig *v1.ObservatoriumIndex, remoteWrite *v1.RemoteWriteIndex) (*prometheusv1.RemoteWriteSpec, string, error) {
 	tokenRefresherName := model.GetTokenRefresherName(observatoriumConfig.Id, model.MetricsTokenRefresher)
-	tokenRefresherUrl := fmt.Sprintf("http://%v.%v.svc.cluster.local", tokenRefresherName, cr.Namespace)
+	tokenRefresherUrl := fmt.Sprintf("http://%v.%v.svc.cluster.local", tokenRefresherName, cr.GetPrometheusOperatorNamespace())
 
 	return &prometheusv1.RemoteWriteSpec{
 		URL:                 tokenRefresherUrl,
@@ -195,14 +195,14 @@ func (r *Reconciler) getAlerting(cr *v1.Observability) *prometheusv1.AlertingSpe
 	return &prometheusv1.AlertingSpec{
 		Alertmanagers: []prometheusv1.AlertmanagerEndpoints{
 			{
-				Namespace: cr.Namespace,
+				Namespace: cr.GetPrometheusOperatorNamespace(),
 				Name:      alertmanager.Name,
 				Port:      intstr.FromString("web"),
 				Scheme:    "https",
 				TLSConfig: &prometheusv1.TLSConfig{
 					CAFile: "/var/run/secrets/kubernetes.io/serviceaccount/service-ca.crt",
 					SafeTLSConfig: prometheusv1.SafeTLSConfig{
-						ServerName: fmt.Sprintf("%v.%v.svc", alertmanagerService.Name, cr.Namespace),
+						ServerName: fmt.Sprintf("%v.%v.svc", alertmanagerService.Name, cr.GetPrometheusOperatorNamespace()),
 					},
 				},
 				BearerTokenFile: "/var/run/secrets/kubernetes.io/serviceaccount/token",
@@ -391,7 +391,7 @@ func (r *Reconciler) reconcilePrometheus(ctx context.Context, cr *v1.Observabili
 			Alerting:                        r.getAlerting(cr),
 			Secrets:                         secrets,
 			Containers:                      sidecars,
-			Resources:                       model.GetPrometheusResourceRequirement(cr),
+			Resources:                       *model.GetPrometheusResourceRequirement(cr),
 		}
 		if cr.Spec.Storage != nil && cr.Spec.Storage.PrometheusStorageSpec != nil {
 			prometheusStorageSpec, err := getPrometheusStorageSpecHelper(cr, indexes)

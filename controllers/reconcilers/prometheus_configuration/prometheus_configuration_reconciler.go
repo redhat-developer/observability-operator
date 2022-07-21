@@ -309,7 +309,7 @@ func (r *Reconciler) reconcileClusterRoleBinding(ctx context.Context, cr *v1.Obs
 			{
 				Kind:      rbacv1.ServiceAccountKind,
 				Name:      model.GetPrometheusServiceAccount(cr).Name,
-				Namespace: cr.Namespace,
+				Namespace: cr.GetPrometheusOperatorNamespace(),
 			},
 		}
 		clusterRoleBinding.RoleRef = rbacv1.RoleRef{

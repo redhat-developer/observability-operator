@@ -52,7 +52,7 @@ func (r *Reconciler) deleteUnrequestedPodMonitors(cr *v1.Observability, ctx cont
 	// List existing pod monitors
 	existingMonitors := &v12.PodMonitorList{}
 	opts := &client.ListOptions{
-		Namespace: cr.Namespace,
+		Namespace: cr.GetPrometheusOperatorNamespace(),
 	}
 	err := r.client.List(ctx, existingMonitors, opts)
 	if err != nil {
@@ -117,7 +117,7 @@ func parsePodMonitorFromYaml(cr *v1.Observability, name string, source []byte) (
 	if err != nil {
 		return nil, err
 	}
-	monitor.Namespace = cr.Namespace
+	monitor.Namespace = cr.GetPrometheusOperatorNamespace()
 	monitor.Name = name
 	return monitor, nil
 }

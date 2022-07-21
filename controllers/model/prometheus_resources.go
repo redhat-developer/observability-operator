@@ -29,6 +29,14 @@ const (
 	PrometheusDefaultStorage = "250Gi"
 )
 
+func GetPrometheusNamespace(cr *v1.Observability) *v13.Namespace {
+	return &v13.Namespace{
+		ObjectMeta: v12.ObjectMeta{
+			Name: cr.GetPrometheusOperatorNamespace(),
+		},
+	}
+}
+
 func GetDefaultNamePrometheus(cr *v1.Observability) string {
 	if cr.Spec.SelfContained != nil && cr.Spec.PrometheusDefaultName != "" {
 		return cr.Spec.PrometheusDefaultName
@@ -49,7 +57,7 @@ func GetPrometheusOperatorgroup(cr *v1.Observability) *coreosv1.OperatorGroup {
 	return &coreosv1.OperatorGroup{
 		ObjectMeta: v12.ObjectMeta{
 			Name:      "observability-operatorgroup",
-			Namespace: cr.Namespace,
+			Namespace: cr.GetPrometheusOperatorNamespace(),
 		},
 	}
 }
@@ -58,7 +66,7 @@ func GetPrometheusSubscription(cr *v1.Observability) *v1alpha1.Subscription {
 	return &v1alpha1.Subscription{
 		ObjectMeta: v12.ObjectMeta{
 			Name:      "prometheus-subscription",
-			Namespace: cr.Namespace,
+			Namespace: cr.GetPrometheusOperatorNamespace(),
 		},
 	}
 }
@@ -67,7 +75,7 @@ func GetPrometheusCatalogSource(cr *v1.Observability) *v1alpha1.CatalogSource {
 	return &v1alpha1.CatalogSource{
 		ObjectMeta: v12.ObjectMeta{
 			Name:      "prometheus-catalogsource",
-			Namespace: cr.Namespace,
+			Namespace: cr.GetPrometheusOperatorNamespace(),
 		},
 	}
 }
@@ -76,7 +84,7 @@ func GetPrometheusProxySecret(cr *v1.Observability) *v13.Secret {
 	return &v13.Secret{
 		ObjectMeta: v12.ObjectMeta{
 			Name:      "prometheus-proxy",
-			Namespace: cr.Namespace,
+			Namespace: cr.GetPrometheusOperatorNamespace(),
 		},
 	}
 }
@@ -85,7 +93,7 @@ func GetPrometheusTLSSecret(cr *v1.Observability) *v13.Secret {
 	return &v13.Secret{
 		ObjectMeta: v12.ObjectMeta{
 			Name:      "prometheus-k8s-tls",
-			Namespace: cr.Namespace,
+			Namespace: cr.GetPrometheusOperatorNamespace(),
 		},
 	}
 }
@@ -97,7 +105,7 @@ func GetPrometheusServiceAccount(cr *v1.Observability) *v13.ServiceAccount {
 	return &v13.ServiceAccount{
 		ObjectMeta: v12.ObjectMeta{
 			Name:      GetDefaultNamePrometheus(cr),
-			Namespace: cr.Namespace,
+			Namespace: cr.GetPrometheusOperatorNamespace(),
 			Annotations: map[string]string{
 				"serviceaccounts.openshift.io/oauth-redirectreference.primary": redirect,
 			},
@@ -109,7 +117,7 @@ func GetPrometheusService(cr *v1.Observability) *v13.Service {
 	return &v13.Service{
 		ObjectMeta: v12.ObjectMeta{
 			Name:      GetDefaultNamePrometheus(cr),
-			Namespace: cr.Namespace,
+			Namespace: cr.GetPrometheusOperatorNamespace(),
 		},
 	}
 }
@@ -134,7 +142,7 @@ func GetPrometheusRoute(cr *v1.Observability) *routev1.Route {
 	return &routev1.Route{
 		ObjectMeta: v12.ObjectMeta{
 			Name:      GetDefaultNamePrometheus(cr),
-			Namespace: cr.Namespace,
+			Namespace: cr.GetPrometheusOperatorNamespace(),
 		},
 	}
 }
@@ -181,7 +189,7 @@ func GetPrometheusAdditionalScrapeConfig(cr *v1.Observability) *v13.Secret {
 	return &v13.Secret{
 		ObjectMeta: v12.ObjectMeta{
 			Name:      "additional-scrape-configs",
-			Namespace: cr.Namespace,
+			Namespace: cr.GetPrometheusOperatorNamespace(),
 		},
 	}
 }
@@ -190,7 +198,7 @@ func GetPrometheusBlackBoxConfig(cr *v1.Observability) *v13.ConfigMap {
 	return &v13.ConfigMap{
 		ObjectMeta: v12.ObjectMeta{
 			Name:      "black-box-config",
-			Namespace: cr.Namespace,
+			Namespace: cr.GetPrometheusOperatorNamespace(),
 			Labels: map[string]string{
 				"managed-by": "observability-operator",
 			},
@@ -276,7 +284,7 @@ func GetPrometheus(cr *v1.Observability) *prometheusv1.Prometheus {
 	return &prometheusv1.Prometheus{
 		ObjectMeta: v12.ObjectMeta{
 			Name:      GetDefaultNamePrometheus(cr),
-			Namespace: cr.Namespace,
+			Namespace: cr.GetPrometheusOperatorNamespace(),
 		},
 	}
 }
@@ -285,7 +293,7 @@ func GetDeadmansSwitch(cr *v1.Observability) *prometheusv1.PrometheusRule {
 	return &prometheusv1.PrometheusRule{
 		ObjectMeta: v12.ObjectMeta{
 			Name:      "generated-deadmansswitch",
-			Namespace: cr.Namespace,
+			Namespace: cr.GetPrometheusOperatorNamespace(),
 		},
 	}
 }
@@ -456,18 +464,18 @@ func GetPrometheusVersion(cr *v1.Observability) string {
 	return PrometheusVersion
 }
 
-func GetPrometheusResourceRequirement(cr *v1.Observability) v13.ResourceRequirements {
-	if cr.Spec.SelfContained != nil {
+func GetPrometheusResourceRequirement(cr *v1.Observability) *v13.ResourceRequirements {
+	if cr.Spec.SelfContained != nil && cr.Spec.SelfContained.PrometheusResourceRequirement != nil {
 		return cr.Spec.SelfContained.PrometheusResourceRequirement
 	}
-	return v13.ResourceRequirements{}
+	return &v13.ResourceRequirements{}
 }
 
-func GetPrometheusOperatorResourceRequirement(cr *v1.Observability) v13.ResourceRequirements {
-	if cr.Spec.SelfContained != nil {
+func GetPrometheusOperatorResourceRequirement(cr *v1.Observability) *v13.ResourceRequirements {
+	if cr.Spec.SelfContained != nil && cr.Spec.SelfContained.PrometheusOperatorResourceRequirement != nil {
 		return cr.Spec.SelfContained.PrometheusOperatorResourceRequirement
 	}
-	return v13.ResourceRequirements{}
+	return &v13.ResourceRequirements{}
 }
 func GetPrometheusStorageSize(cr *v1.Observability, indexes []v1.RepositoryIndex) string {
 	customPrometheusStorageSize := PrometheusDefaultStorage

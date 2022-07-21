@@ -35,7 +35,7 @@ func GetTokenRefresherService(cr *v1.Observability, name string) *v12.Service {
 	return &v12.Service{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
-			Namespace: cr.Namespace,
+			Namespace: cr.GetPrometheusOperatorNamespace(),
 		},
 	}
 }
@@ -44,7 +44,7 @@ func GetTokenRefresherDeployment(cr *v1.Observability, name string) *v13.Deploym
 	return &v13.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
-			Namespace: cr.Namespace,
+			Namespace: cr.GetPrometheusOperatorNamespace(),
 		},
 	}
 }
@@ -53,7 +53,7 @@ func GetTokenRefresherNetworkPolicy(cr *v1.Observability, name string) *v14.Netw
 	return &v14.NetworkPolicy{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      fmt.Sprintf("%v-network-policy", name),
-			Namespace: cr.Namespace,
+			Namespace: cr.GetPrometheusOperatorNamespace(),
 		},
 	}
 }

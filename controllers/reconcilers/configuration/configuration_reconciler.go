@@ -90,18 +90,19 @@ func (r *Reconciler) Cleanup(ctx context.Context, cr *v1.Observability) (v1.Obse
 	}
 
 	if !cr.ExternalSyncDisabled() {
-
-		dashboardList := &v1alpha1.GrafanaDashboardList{}
-		err = r.client.List(ctx, dashboardList, opts)
-		if err != nil {
-			return v1.ResultFailed, err
-		}
-
-		// Delete all managed grafana dashboards
-		for _, dashboard := range dashboardList.Items {
-			err := r.client.Delete(ctx, &dashboard)
+		if !cr.DescopedModeEnabled() {
+			dashboardList := &v1alpha1.GrafanaDashboardList{}
+			err = r.client.List(ctx, dashboardList, opts)
 			if err != nil {
 				return v1.ResultFailed, err
+			}
+
+			// Delete all managed grafana dashboards
+			for _, dashboard := range dashboardList.Items {
+				err := r.client.Delete(ctx, &dashboard)
+				if err != nil {
+					return v1.ResultFailed, err
+				}
 			}
 		}
 
@@ -386,24 +387,28 @@ func (r *Reconciler) Reconcile(ctx context.Context, cr *v1.Observability, s *v1.
 	}
 
 	// Grafana CR
-	err = r.reconcileGrafanaCr(ctx, cr, indexes)
-	if err != nil {
-		return v1.ResultFailed, errors2.Wrap(err, "error reconciling grafana")
+	if !cr.DescopedModeEnabled() {
+		err = r.reconcileGrafanaCr(ctx, cr, indexes)
+		if err != nil {
+			return v1.ResultFailed, errors2.Wrap(err, "error reconciling grafana")
+		}
 	}
 
 	// Manage monitoring resources
 	if !cr.ExternalSyncDisabled() {
-		dashboards := getUniqueDashboards(indexes)
-		err = r.deleteUnrequestedDashboards(cr, ctx, dashboards)
-		if err != nil {
-			return v1.ResultFailed, errors2.Wrap(err, "error deleting unrequested dashboards")
-		}
+		if !cr.DescopedModeEnabled() {
+			dashboards := getUniqueDashboards(indexes)
+			err = r.deleteUnrequestedDashboards(cr, ctx, dashboards)
+			if err != nil {
+				return v1.ResultFailed, errors2.Wrap(err, "error deleting unrequested dashboards")
+			}
 
-		err = r.createRequestedDashboards(cr, ctx, dashboards)
-		if err != nil {
-			return v1.ResultFailed, errors2.Wrap(err, "error creating requested dashboards")
+			err = r.createRequestedDashboards(cr, ctx, dashboards)
+			if err != nil {
+				return v1.ResultFailed, errors2.Wrap(err, "error creating requested dashboards")
+			}
 		}
-
+		
 		// Manage prometheus rules
 		rules := getUniqueRules(indexes)
 		err = r.deleteUnrequestedRules(cr, ctx, rules)
