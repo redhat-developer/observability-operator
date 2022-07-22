@@ -42,7 +42,6 @@ const (
 	RequeueDelayError      = 5 * time.Second
 	ObservabilityFinalizer = "observability-cleanup"
 	NoInitConfigMapName    = "observability-operator-no-init"
-	storageClassGp2        = "gp2"
 )
 
 // ObservabilityReconciler reconciles a Observability object
@@ -182,6 +181,7 @@ func (r *ObservabilityReconciler) UpdateOperand(from *apiv1.Observability, to *a
 }
 
 func (r *ObservabilityReconciler) InitializeOperand(mgr ctrl.Manager) error {
+	var StorageClassType = [3]string{"standard", "managed-premium", "gp2"}
 	// Try to retrieve the namespace from the pod filesystem first
 	r.Log.Info("determining if operand instantiation required")
 	var namespace string
@@ -228,14 +228,26 @@ func (r *ObservabilityReconciler) InitializeOperand(mgr ctrl.Manager) error {
 	storageClassExists := false
 	storageClass := &storage.StorageClass{}
 	selector := client.ObjectKey{
-		Name: storageClassGp2,
+		Name: "",
+	}
+
+	provider := 0
+	for i := 0; i < 3; i++ {
+		selector = client.ObjectKey{
+			Name: StorageClassType[i],
+		}
+		err = apiReader.Get(context.Background(), selector, storageClass)
+		if err == nil {
+			provider = i
+			break
+		}
 	}
 
 	err = apiReader.Get(context.Background(), selector, storageClass)
 	if err == nil {
 		// no error means that the storage class was found
 		storageClassExists = true
-		r.Log.Info(fmt.Sprintf("found storage class %s on the cluster", storageClassGp2))
+		r.Log.Info(fmt.Sprintf("found storage class %s on the cluster", StorageClassType[provider]))
 	}
 
 	instance := observabilityInstanceWithStorage(namespace)
