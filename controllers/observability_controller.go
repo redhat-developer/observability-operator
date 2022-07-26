@@ -10,8 +10,9 @@ import (
 	"strings"
 	"time"
 
+	infrastructure "github.com/openshift/api/config/v1"
 	prometheusv1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
-	storage "k8s.io/api/storage/v1"
+	//storage "k8s.io/api/storage/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 
 	"github.com/go-logr/logr"
@@ -181,7 +182,7 @@ func (r *ObservabilityReconciler) UpdateOperand(from *apiv1.Observability, to *a
 }
 
 func (r *ObservabilityReconciler) InitializeOperand(mgr ctrl.Manager) error {
-	var StorageClassType = [3]string{"standard", "managed-premium", "gp2"}
+	//var StorageClassType = [3]string{"standard", "managed-premium", "gp2"}
 	// Try to retrieve the namespace from the pod filesystem first
 	r.Log.Info("determining if operand instantiation required")
 	var namespace string
@@ -226,32 +227,21 @@ func (r *ObservabilityReconciler) InitializeOperand(mgr ctrl.Manager) error {
 	}
 
 	storageClassExists := false
-	storageClass := &storage.StorageClass{}
-	selector := client.ObjectKey{
-		Name: "",
+	cluster := client.ObjectKey{
+		Name: "cluster",
 	}
+	infra := &infrastructure.Infrastructure{}
 
-	provider := 0
-	for i := 0; i < 3; i++ {
-		selector = client.ObjectKey{
-			Name: StorageClassType[i],
-		}
-		err = apiReader.Get(context.Background(), selector, storageClass)
-		if err == nil {
-			provider = i
-			break
-		}
-	}
+	err = r.Get(context.Background(), cluster, infra)
 
-	err = apiReader.Get(context.Background(), selector, storageClass)
-	if err == nil {
-		// no error means that the storage class was found
+	// Check the infrastructure, If its Libvirt that means it is running on crc so it will run without storage.
+	if err == nil && string(infra.Status.PlatformStatus.Type) != "Libvirt" {
 		storageClassExists = true
-		r.Log.Info(fmt.Sprintf("found storage class %s on the cluster", StorageClassType[provider]))
 	}
-
+	
 	instance := observabilityInstanceWithStorage(namespace)
 	if !storageClassExists {
+		r.Log.Info("Running without Storage.")
 		instance = observabilityInstanceWithoutStorage(namespace)
 	}
 
