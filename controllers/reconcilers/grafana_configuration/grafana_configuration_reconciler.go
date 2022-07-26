@@ -77,7 +77,7 @@ func (r *Reconciler) Cleanup(ctx context.Context, cr *v1.Observability) (v1.Obse
 	if cr.DescopedModeEnabled() {
 		return v1.ResultSuccess, nil
 	}
-	
+
 	// Grafana CR
 	grafana := model.GetGrafanaCr(cr)
 	err := r.client.Delete(ctx, grafana)

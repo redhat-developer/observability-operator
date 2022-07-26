@@ -408,7 +408,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, cr *v1.Observability, s *v1.
 				return v1.ResultFailed, errors2.Wrap(err, "error creating requested dashboards")
 			}
 		}
-		
+
 		// Manage prometheus rules
 		rules := getUniqueRules(indexes)
 		err = r.deleteUnrequestedRules(cr, ctx, rules)
