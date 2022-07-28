@@ -384,6 +384,9 @@ func (r *Reconciler) fetchClusterId(ctx context.Context, cr *v1.Observability, n
 
 	if cr.Spec.ClusterID != "" {
 		nextStatus.ClusterID = cr.Spec.ClusterID
+
+		// assign to current CR, so that objects in the same cycle have access to it
+		cr.Status.ClusterID = cr.Spec.ClusterID
 		return v1.ResultSuccess, nil
 	}
 
@@ -392,6 +395,7 @@ func (r *Reconciler) fetchClusterId(ctx context.Context, cr *v1.Observability, n
 		return v1.ResultFailed, err
 	}
 	nextStatus.ClusterID = clusterId
+	cr.Status.ClusterID = clusterId
 
 	return v1.ResultSuccess, nil
 }

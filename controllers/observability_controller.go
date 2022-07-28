@@ -373,6 +373,7 @@ func observabilityInstanceWithoutStorage(namespace string) apiv1.Observability {
 			Labels:    map[string]string{"managed-by": "observability-operator"},
 		},
 		Spec: apiv1.ObservabilitySpec{
+			ClusterID:    "testadsf",
 			ResyncPeriod: "1h",
 			Retention:    "45d",
 			SelfContained: &apiv1.SelfContained{
