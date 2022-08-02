@@ -224,7 +224,7 @@ func (r *ObservabilityReconciler) InitializeOperand(mgr ctrl.Manager) error {
 		return err
 	}
 
-	runningOnCluster := false
+	runningOnCloud := false
 	cluster := client.ObjectKey{
 		Name: "cluster",
 	}
@@ -233,11 +233,11 @@ func (r *ObservabilityReconciler) InitializeOperand(mgr ctrl.Manager) error {
 
 	// Check the infrastructure, If its Libvirt that means it is running on crc so it will run without storage.
 	if err == nil && string(infra.Status.PlatformStatus.Type) != string(infrastructure.LibvirtPlatformType) && string(infra.Status.PlatformStatus.Type) != string(infrastructure.NonePlatformType) {
-		runningOnCluster = true
+		runningOnCloud = true
 	}
 
 	instance := observabilityInstanceWithStorage(namespace)
-	if !runningOnCluster {
+	if !runningOnCloud {
 		r.Log.Info("Running without Storage.")
 		instance = observabilityInstanceWithoutStorage(namespace)
 	}
@@ -257,7 +257,7 @@ func (r *ObservabilityReconciler) InitializeOperand(mgr ctrl.Manager) error {
 				return err
 			}
 			found = true
-		} else if (instances.Items[0].Spec.Storage == nil || instances.Items[0].Spec.Retention == "") && runningOnCluster {
+		} else if (instances.Items[0].Spec.Storage == nil || instances.Items[0].Spec.Retention == "") && runningOnCloud {
 			r.Log.Info("Adding retention period and storage spec to the pre-existing operand")
 			if err := r.UpdateOperand(&existing, &instance); err != nil {
 				return err
