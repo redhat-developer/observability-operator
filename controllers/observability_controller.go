@@ -373,16 +373,11 @@ func observabilityInstanceWithoutStorage(namespace string) apiv1.Observability {
 			Labels:    map[string]string{"managed-by": "observability-operator"},
 		},
 		Spec: apiv1.ObservabilitySpec{
-			ClusterID:    "testadsf",
 			ResyncPeriod: "1h",
 			Retention:    "45d",
 			SelfContained: &apiv1.SelfContained{
 				DisableBlackboxExporter: &([]bool{true})[0],
 				DisableSmtp:             &([]bool{true})[0],
-			},
-			DescopedMode: &apiv1.DescopedMode{
-				Enabled:                     &([]bool{true})[0],
-				PrometheusOperatorNamespace: "observability-prometheus-operator",
 			},
 			ConfigurationSelector: &metav1.LabelSelector{
 				MatchLabels: map[string]string{
