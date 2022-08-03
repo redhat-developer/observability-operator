@@ -99,7 +99,7 @@ func (r *Reconciler) reconcileAlertmanager(ctx context.Context, cr *v1.Observabi
 			},
 		}
 		alertmanager.Spec.Version = model.GetAlertmanagerVersion(cr)
-		alertmanager.Spec.Resources = model.GetAlertmanagerResourceRequirement(cr)
+		alertmanager.Spec.Resources = *model.GetAlertmanagerResourceRequirement(cr)
 		if cr.Spec.Storage != nil && cr.Spec.Storage.AlertManagerStorageSpec != nil {
 			alertManagerStorageSpec, err := getAlertManagerStorageSpecHelper(cr, indexes)
 			if err != nil {

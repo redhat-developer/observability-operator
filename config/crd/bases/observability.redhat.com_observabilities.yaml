@@ -680,6 +680,13 @@ spec:
                       are ANDed.
                     type: object
                 type: object
+              descopedMode:
+                properties:
+                  enabled:
+                    type: boolean
+                  prometheusOperatorNamespace:
+                    type: string
+                type: object
               grafanaDefaultName:
                 type: string
               prometheusDefaultName:

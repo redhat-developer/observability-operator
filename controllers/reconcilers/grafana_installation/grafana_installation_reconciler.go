@@ -30,6 +30,10 @@ func NewReconciler(client client.Client, logger logr.Logger) reconcilers.Observa
 }
 
 func (r *Reconciler) Cleanup(ctx context.Context, cr *v1.Observability) (v1.ObservabilityStageStatus, error) {
+	if cr.DescopedModeEnabled() {
+		return v1.ResultSuccess, nil
+	}
+
 	source := model.GetGrafanaCatalogSource(cr)
 	err := r.client.Delete(ctx, source)
 	if err != nil && !errors.IsNotFound(err) {
@@ -71,6 +75,10 @@ func (r *Reconciler) Cleanup(ctx context.Context, cr *v1.Observability) (v1.Obse
 }
 
 func (r *Reconciler) Reconcile(ctx context.Context, cr *v1.Observability, s *v1.ObservabilityStatus) (v1.ObservabilityStageStatus, error) {
+	if cr.DescopedModeEnabled() {
+		return v1.ResultSuccess, nil
+	}
+
 	// Remove old subscriptions
 	status, err := r.deleteUnrequestedSubscriptions(ctx, cr)
 	if status != v1.ResultSuccess {
@@ -182,7 +190,7 @@ func (r *Reconciler) reconcileSubscription(ctx context.Context, cr *v1.Observabi
 			Package:                "grafana-operator",
 			Channel:                "alpha",
 			StartingCSV:            "grafana-operator.v3.10.5",
-			Config:                 v1alpha1.SubscriptionConfig{Resources: model.GetGrafanaOperatorResourceRequirement(cr)},
+			Config:                 v1alpha1.SubscriptionConfig{Resources: *model.GetGrafanaOperatorResourceRequirement(cr)},
 		}
 		return nil
 	})

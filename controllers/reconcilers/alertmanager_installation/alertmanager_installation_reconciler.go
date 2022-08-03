@@ -222,7 +222,7 @@ func (r *Reconciler) reconcileAlertmanagerClusterRoleBinding(ctx context.Context
 			{
 				Kind:      v15.ServiceAccountKind,
 				Name:      model.GetAlertmanagerServiceAccount(cr).Name,
-				Namespace: cr.Namespace,
+				Namespace: cr.GetPrometheusOperatorNamespace(),
 			},
 		}
 		binding.RoleRef = v15.RoleRef{

@@ -46,6 +46,10 @@ func NewReconciler(client client.Client, logger logr.Logger) reconcilers.Observa
 }
 
 func (r *Reconciler) Reconcile(ctx context.Context, cr *v1.Observability, s *v1.ObservabilityStatus) (v1.ObservabilityStageStatus, error) {
+	if cr.DescopedModeEnabled() {
+		return v1.ResultSuccess, nil
+	}
+
 	status, err := r.reconileProxySecret(ctx, cr)
 	if status != v1.ResultSuccess {
 		return status, err
@@ -70,6 +74,10 @@ func (r *Reconciler) Reconcile(ctx context.Context, cr *v1.Observability, s *v1.
 }
 
 func (r *Reconciler) Cleanup(ctx context.Context, cr *v1.Observability) (v1.ObservabilityStageStatus, error) {
+	if cr.DescopedModeEnabled() {
+		return v1.ResultSuccess, nil
+	}
+
 	// Grafana CR
 	grafana := model.GetGrafanaCr(cr)
 	err := r.client.Delete(ctx, grafana)

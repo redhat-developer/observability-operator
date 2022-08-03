@@ -444,20 +444,20 @@ func TestAlertManagerResources_GetAlertmanagerResourceRequirement(t *testing.T) 
 	tests := []struct {
 		name string
 		args args
-		want corev1.ResourceRequirements
+		want *corev1.ResourceRequirements
 	}{
 		{
 			name: "return AlertManagerResourceRequirement from cr when self contained",
 			args: args{
 				cr: buildObservabilityCR(func(obsCR *v1.Observability) {
 					obsCR.Spec.SelfContained = &v1.SelfContained{
-						AlertManagerResourceRequirement: corev1.ResourceRequirements{
+						AlertManagerResourceRequirement: &corev1.ResourceRequirements{
 							Limits: testResourceList,
 						},
 					}
 				}),
 			},
-			want: corev1.ResourceRequirements{
+			want: &corev1.ResourceRequirements{
 				Limits: testResourceList,
 			},
 		},
@@ -466,7 +466,7 @@ func TestAlertManagerResources_GetAlertmanagerResourceRequirement(t *testing.T) 
 			args: args{
 				cr: buildObservabilityCR(nil),
 			},
-			want: corev1.ResourceRequirements{},
+			want: &corev1.ResourceRequirements{},
 		},
 	}
 

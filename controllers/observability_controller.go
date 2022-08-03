@@ -67,7 +67,7 @@ type ObservabilityReconciler struct {
 // +kubebuilder:rbac:groups=rbac.authorization.k8s.io,resources=clusterroles;clusterrolebindings,verbs=get;list;create;update;delete;watch
 // +kubebuilder:rbac:groups=apps,resources=deployments;daemonsets;statefulsets,verbs=get;list;create;update;delete;watch
 // +kubebuilder:rbac:groups=operators.coreos.com,resources=catalogsources;subscriptions;operatorgroups;clusterserviceversions,verbs=get;list;create;update;delete;watch
-// +kubebuilder:rbac:groups="",resources=namespaces;pods;nodes;nodes/proxy,verbs=get;list;watch
+// +kubebuilder:rbac:groups="",resources=namespaces;pods;nodes;nodes/proxy,verbs=get;list;watch;delete;create
 // +kubebuilder:rbac:groups="",resources=secrets;serviceaccounts;configmaps;endpoints;services;nodes/proxy,verbs=get;list;create;update;delete;watch
 // +kubebuilder:rbac:groups=networking.k8s.io,resources=networkpolicies,verbs=get;list;create;update;delete;watch
 
@@ -377,6 +377,7 @@ func observabilityInstanceWithoutStorage(namespace string) apiv1.Observability {
 			Retention:    "45d",
 			SelfContained: &apiv1.SelfContained{
 				DisableBlackboxExporter: &([]bool{true})[0],
+				DisableSmtp:             &([]bool{true})[0],
 			},
 			ConfigurationSelector: &metav1.LabelSelector{
 				MatchLabels: map[string]string{

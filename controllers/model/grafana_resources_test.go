@@ -498,27 +498,27 @@ func TestGrafanaResources_GetGrafanaOperatorResourceRequirement(t *testing.T) {
 	tests := []struct {
 		name string
 		args args
-		want corev1.ResourceRequirements
+		want *corev1.ResourceRequirements
 	}{
 		{
 			name: "returns empty ResourceRequirments if NOT self contained",
 			args: args{
 				cr: buildObservabilityCR(nil),
 			},
-			want: corev1.ResourceRequirements{},
+			want: &corev1.ResourceRequirements{},
 		},
 		{
 			name: "returns CR GrafanaOperatorResourceRequirement if self contained",
 			args: args{
 				cr: buildObservabilityCR(func(obsCR *v1.Observability) {
 					obsCR.Spec.SelfContained = &v1.SelfContained{
-						GrafanaOperatorResourceRequirement: corev1.ResourceRequirements{
+						GrafanaOperatorResourceRequirement: &corev1.ResourceRequirements{
 							Limits: testResourceList,
 						},
 					}
 				}),
 			},
-			want: corev1.ResourceRequirements{
+			want: &corev1.ResourceRequirements{
 				Limits: testResourceList,
 			},
 		},

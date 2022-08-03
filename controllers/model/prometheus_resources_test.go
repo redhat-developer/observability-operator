@@ -1221,20 +1221,20 @@ func TestPrometheusResources_GetPrometheusResourceRequirement(t *testing.T) {
 	tests := []struct {
 		name string
 		args args
-		want corev1.ResourceRequirements
+		want *corev1.ResourceRequirements
 	}{
 		{
 			name: "returns CR PrometheusResourceRequirement when self contained",
 			args: args{
 				cr: buildObservabilityCR(func(obsCR *v1.Observability) {
 					obsCR.Spec.SelfContained = &v1.SelfContained{
-						PrometheusResourceRequirement: corev1.ResourceRequirements{
+						PrometheusResourceRequirement: &corev1.ResourceRequirements{
 							Limits: testResourceList,
 						},
 					}
 				}),
 			},
-			want: corev1.ResourceRequirements{
+			want: &corev1.ResourceRequirements{
 				Limits: testResourceList,
 			},
 		},
@@ -1243,7 +1243,7 @@ func TestPrometheusResources_GetPrometheusResourceRequirement(t *testing.T) {
 			args: args{
 				cr: buildObservabilityCR(nil),
 			},
-			want: corev1.ResourceRequirements{},
+			want: &corev1.ResourceRequirements{},
 		},
 	}
 
@@ -1264,20 +1264,20 @@ func TestPrometheusResources_GetPrometheusOperatorResourceRequirement(t *testing
 	tests := []struct {
 		name string
 		args args
-		want corev1.ResourceRequirements
+		want *corev1.ResourceRequirements
 	}{
 		{
 			name: "returns CR PrometheusOperatorResourceRequirement when self contained",
 			args: args{
 				cr: buildObservabilityCR(func(obsCR *v1.Observability) {
 					obsCR.Spec.SelfContained = &v1.SelfContained{
-						PrometheusOperatorResourceRequirement: corev1.ResourceRequirements{
+						PrometheusOperatorResourceRequirement: &corev1.ResourceRequirements{
 							Limits: testResourceList,
 						},
 					}
 				}),
 			},
-			want: corev1.ResourceRequirements{
+			want: &corev1.ResourceRequirements{
 				Limits: testResourceList,
 			},
 		},
@@ -1286,7 +1286,7 @@ func TestPrometheusResources_GetPrometheusOperatorResourceRequirement(t *testing
 			args: args{
 				cr: buildObservabilityCR(nil),
 			},
-			want: corev1.ResourceRequirements{},
+			want: &corev1.ResourceRequirements{},
 		},
 	}
 

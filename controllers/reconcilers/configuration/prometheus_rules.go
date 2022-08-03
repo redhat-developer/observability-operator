@@ -51,7 +51,7 @@ func (r *Reconciler) deleteUnrequestedRules(cr *v1.Observability, ctx context.Co
 	// List existing dashboards
 	existingRules := &v12.PrometheusRuleList{}
 	opts := &client.ListOptions{
-		Namespace: cr.Namespace,
+		Namespace: cr.GetPrometheusOperatorNamespace(),
 	}
 	err := r.client.List(ctx, existingRules, opts)
 	if err != nil {
@@ -167,7 +167,7 @@ func parseRuleFromYaml(cr *v1.Observability, name string, source []byte) (*v12.P
 	if err != nil {
 		return nil, err
 	}
-	rule.Namespace = cr.Namespace
+	rule.Namespace = cr.GetPrometheusOperatorNamespace()
 	rule.Name = name
 	return rule, nil
 }
