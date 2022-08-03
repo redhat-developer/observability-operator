@@ -231,13 +231,11 @@ func (r *ObservabilityReconciler) InitializeOperand(mgr ctrl.Manager) error {
 	infra := &infrastructure.Infrastructure{}
 	err = r.Get(context.Background(), cluster, infra)
 
-	// Check the infrastructure, If its Libvirt that means it is running on crc so it will run without storage.
+	instance := observabilityInstanceWithStorage(namespace)
+	// Check the infrastructure. If it's Libvirt, it is running on crc, so it will run without storage.
 	if err == nil && string(infra.Status.PlatformStatus.Type) != string(infrastructure.LibvirtPlatformType) && string(infra.Status.PlatformStatus.Type) != string(infrastructure.NonePlatformType) {
 		runningOnCloud = true
-	}
-
-	instance := observabilityInstanceWithStorage(namespace)
-	if !runningOnCloud {
+	} else {
 		r.Log.Info("Running without Storage.")
 		instance = observabilityInstanceWithoutStorage(namespace)
 	}
