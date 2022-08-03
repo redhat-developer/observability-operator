@@ -48,5 +48,5 @@ spec:
   maturity: alpha
   provider:
     name: Red Hat
-  replaces: observability-operator.v3.0.12
+  replaces: observability-operator.v3.0.13
   version: 0.0.0
