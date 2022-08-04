@@ -60,7 +60,7 @@ metadata:
     capabilities: Basic Install
     operators.operatorframework.io/builder: operator-sdk-v1.4.2
     operators.operatorframework.io/project_layout: go.kubebuilder.io/v2
-  name: observability-operator.v3.0.13
+  name: observability-operator.v3.0.14
   namespace: placeholder
 spec:
   apiservicedefinitions: {}
@@ -108,6 +108,8 @@ spec:
           - nodes/proxy
           - pods
           verbs:
+          - create
+          - delete
           - get
           - list
           - watch
@@ -295,7 +297,7 @@ spec:
                 - --enable-leader-election
                 command:
                 - /manager
-                image: quay.io/rhoas/observability-operator:v3.0.13
+                image: quay.io/rhoas/observability-operator:v3.0.14
                 imagePullPolicy: IfNotPresent
                 name: manager
                 ports:
@@ -373,8 +375,8 @@ spec:
   maturity: alpha
   provider:
     name: Red Hat
-  replaces: observability-operator.v3.0.12
-  version: 3.0.13
+  replaces: observability-operator.v3.0.13
+  version: 3.0.14
   webhookdefinitions:
   - admissionReviewVersions:
     - v1beta1
