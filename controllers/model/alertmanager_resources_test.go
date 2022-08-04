@@ -17,10 +17,10 @@ import (
 )
 
 var (
-	defaultAlertManagerName              = "kafka-alertmanager"
+	defaultAlertManagerName              = "observability-alertmanager"
 	defaultAlertmanagerObjectMeta        = metav1.ObjectMeta{Name: defaultAlertManagerName}
 	alertmanagerTestName                 = "test-alert-manager-name"
-	alertmanagerServiceAccountAnnotation = map[string]string{"serviceaccounts.openshift.io/oauth-redirectreference.primary": "{\"kind\":\"OAuthRedirectReference\",\"apiVersion\":\"v1\",\"reference\":{\"kind\":\"Route\",\"name\":\"kafka-alertmanager\"}}"}
+	alertmanagerServiceAccountAnnotation = map[string]string{"serviceaccounts.openshift.io/oauth-redirectreference.primary": "{\"kind\":\"OAuthRedirectReference\",\"apiVersion\":\"v1\",\"reference\":{\"kind\":\"Route\",\"name\":\"observability-alertmanager\"}}"}
 	testResourceList                     = map[corev1.ResourceName]resource.Quantity{corev1.ResourceStorage: resource.MustParse("10Gi")}
 )
 
@@ -61,7 +61,7 @@ func TestAlertManagerResources_GetDefaultNameAlertmanager(t *testing.T) {
 			want: alertmanagerTestName,
 		},
 		{
-			name: "return `kafka-alertmanager` if NOT self contained and spec AlertManagerDefaultName is empty",
+			name: "return `observability-alertmanager` if NOT self contained and spec AlertManagerDefaultName is empty",
 			args: args{
 				cr: buildObservabilityCR(nil),
 			},

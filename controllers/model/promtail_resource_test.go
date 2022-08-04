@@ -247,7 +247,7 @@ func TestPromtailResources_GetPromtailServiceAccount(t *testing.T) {
 			},
 			want: &corev1.ServiceAccount{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      "kafka-promtail",
+					Name:      "observability-promtail",
 					Namespace: testNamespace,
 				},
 			},
@@ -279,7 +279,7 @@ func TestPromtailResources_GetPromtailClusterRole(t *testing.T) {
 			},
 			want: &rbacv1.ClusterRole{
 				ObjectMeta: metav1.ObjectMeta{
-					Name: "kafka-promtail",
+					Name: "observability-promtail",
 				},
 			},
 		},
@@ -310,7 +310,7 @@ func TestPromtailResources_GetPromtailClusterRoleBinding(t *testing.T) {
 			},
 			want: &rbacv1.ClusterRoleBinding{
 				ObjectMeta: metav1.ObjectMeta{
-					Name: "kafka-promtail",
+					Name: "observability-promtail",
 				},
 			},
 		},
