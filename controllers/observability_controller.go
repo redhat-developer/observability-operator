@@ -10,8 +10,8 @@ import (
 	"strings"
 	"time"
 
+	infrastructure "github.com/openshift/api/config/v1"
 	prometheusv1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
-	storage "k8s.io/api/storage/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 
 	"github.com/go-logr/logr"
@@ -42,7 +42,6 @@ const (
 	RequeueDelayError      = 5 * time.Second
 	ObservabilityFinalizer = "observability-cleanup"
 	NoInitConfigMapName    = "observability-operator-no-init"
-	storageClassGp2        = "gp2"
 )
 
 // ObservabilityReconciler reconciles a Observability object
@@ -225,21 +224,19 @@ func (r *ObservabilityReconciler) InitializeOperand(mgr ctrl.Manager) error {
 		return err
 	}
 
-	storageClassExists := false
-	storageClass := &storage.StorageClass{}
-	selector := client.ObjectKey{
-		Name: storageClassGp2,
+	runningOnCloud := false
+	cluster := client.ObjectKey{
+		Name: "cluster",
 	}
-
-	err = apiReader.Get(context.Background(), selector, storageClass)
-	if err == nil {
-		// no error means that the storage class was found
-		storageClassExists = true
-		r.Log.Info(fmt.Sprintf("found storage class %s on the cluster", storageClassGp2))
-	}
+	infra := &infrastructure.Infrastructure{}
+	err = r.Get(context.Background(), cluster, infra)
 
 	instance := observabilityInstanceWithStorage(namespace)
-	if !storageClassExists {
+	// Check the infrastructure. If it's Libvirt, it is running on crc, so it will run without storage.
+	if err == nil && string(infra.Status.PlatformStatus.Type) != string(infrastructure.LibvirtPlatformType) && string(infra.Status.PlatformStatus.Type) != string(infrastructure.NonePlatformType) {
+		runningOnCloud = true
+	} else {
+		r.Log.Info("Running without Storage.")
 		instance = observabilityInstanceWithoutStorage(namespace)
 	}
 
@@ -258,7 +255,7 @@ func (r *ObservabilityReconciler) InitializeOperand(mgr ctrl.Manager) error {
 				return err
 			}
 			found = true
-		} else if (instances.Items[0].Spec.Storage == nil || instances.Items[0].Spec.Retention == "") && storageClassExists {
+		} else if (instances.Items[0].Spec.Storage == nil || instances.Items[0].Spec.Retention == "") && runningOnCloud {
 			r.Log.Info("Adding retention period and storage spec to the pre-existing operand")
 			if err := r.UpdateOperand(&existing, &instance); err != nil {
 				return err
