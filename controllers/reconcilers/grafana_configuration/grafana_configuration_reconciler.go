@@ -215,7 +215,7 @@ func (r *Reconciler) reconcileGrafanaDatasource(ctx context.Context, cr *v1.Obse
 	url := fmt.Sprintf("http://prometheus-operated.%s:9090", cr.Namespace)
 
 	_, err := controllerutil.CreateOrUpdate(ctx, r.client, datasource, func() error {
-		datasource.Spec.Name = "kafka-prometheus.yaml"
+		datasource.Spec.Name = "observability-prometheus.yaml"
 		datasource.Spec.Datasources = []v1alpha1.GrafanaDataSourceFields{
 			{
 				Name:      "Prometheus",
