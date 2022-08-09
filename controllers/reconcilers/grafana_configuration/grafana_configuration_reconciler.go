@@ -3,6 +3,7 @@ package grafana_configuration
 import (
 	"context"
 	"fmt"
+
 	"io/ioutil"
 	"net/http"
 	url2 "net/url"
@@ -16,7 +17,6 @@ import (
 	"github.com/redhat-developer/observability-operator/v3/controllers/model"
 	"github.com/redhat-developer/observability-operator/v3/controllers/reconcilers"
 	"github.com/redhat-developer/observability-operator/v3/controllers/utils"
-	v14 "k8s.io/api/apps/v1"
 	v12 "k8s.io/api/rbac/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
@@ -85,7 +85,7 @@ func (r *Reconciler) Cleanup(ctx context.Context, cr *v1.Observability) (v1.Obse
 		return v1.ResultFailed, err
 	}
 
-	status, err := r.waitForGrafanaToBeRemoved(ctx, cr)
+	status, err := utils.WaitForGrafanaToBeRemoved(ctx, cr, r.client)
 	if status != v1.ResultSuccess {
 		return status, err
 	}
@@ -114,25 +114,6 @@ func (r *Reconciler) Cleanup(ctx context.Context, cr *v1.Observability) (v1.Obse
 	err = r.client.Delete(ctx, clusterRole)
 	if err != nil && !errors.IsNotFound(err) {
 		return v1.ResultFailed, err
-	}
-
-	return v1.ResultSuccess, nil
-}
-
-func (r *Reconciler) waitForGrafanaToBeRemoved(ctx context.Context, cr *v1.Observability) (v1.ObservabilityStageStatus, error) {
-	list := &v14.DeploymentList{}
-	opts := &client.ListOptions{
-		Namespace: cr.Namespace,
-	}
-	err := r.client.List(ctx, list, opts)
-	if err != nil && !errors.IsNotFound(err) {
-		return v1.ResultFailed, err
-	}
-
-	for _, ss := range list.Items {
-		if ss.Name == "grafana-deployment" {
-			return v1.ResultInProgress, nil
-		}
 	}
 
 	return v1.ResultSuccess, nil

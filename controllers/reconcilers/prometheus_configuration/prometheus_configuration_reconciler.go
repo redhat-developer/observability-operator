@@ -2,7 +2,6 @@ package prometheus_configuration
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/go-logr/logr"
 	routev1 "github.com/openshift/api/route/v1"
@@ -10,7 +9,6 @@ import (
 	"github.com/redhat-developer/observability-operator/v3/controllers/model"
 	"github.com/redhat-developer/observability-operator/v3/controllers/reconcilers"
 	"github.com/redhat-developer/observability-operator/v3/controllers/utils"
-	v13 "k8s.io/api/apps/v1"
 	core "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -54,7 +52,7 @@ func (r *Reconciler) Cleanup(ctx context.Context, cr *v1.Observability) (v1.Obse
 	}
 
 	// Wait for the operator to be removed
-	status, err := r.waitForPrometheusToBeRemoved(ctx, cr)
+	status, err := utils.WaitForPrometheusToBeRemoved(ctx, cr, r.client)
 	if status != v1.ResultSuccess {
 		return status, err
 	}
@@ -97,27 +95,6 @@ func (r *Reconciler) Cleanup(ctx context.Context, cr *v1.Observability) (v1.Obse
 	err = r.client.Delete(ctx, secret)
 	if err != nil && !errors.IsNotFound(err) {
 		return v1.ResultFailed, err
-	}
-
-	return v1.ResultSuccess, nil
-}
-
-func (r *Reconciler) waitForPrometheusToBeRemoved(ctx context.Context, cr *v1.Observability) (v1.ObservabilityStageStatus, error) {
-	list := &v13.StatefulSetList{}
-	opts := &client.ListOptions{
-		Namespace: cr.Namespace,
-	}
-	err := r.client.List(ctx, list, opts)
-	if err != nil && !errors.IsNotFound(err) {
-		return v1.ResultFailed, err
-	}
-
-	prom := model.GetPrometheus(cr)
-
-	for _, ss := range list.Items {
-		if ss.Name == fmt.Sprintf("prometheus-%s", prom.Name) {
-			return v1.ResultInProgress, nil
-		}
 	}
 
 	return v1.ResultSuccess, nil

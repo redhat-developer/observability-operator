@@ -8,9 +8,11 @@ import (
 	v1 "github.com/redhat-developer/observability-operator/v3/api/v1"
 	"github.com/redhat-developer/observability-operator/v3/controllers/model"
 	"github.com/redhat-developer/observability-operator/v3/controllers/reconcilers"
-	v13 "k8s.io/api/apps/v1"
+	"github.com/redhat-developer/observability-operator/v3/controllers/utils"
 
-	"k8s.io/apimachinery/pkg/api/errors"
+	//v13 "k8s.io/api/apps/v1"
+
+	//"k8s.io/apimachinery/pkg/api/errors"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -46,7 +48,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, cr *v1.Observability, s *v1.
 			return v1.ResultFailed, err
 		}
 
-		r.waitForPrometheusToBeRemoved(ctx, cr, model.PrometheusOldDefaultName)
+		utils.WaitForPrometheusToBeRemoved(ctx, cr, r.client)
 
 		prometheusRoute := model.GetPrometheusRoute(cr)
 		prometheusRoute.Name = model.PrometheusOldDefaultName
@@ -106,7 +108,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, cr *v1.Observability, s *v1.
 			return v1.ResultFailed, err
 		}
 
-		r.waitForAlertmanagerToBeRemoved(ctx, cr, model.AlertManagerOldDefaultName)
+		utils.WaitForAlertmanagerToBeRemoved(ctx, cr, r.client)
 
 		alertmanagerServiceAccount := model.GetAlertmanagerServiceAccount(cr)
 		alertmanagerServiceAccount.Name = model.AlertManagerOldDefaultName
@@ -154,7 +156,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, cr *v1.Observability, s *v1.
 			return v1.ResultFailed, err
 		}
 
-		r.waitForGrafanaToBeRemoved(ctx, cr)
+		utils.WaitForGrafanaToBeRemoved(ctx, cr, r.client)
 	}
 
 	//check if Promtail resources need migration
@@ -183,63 +185,6 @@ func (r *Reconciler) Reconcile(ctx context.Context, cr *v1.Observability, s *v1.
 	}
 
 	s.Migrated = true
-
-	return v1.ResultSuccess, nil
-}
-
-func (r *Reconciler) waitForPrometheusToBeRemoved(ctx context.Context, cr *v1.Observability, prometheusName string) (v1.ObservabilityStageStatus, error) {
-	list := &v13.StatefulSetList{}
-	opts := &client.ListOptions{
-		Namespace: cr.Namespace,
-	}
-	err := r.client.List(ctx, list, opts)
-	if err != nil && !errors.IsNotFound(err) {
-		return v1.ResultFailed, err
-	}
-
-	for _, ss := range list.Items {
-		if ss.Name == fmt.Sprintf("prometheus-%s", prometheusName) {
-			return v1.ResultInProgress, nil
-		}
-	}
-
-	return v1.ResultSuccess, nil
-}
-
-func (r *Reconciler) waitForAlertmanagerToBeRemoved(ctx context.Context, cr *v1.Observability, alertmanagerName string) (v1.ObservabilityStageStatus, error) {
-	list := &v13.StatefulSetList{}
-	opts := &client.ListOptions{
-		Namespace: cr.Namespace,
-	}
-	err := r.client.List(ctx, list, opts)
-	if err != nil && !errors.IsNotFound(err) {
-		return v1.ResultFailed, err
-	}
-
-	for _, ss := range list.Items {
-		if ss.Name == fmt.Sprintf("prometheus-%s", alertmanagerName) {
-			return v1.ResultInProgress, nil
-		}
-	}
-
-	return v1.ResultSuccess, nil
-}
-
-func (r *Reconciler) waitForGrafanaToBeRemoved(ctx context.Context, cr *v1.Observability) (v1.ObservabilityStageStatus, error) {
-	list := &v13.DeploymentList{}
-	opts := &client.ListOptions{
-		Namespace: cr.Namespace,
-	}
-	err := r.client.List(ctx, list, opts)
-	if err != nil && !errors.IsNotFound(err) {
-		return v1.ResultFailed, err
-	}
-
-	for _, ss := range list.Items {
-		if ss.Name == "grafana-deployment" {
-			return v1.ResultInProgress, nil
-		}
-	}
 
 	return v1.ResultSuccess, nil
 }

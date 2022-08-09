@@ -2,14 +2,13 @@ package alertmanager_installation
 
 import (
 	"context"
-	"fmt"
+
 	"github.com/go-logr/logr"
 	v13 "github.com/openshift/api/route/v1"
 	v1 "github.com/redhat-developer/observability-operator/v3/api/v1"
 	"github.com/redhat-developer/observability-operator/v3/controllers/model"
 	"github.com/redhat-developer/observability-operator/v3/controllers/reconcilers"
 	"github.com/redhat-developer/observability-operator/v3/controllers/utils"
-	v14 "k8s.io/api/apps/v1"
 	v12 "k8s.io/api/core/v1"
 	v15 "k8s.io/api/rbac/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -76,7 +75,7 @@ func (r *Reconciler) Cleanup(ctx context.Context, cr *v1.Observability) (v1.Obse
 		return v1.ResultFailed, err
 	}
 
-	status, err := r.waitForAlertmanagerToBeRemoved(ctx, cr)
+	status, err := utils.WaitForAlertmanagerToBeRemoved(ctx, cr, r.client)
 	if status != v1.ResultSuccess {
 		return status, err
 	}
@@ -127,27 +126,6 @@ func (r *Reconciler) Cleanup(ctx context.Context, cr *v1.Observability) (v1.Obse
 	err = r.client.Delete(ctx, binding)
 	if err != nil && !errors.IsNotFound(err) {
 		return v1.ResultFailed, err
-	}
-
-	return v1.ResultSuccess, nil
-}
-
-func (r *Reconciler) waitForAlertmanagerToBeRemoved(ctx context.Context, cr *v1.Observability) (v1.ObservabilityStageStatus, error) {
-	list := &v14.StatefulSetList{}
-	opts := &client.ListOptions{
-		Namespace: cr.Namespace,
-	}
-	err := r.client.List(ctx, list, opts)
-	if err != nil && !errors.IsNotFound(err) {
-		return v1.ResultFailed, err
-	}
-
-	alertmanager := model.GetAlertmanagerCr(cr)
-
-	for _, ss := range list.Items {
-		if ss.Name == fmt.Sprintf("prometheus-%s", alertmanager.Name) {
-			return v1.ResultInProgress, nil
-		}
 	}
 
 	return v1.ResultSuccess, nil
