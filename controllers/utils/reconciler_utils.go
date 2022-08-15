@@ -141,7 +141,7 @@ func WaitForAlertmanagerToBeRemoved(ctx context.Context, cr *v1.Observability, c
 	alertmanager := model.GetAlertmanagerCr(cr)
 
 	for _, ss := range list.Items {
-		if ss.Name == fmt.Sprintf("prometheus-%s", alertmanager.Name) {
+		if ss.Name == fmt.Sprintf("alertmanager-%s", alertmanager.Name) {
 			return v1.ResultInProgress, nil
 		}
 	}

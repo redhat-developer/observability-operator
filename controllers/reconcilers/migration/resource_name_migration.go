@@ -9,10 +9,8 @@ import (
 	"github.com/redhat-developer/observability-operator/v3/controllers/model"
 	"github.com/redhat-developer/observability-operator/v3/controllers/reconcilers"
 	"github.com/redhat-developer/observability-operator/v3/controllers/utils"
+	"k8s.io/apimachinery/pkg/api/errors"
 
-	//v13 "k8s.io/api/apps/v1"
-
-	//"k8s.io/apimachinery/pkg/api/errors"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -44,7 +42,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, cr *v1.Observability, s *v1.
 		prometheusCr.Name = model.PrometheusOldDefaultName
 
 		err := r.client.Delete(ctx, prometheusCr)
-		if err != nil {
+		if err != nil && !errors.IsNotFound(err) {
 			return v1.ResultFailed, err
 		}
 
@@ -53,37 +51,35 @@ func (r *Reconciler) Reconcile(ctx context.Context, cr *v1.Observability, s *v1.
 		prometheusRoute := model.GetPrometheusRoute(cr)
 		prometheusRoute.Name = model.PrometheusOldDefaultName
 		err = r.client.Delete(ctx, prometheusRoute)
-		if err != nil {
+		if err != nil && !errors.IsNotFound(err) {
 			return v1.ResultFailed, err
 		}
 
 		prometheusService := model.GetPrometheusService(cr)
 		prometheusService.Name = model.PrometheusOldDefaultName
 		err = r.client.Delete(ctx, prometheusService)
-		if err != nil {
+		if err != nil && !errors.IsNotFound(err) {
 			return v1.ResultFailed, err
 		}
 
 		prometheusServiceAccount := model.GetPrometheusServiceAccount(cr)
 		prometheusServiceAccount.Name = model.PrometheusOldDefaultName
 		err = r.client.Delete(ctx, prometheusServiceAccount)
-		if err != nil {
+		if err != nil && !errors.IsNotFound(err) {
 			return v1.ResultFailed, err
 		}
 
 		prometheusClusterRole := model.GetPrometheusClusterRole(cr)
 		prometheusClusterRole.Name = model.PrometheusOldDefaultName
 		err = r.client.Delete(ctx, prometheusClusterRole)
-		if err != nil {
-			fmt.Println("fail delete Prometheus ClusterRole")
+		if err != nil && !errors.IsNotFound(err) {
 			return v1.ResultFailed, err
 		}
 
 		prometheusClusterRoleBinding := model.GetPrometheusClusterRoleBinding(cr)
 		prometheusClusterRoleBinding.Name = model.PrometheusOldDefaultName
 		err = r.client.Delete(ctx, prometheusClusterRoleBinding)
-		if err != nil {
-			fmt.Println("fail delete Prometheus ClusterRoleBinding")
+		if err != nil && !errors.IsNotFound(err) {
 			return v1.ResultFailed, err
 		}
 	}
@@ -96,7 +92,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, cr *v1.Observability, s *v1.
 			alertmanagerSecret := model.GetAlertmanagerSecret(cr)
 			alertmanagerSecret.Name = fmt.Sprintf("alertmanager-%s", model.AlertManagerOldDefaultName)
 			err := r.client.Delete(ctx, alertmanagerSecret)
-			if err != nil {
+			if err != nil && !errors.IsNotFound(err) {
 				return v1.ResultFailed, err
 			}
 		}
@@ -104,7 +100,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, cr *v1.Observability, s *v1.
 		alertManagerCr := model.GetAlertmanagerCr(cr)
 		alertManagerCr.Name = model.AlertManagerOldDefaultName
 		err := r.client.Delete(ctx, alertManagerCr)
-		if err != nil {
+		if err != nil && !errors.IsNotFound(err) {
 			return v1.ResultFailed, err
 		}
 
@@ -113,35 +109,35 @@ func (r *Reconciler) Reconcile(ctx context.Context, cr *v1.Observability, s *v1.
 		alertmanagerServiceAccount := model.GetAlertmanagerServiceAccount(cr)
 		alertmanagerServiceAccount.Name = model.AlertManagerOldDefaultName
 		err = r.client.Delete(ctx, alertmanagerServiceAccount)
-		if err != nil {
+		if err != nil && !errors.IsNotFound(err) {
 			return v1.ResultFailed, err
 		}
 
 		alertmanagerRoute := model.GetAlertmanagerRoute(cr)
 		alertmanagerRoute.Name = model.AlertManagerOldDefaultName
 		err = r.client.Delete(ctx, alertmanagerRoute)
-		if err != nil {
+		if err != nil && !errors.IsNotFound(err) {
 			return v1.ResultFailed, err
 		}
 
 		alertmanagerService := model.GetAlertmanagerService(cr)
 		alertmanagerService.Name = model.AlertManagerOldDefaultName
 		err = r.client.Delete(ctx, alertmanagerService)
-		if err != nil {
+		if err != nil && !errors.IsNotFound(err) {
 			return v1.ResultFailed, err
 		}
 
 		alertmanagerClusterRole := model.GetAlertmanagerClusterRole(cr)
 		alertmanagerClusterRole.Name = model.AlertManagerOldDefaultName
 		err = r.client.Delete(ctx, alertmanagerClusterRole)
-		if err != nil {
+		if err != nil && !errors.IsNotFound(err) {
 			return v1.ResultFailed, err
 		}
 
 		alertmanagerClusterRoleBinding := model.GetAlertmanagerClusterRoleBinding(cr)
 		alertmanagerClusterRoleBinding.Name = model.AlertManagerOldDefaultName
 		err = r.client.Delete(ctx, alertmanagerClusterRoleBinding)
-		if err != nil {
+		if err != nil && !errors.IsNotFound(err) {
 			return v1.ResultFailed, err
 		}
 	}
@@ -152,7 +148,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, cr *v1.Observability, s *v1.
 		grafanaCR := model.GetGrafanaCr(cr)
 		grafanaCR.Name = model.GrafanaOldDefaultName
 		err := r.client.Delete(ctx, grafanaCR)
-		if err != nil {
+		if err != nil && !errors.IsNotFound(err) {
 			return v1.ResultFailed, err
 		}
 
@@ -165,21 +161,21 @@ func (r *Reconciler) Reconcile(ctx context.Context, cr *v1.Observability, s *v1.
 		promtailServiceAccount := model.GetPromtailServiceAccount(cr)
 		promtailServiceAccount.Name = model.PromtailOldDefaultName
 		err := r.client.Delete(ctx, promtailServiceAccount)
-		if err != nil {
+		if err != nil && !errors.IsNotFound(err) {
 			return v1.ResultFailed, err
 		}
 
 		promtailClusterRole := model.GetPromtailClusterRole(cr)
 		promtailClusterRole.Name = model.PromtailOldDefaultName
 		err = r.client.Delete(ctx, promtailClusterRole)
-		if err != nil {
+		if err != nil && !errors.IsNotFound(err) {
 			return v1.ResultFailed, err
 		}
 
 		promtailClusterRoleBinding := model.GetPromtailClusterRoleBinding(cr)
 		promtailClusterRoleBinding.Name = model.PromtailOldDefaultName
 		err = r.client.Delete(ctx, promtailClusterRoleBinding)
-		if err != nil {
+		if err != nil && !errors.IsNotFound(err) {
 			return v1.ResultFailed, err
 		}
 	}
