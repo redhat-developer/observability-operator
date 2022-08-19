@@ -17,6 +17,7 @@ import (
 
 	"github.com/go-logr/logr"
 	"github.com/prometheus-operator/prometheus-operator/pkg/k8sutil"
+	"github.com/redhat-developer/observability-operator/v3/controllers/metrics"
 	"github.com/redhat-developer/observability-operator/v3/controllers/model"
 	"github.com/redhat-developer/observability-operator/v3/controllers/reconcilers"
 	"github.com/redhat-developer/observability-operator/v3/controllers/reconcilers/alertmanager_installation"
@@ -117,6 +118,7 @@ func (r *ObservabilityReconciler) Reconcile(req ctrl.Request) (ctrl.Result, erro
 			var status apiv1.ObservabilityStageStatus
 			var err error
 
+			metrics.IncreaseTotalReconciliationsMetric(stage)
 			if obs.DeletionTimestamp == nil {
 				status, err = reconciler.Reconcile(ctx, obs, nextStatus)
 			} else {
@@ -126,6 +128,7 @@ func (r *ObservabilityReconciler) Reconcile(req ctrl.Request) (ctrl.Result, erro
 			if err != nil {
 				log.Error(err, fmt.Sprintf("reconciler error in stage %v", stage))
 				nextStatus.LastMessage = err.Error()
+				metrics.IncreaseFailedReconciliationsMetric(stage)
 			} else {
 				// Reset error message when everything went well
 				nextStatus.LastMessage = ""

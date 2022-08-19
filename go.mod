@@ -21,6 +21,8 @@ require (
 	k8s.io/apimachinery v0.23.5
 	k8s.io/client-go v12.0.0+incompatible
 	sigs.k8s.io/controller-runtime v0.12.1
+	github.com/prometheus/client_golang v1.13.0
+	github.com/blang/semver v3.5.1+incompatible
 )
 
 require (
