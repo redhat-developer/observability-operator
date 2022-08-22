@@ -7,17 +7,18 @@ import (
 )
 
 const (
-	LabelStage = "stage"
+	LabelStage             = "stage"
+	LabelConfigurationSync = "configuration_sync"
 )
 
 var reconciliationsLabels = []string{
-	"stage",
+	LabelStage,
 }
 
 var totalReconciliationsMetric = prometheus.NewCounterVec(
 	prometheus.CounterOpts{
-		Name:      "observability_operator",
-		Subsystem: "reconciler",
+		Name:      "reconciler_total_count",
+		Subsystem: "observability_operator",
 		Help:      "Total number of reconciliations performed",
 	},
 	reconciliationsLabels,
@@ -25,17 +26,28 @@ var totalReconciliationsMetric = prometheus.NewCounterVec(
 
 var failedReconciliationsMetric = prometheus.NewCounterVec(
 	prometheus.CounterOpts{
-		Name:      "observability_operator",
-		Subsystem: "reconciler",
+		Name:      "reconciler_failure_count",
+		Subsystem: "observability_operator",
 		Help:      "Number of failed reconciliations",
 	},
 	reconciliationsLabels,
 )
 
-func init() {
-	metrics.Registry.MustRegister(totalReconciliationsMetric)
-	metrics.Registry.MustRegister(failedReconciliationsMetric)
-}
+var successfulConfigurationSyncsMetric = prometheus.NewCounter(
+	prometheus.CounterOpts{
+		Name:      "configuration_syncs_total_count",
+		Subsystem: "observability_operator",
+		Help:      "Total number of configuration syncs performed",
+	},
+)
+
+var failedConfigurationSyncsMetric = prometheus.NewCounter(
+	prometheus.CounterOpts{
+		Name:      "configuration_sync_failure_count",
+		Subsystem: "observability_operator",
+		Help:      "Number of failed configuration syncs",
+	},
+)
 
 func IncreaseTotalReconciliationsMetric(stage apiv1.ObservabilityStageName) {
 	labels := prometheus.Labels{
@@ -49,4 +61,19 @@ func IncreaseFailedReconciliationsMetric(stage apiv1.ObservabilityStageName) {
 		LabelStage: string(stage),
 	}
 	failedReconciliationsMetric.With(labels).Inc()
+}
+
+func IncreaseSuccessfulConfigurationSyncsMetric() {
+	successfulConfigurationSyncsMetric.Inc()
+}
+
+func IncreaseFailedConfigurationSyncsMetric() {
+	failedConfigurationSyncsMetric.Inc()
+}
+
+func init() {
+	metrics.Registry.MustRegister(totalReconciliationsMetric)
+	metrics.Registry.MustRegister(failedReconciliationsMetric)
+	metrics.Registry.MustRegister(successfulConfigurationSyncsMetric)
+	metrics.Registry.MustRegister(failedConfigurationSyncsMetric)
 }

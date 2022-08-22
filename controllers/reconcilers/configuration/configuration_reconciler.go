@@ -17,6 +17,7 @@ import (
 	errors2 "github.com/pkg/errors"
 	prometheusv1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
 	v1 "github.com/redhat-developer/observability-operator/v3/api/v1"
+	"github.com/redhat-developer/observability-operator/v3/controllers/metrics"
 	"github.com/redhat-developer/observability-operator/v3/controllers/reconcilers"
 	token2 "github.com/redhat-developer/observability-operator/v3/controllers/reconcilers/token"
 	v13 "k8s.io/api/apps/v1"
@@ -218,6 +219,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, cr *v1.Observability, s *v1.
 	overrideLastSync := false
 	overrideLastSync, err := token2.TokensExpired(ctx, r.client, cr)
 	if err != nil {
+		metrics.IncreaseFailedConfigurationSyncsMetric()
 		return v1.ResultFailed, errors2.Wrap(err, "error checking observatorium token lifetimes")
 	}
 
@@ -232,6 +234,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, cr *v1.Observability, s *v1.
 		lastSync := time.Unix(cr.Status.LastSynced, 0)
 		period, err := time.ParseDuration(cr.Spec.ResyncPeriod)
 		if err != nil {
+			metrics.IncreaseFailedConfigurationSyncsMetric()
 			return v1.ResultFailed, errors2.Wrap(err, "error parsing operator resync period")
 		}
 
@@ -253,6 +256,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, cr *v1.Observability, s *v1.
 	if !cr.ExternalSyncDisabled() {
 		err = r.client.List(ctx, configSecretList, opts)
 		if err != nil {
+			metrics.IncreaseFailedConfigurationSyncsMetric()
 			return v1.ResultFailed, err
 		}
 	}
@@ -297,6 +301,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, cr *v1.Observability, s *v1.
 	for _, repoInfo := range repos {
 		indexBytes, err := r.readIndexFile(&repoInfo)
 		if err != nil {
+			metrics.IncreaseFailedConfigurationSyncsMetric()
 			log.Error(err, "failed to fetch configuration repository index file")
 			return v1.ResultFailed, err
 		}
@@ -304,6 +309,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, cr *v1.Observability, s *v1.
 		var index v1.RepositoryIndex
 		err = json.Unmarshal(indexBytes, &index)
 		if err != nil {
+			metrics.IncreaseFailedConfigurationSyncsMetric()
 			log.Error(err, "failed to unmarshal configuration repository index")
 			return v1.ResultFailed, err
 		}
@@ -317,6 +323,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, cr *v1.Observability, s *v1.
 	// Delete unrequested token secrets
 	err = r.deleteUnrequestedCredentialSecrets(ctx, cr, indexes)
 	if err != nil {
+		metrics.IncreaseFailedConfigurationSyncsMetric()
 		return v1.ResultFailed, err
 	}
 
@@ -331,17 +338,20 @@ func (r *Reconciler) Reconcile(ctx context.Context, cr *v1.Observability, s *v1.
 
 	err = r.deleteUnrequestedTokenRefreshers(ctx, cr, indexes)
 	if err != nil {
+		metrics.IncreaseFailedConfigurationSyncsMetric()
 		return v1.ResultFailed, errors2.Wrap(err, "error deleting unrequested token refreshers")
 	}
 
 	err = r.deleteUnrequestedNetworkPolicies(ctx, cr, indexes)
 	if err != nil {
+		metrics.IncreaseFailedConfigurationSyncsMetric()
 		return v1.ResultFailed, errors2.Wrap(err, "error deleting unrequested network policies")
 	}
 
 	if !cr.ObservatoriumDisabled() {
 		err = r.reconcileTokenRefresher(ctx, cr, indexes)
 		if err != nil {
+			metrics.IncreaseFailedConfigurationSyncsMetric()
 			return v1.ResultFailed, errors2.Wrap(err, "error reconciling token refresher")
 		}
 	}
@@ -355,6 +365,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, cr *v1.Observability, s *v1.
 		if !overrideConfigSecret {
 			err = r.reconcileAlertmanagerSecret(ctx, cr, indexes)
 			if err != nil {
+				metrics.IncreaseFailedConfigurationSyncsMetric()
 				return v1.ResultFailed, errors2.Wrap(err, "error reconciling alertmanager secret")
 			}
 		}
@@ -363,26 +374,31 @@ func (r *Reconciler) Reconcile(ctx context.Context, cr *v1.Observability, s *v1.
 	// Prometheus additional scrape configs
 	patterns, err := r.fetchFederationConfigs(cr, indexes)
 	if err != nil {
+		metrics.IncreaseFailedConfigurationSyncsMetric()
 		return v1.ResultFailed, errors2.Wrap(err, "error fetching federation config")
 	}
 	err = r.createAdditionalScrapeConfigSecret(cr, ctx, patterns)
 	if err != nil {
+		metrics.IncreaseFailedConfigurationSyncsMetric()
 		return v1.ResultFailed, err
 	}
 	//blackbox exporter
 	hash, err := r.createBlackBoxConfig(cr, ctx)
 	if err != nil {
+		metrics.IncreaseFailedConfigurationSyncsMetric()
 		return v1.ResultFailed, err
 	}
 	// Alertmanager CR
 	err = r.reconcileAlertmanager(ctx, cr, indexes)
 	if err != nil {
+		metrics.IncreaseFailedConfigurationSyncsMetric()
 		return v1.ResultFailed, errors2.Wrap(err, "error reconciling alertmanager")
 	}
 
 	// Prometheus CR
 	err = r.reconcilePrometheus(ctx, cr, indexes, hash)
 	if err != nil {
+		metrics.IncreaseFailedConfigurationSyncsMetric()
 		return v1.ResultFailed, errors2.Wrap(err, "error reconciling prometheus")
 	}
 
@@ -390,6 +406,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, cr *v1.Observability, s *v1.
 	if !cr.DescopedModeEnabled() {
 		err = r.reconcileGrafanaCr(ctx, cr, indexes)
 		if err != nil {
+			metrics.IncreaseFailedConfigurationSyncsMetric()
 			return v1.ResultFailed, errors2.Wrap(err, "error reconciling grafana")
 		}
 	}
@@ -400,11 +417,13 @@ func (r *Reconciler) Reconcile(ctx context.Context, cr *v1.Observability, s *v1.
 			dashboards := getUniqueDashboards(indexes)
 			err = r.deleteUnrequestedDashboards(cr, ctx, dashboards)
 			if err != nil {
+				metrics.IncreaseFailedConfigurationSyncsMetric()
 				return v1.ResultFailed, errors2.Wrap(err, "error deleting unrequested dashboards")
 			}
 
 			err = r.createRequestedDashboards(cr, ctx, dashboards)
 			if err != nil {
+				metrics.IncreaseFailedConfigurationSyncsMetric()
 				return v1.ResultFailed, errors2.Wrap(err, "error creating requested dashboards")
 			}
 		}
@@ -413,11 +432,13 @@ func (r *Reconciler) Reconcile(ctx context.Context, cr *v1.Observability, s *v1.
 		rules := getUniqueRules(indexes)
 		err = r.deleteUnrequestedRules(cr, ctx, rules)
 		if err != nil {
+			metrics.IncreaseFailedConfigurationSyncsMetric()
 			return v1.ResultFailed, errors2.Wrap(err, "error deleting unrequested prometheus rules")
 		}
 
 		err = r.createRequestedRules(cr, ctx, rules)
 		if err != nil {
+			metrics.IncreaseFailedConfigurationSyncsMetric()
 			return v1.ResultFailed, errors2.Wrap(err, "error creating requested prometheus rules")
 		}
 
@@ -425,16 +446,19 @@ func (r *Reconciler) Reconcile(ctx context.Context, cr *v1.Observability, s *v1.
 		monitors := getUniquePodMonitors(indexes)
 		err = r.deleteUnrequestedPodMonitors(cr, ctx, monitors)
 		if err != nil {
+			metrics.IncreaseFailedConfigurationSyncsMetric()
 			return v1.ResultFailed, errors2.Wrap(err, "error deleting unrequested pod monitors")
 		}
 
 		err = r.createRequestedPodMonitors(cr, ctx, monitors)
 		if err != nil {
+			metrics.IncreaseFailedConfigurationSyncsMetric()
 			return v1.ResultFailed, errors2.Wrap(err, "error creating requested pod monitors")
 		}
 	} else {
 		err = r.createDMSAlert(cr, ctx)
 		if err != nil {
+			metrics.IncreaseFailedConfigurationSyncsMetric()
 			return v1.ResultFailed, errors2.Wrap(err, "error creating deadmansswitch alert")
 		}
 	}
@@ -443,6 +467,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, cr *v1.Observability, s *v1.
 	// First cleanup any no longer requested instances
 	err = r.deleteUnrequestedDaemonsets(ctx, cr, indexes)
 	if err != nil {
+		metrics.IncreaseFailedConfigurationSyncsMetric()
 		return v1.ResultFailed, errors2.Wrap(err, "error deleting unrequested promtail daemon sets")
 	}
 
@@ -461,6 +486,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, cr *v1.Observability, s *v1.
 	} else {
 		s.LastSynced = time.Now().Unix()
 	}
+	metrics.IncreaseSuccessfulConfigurationSyncsMetric()
 	return v1.ResultSuccess, nil
 }
 
