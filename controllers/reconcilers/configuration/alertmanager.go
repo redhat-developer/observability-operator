@@ -3,6 +3,8 @@ package configuration
 import (
 	"context"
 	"fmt"
+	"strings"
+
 	goyaml "github.com/goccy/go-yaml"
 	prometheusv1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
 	v1 "github.com/redhat-developer/observability-operator/v3/api/v1"
@@ -13,7 +15,6 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
-	"strings"
 )
 
 func (r *Reconciler) reconcileAlertmanager(ctx context.Context, cr *v1.Observability, indexes []v1.RepositoryIndex) error {
@@ -39,64 +40,73 @@ func (r *Reconciler) reconcileAlertmanager(ctx context.Context, cr *v1.Observabi
 	}
 
 	_, err = controllerutil.CreateOrUpdate(ctx, r.client, alertmanager, func() error {
-		alertmanager.Spec.ConfigSecret = configSecretName
-		alertmanager.Spec.ListenLocal = true
-		alertmanager.Spec.ExternalURL = fmt.Sprintf("https://%v", host)
-		alertmanager.Spec.ServiceAccountName = sa.Name
-		alertmanager.Spec.Secrets = []string{
-			proxySecret.Name,
-			"alertmanager-k8s-tls",
-		}
-		alertmanager.Spec.PriorityClassName = model.ObservabilityPriorityClassName
-		alertmanager.Spec.Containers = []v12.Container{
-			{
-				Name:  "oauth-proxy",
-				Image: "quay.io/openshift/origin-oauth-proxy:4.8",
-				Args: []string{
-					"-provider=openshift",
-					"-https-address=:9091",
-					"-http-address=",
-					"-email-domain=*",
-					"-upstream=http://localhost:9093",
-					"-openshift-sar={\"resource\": \"namespaces\", \"verb\": \"get\"}",
-					"-openshift-delegate-urls={\"/\": {\"resource\": \"namespaces\", \"verb\": \"get\"}}",
-					"-tls-cert=/etc/tls/private/tls.crt",
-					"-tls-key=/etc/tls/private/tls.key",
-					"-client-secret-file=/var/run/secrets/kubernetes.io/serviceaccount/token",
-					"-cookie-secret-file=/etc/proxy/secrets/session_secret",
-					fmt.Sprintf("-openshift-service-account=%v", sa.Name),
-					"-openshift-ca=/etc/pki/tls/cert.pem",
-					"-openshift-ca=/var/run/secrets/kubernetes.io/serviceaccount/ca.crt",
-					"-skip-auth-regex=^/metrics",
+		alertmanager.Spec = prometheusv1.AlertmanagerSpec{
+			PodMetadata: &prometheusv1.EmbeddedObjectMetadata{
+				Annotations: map[string]string{
+					"cluster-autoscaler.kubernetes.io/safe-to-evict": "true",
 				},
-				Ports: []v12.ContainerPort{
-					{
-						Name:          "proxy",
-						ContainerPort: 9091,
+			},
+			ConfigSecret:       configSecretName,
+			ListenLocal:        true,
+			ExternalURL:        fmt.Sprintf("https://%v", host),
+			ServiceAccountName: sa.Name,
+			Secrets: []string{
+				proxySecret.Name,
+				"alertmanager-k8s-tls",
+			},
+			PriorityClassName: model.ObservabilityPriorityClassName,
+			Containers: []v12.Container{
+				{
+					Name:  "oauth-proxy",
+					Image: "quay.io/openshift/origin-oauth-proxy:4.8",
+					Args: []string{
+						"-provider=openshift",
+						"-https-address=:9091",
+						"-http-address=",
+						"-email-domain=*",
+						"-upstream=http://localhost:9093",
+						"-openshift-sar={\"resource\": \"namespaces\", \"verb\": \"get\"}",
+						"-openshift-delegate-urls={\"/\": {\"resource\": \"namespaces\", \"verb\": \"get\"}}",
+						"-tls-cert=/etc/tls/private/tls.crt",
+						"-tls-key=/etc/tls/private/tls.key",
+						"-client-secret-file=/var/run/secrets/kubernetes.io/serviceaccount/token",
+						"-cookie-secret-file=/etc/proxy/secrets/session_secret",
+						fmt.Sprintf("-openshift-service-account=%v", sa.Name),
+						"-openshift-ca=/etc/pki/tls/cert.pem",
+						"-openshift-ca=/var/run/secrets/kubernetes.io/serviceaccount/ca.crt",
+						"-skip-auth-regex=^/metrics",
 					},
-				},
-				Env: []v12.EnvVar{
-					{
-						Name: "HTTP_PROXY",
+					Ports: []v12.ContainerPort{
+						{
+							Name:          "proxy",
+							ContainerPort: 9091,
+						},
 					},
-					{
-						Name: "HTTPS_PROXY",
+					Env: []v12.EnvVar{
+						{
+							Name: "HTTP_PROXY",
+						},
+						{
+							Name: "HTTPS_PROXY",
+						},
+						{
+							Name: "NO_PROXY",
+						},
 					},
-					{
-						Name: "NO_PROXY",
-					},
-				},
-				VolumeMounts: []v12.VolumeMount{
-					{
-						Name:      "secret-alertmanager-k8s-tls",
-						MountPath: "/etc/tls/private",
-					},
-					{
-						Name:      fmt.Sprintf("secret-%v", proxySecret.Name),
-						MountPath: "/etc/proxy/secrets",
+					VolumeMounts: []v12.VolumeMount{
+						{
+							Name:      "secret-alertmanager-k8s-tls",
+							MountPath: "/etc/tls/private",
+						},
+						{
+							Name:      fmt.Sprintf("secret-%v", proxySecret.Name),
+							MountPath: "/etc/proxy/secrets",
+						},
 					},
 				},
 			},
+			Version:   model.GetAlertmanagerVersion(cr),
+			Resources: *model.GetAlertmanagerResourceRequirement(cr),
 		}
 		alertmanager.Spec.Version = model.GetAlertmanagerVersion(cr)
 		alertmanager.Spec.Resources = *model.GetAlertmanagerResourceRequirement(cr)
@@ -117,7 +127,7 @@ func (r *Reconciler) reconcileAlertmanager(ctx context.Context, cr *v1.Observabi
 
 }
 
-//construct Alertmanager storage spec with either default or override value from resources
+// construct Alertmanager storage spec with either default or override value from resources
 func getAlertManagerStorageSpecHelper(cr *v1.Observability, indexes []v1.RepositoryIndex) (*prometheusv1.StorageSpec, error) {
 	alertManagerStorageSpec := cr.Spec.Storage.AlertManagerStorageSpec
 	customStorageSize := model.GetAlertmanagerStorageSize(cr, indexes)
