@@ -348,6 +348,11 @@ func (r *Reconciler) reconcilePrometheus(ctx context.Context, cr *v1.Observabili
 		}
 
 		prometheus.Spec = prometheusv1.PrometheusSpec{
+			PodMetadata: &prometheusv1.EmbeddedObjectMetadata{
+				Annotations: map[string]string{
+					"cluster-autoscaler.kubernetes.io/safe-to-evict": "true",
+				},
+			},
 			// Custom Prometheus version
 			Image:   &image,
 			Version: model.GetPrometheusVersion(cr),
@@ -416,7 +421,7 @@ func (r *Reconciler) reconcilePrometheus(ctx context.Context, cr *v1.Observabili
 	return nil
 }
 
-//construct Prometheus storage spec with either default or override value from resources
+// construct Prometheus storage spec with either default or override value from resources
 func getPrometheusStorageSpecHelper(cr *v1.Observability, indexes []v1.RepositoryIndex) (*prometheusv1.StorageSpec, error) {
 	prometheusStorageSpec := cr.Spec.Storage.PrometheusStorageSpec
 	if cr.ExternalSyncDisabled() {

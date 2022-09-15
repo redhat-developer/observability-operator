@@ -160,6 +160,9 @@ func (r *Reconciler) createDeploymentFor(ctx context.Context, cr *v1.Observabili
 						"app.kubernetes.io/name":      config.Name,
 						"app.kubernetes.io/version":   TokenRefresherImageTag,
 					},
+					Annotations: map[string]string{
+						"cluster-autoscaler.kubernetes.io/safe-to-evict": "true",
+					},
 				},
 				Spec: v12.PodSpec{
 					PriorityClassName: model.ObservabilityPriorityClassName,

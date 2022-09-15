@@ -127,6 +127,9 @@ func (r *Reconciler) reconcileGrafanaCr(ctx context.Context, cr *v1.Observabilit
 			Deployment: &v1alpha1.GrafanaDeployment{
 				Replicas:          1,
 				PriorityClassName: model.ObservabilityPriorityClassName,
+				Annotations: map[string]string{
+					"cluster-autoscaler.kubernetes.io/safe-to-evict": "true",
+				},
 			},
 			Resources: model.GetGrafanaResourceRequirement(cr),
 		}
