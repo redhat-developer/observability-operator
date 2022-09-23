@@ -10,7 +10,7 @@ import (
 	"github.com/redhat-developer/observability-operator/v3/controllers/model"
 	"github.com/redhat-developer/observability-operator/v3/controllers/reconcilers"
 	"github.com/redhat-developer/observability-operator/v3/controllers/utils"
-	v12 "k8s.io/api/apps/v1"
+	appsv1 "k8s.io/api/apps/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -55,7 +55,7 @@ func (r *Reconciler) Cleanup(ctx context.Context, cr *v1.Observability) (v1.Obse
 	}
 
 	// We have to remove the prometheus operator deployment manually
-	deployments := &v12.DeploymentList{}
+	deployments := &appsv1.DeploymentList{}
 	opts := &client.ListOptions{
 		Namespace: cr.Namespace,
 	}
@@ -120,7 +120,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, cr *v1.Observability, s *v1.
 
 func (r *Reconciler) waitForPrometheusOperator(ctx context.Context, cr *v1.Observability) (v1.ObservabilityStageStatus, error) {
 	// We have to remove the prometheus operator deployment manually
-	deployments := &v12.DeploymentList{}
+	deployments := &appsv1.DeploymentList{}
 	opts := &client.ListOptions{
 		Namespace: cr.GetPrometheusOperatorNamespace(),
 	}
@@ -253,7 +253,7 @@ func (r *Reconciler) removePrometheusOperatorIndexResources(ctx context.Context,
 	}
 
 	// We have to remove the prometheus operator deployment manually
-	deployments := &v12.DeploymentList{}
+	deployments := &appsv1.DeploymentList{}
 	opts := &client.ListOptions{
 		Namespace: cr.Namespace,
 	}
