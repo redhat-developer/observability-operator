@@ -54,25 +54,6 @@ func (r *Reconciler) Cleanup(ctx context.Context, cr *v1.Observability) (v1.Obse
 		return v1.ResultFailed, err
 	}
 
-	// We have to remove the prometheus operator deployment manually
-	deployments := &appsv1.DeploymentList{}
-	opts := &client.ListOptions{
-		Namespace: cr.Namespace,
-	}
-	err = r.client.List(ctx, deployments, opts)
-	if err != nil {
-		return v1.ResultFailed, err
-	}
-
-	for _, deployment := range deployments.Items {
-		if deployment.Name == "prometheus-operator" {
-			err = r.client.Delete(ctx, &deployment)
-			if err != nil && !errors.IsNotFound(err) {
-				return v1.ResultFailed, err
-			}
-		}
-	}
-
 	if cr.DescopedModeEnabled() {
 		namespace := model.GetPrometheusNamespace(cr)
 		err = r.client.Delete(ctx, namespace)
@@ -235,6 +216,7 @@ func (r *Reconciler) reconcileOperatorgroup(ctx context.Context, cr *v1.Observab
 }
 
 func (r *Reconciler) removePrometheusOperatorIndexResources(ctx context.Context, source *v1alpha1.CatalogSource, cr *v1.Observability) error {
+	// Delete subscription
 	subscription := &v1alpha1.Subscription{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "prometheus-subscription",
@@ -252,26 +234,7 @@ func (r *Reconciler) removePrometheusOperatorIndexResources(ctx context.Context,
 		return err
 	}
 
-	// We have to remove the prometheus operator deployment manually
-	deployments := &appsv1.DeploymentList{}
-	opts := &client.ListOptions{
-		Namespace: cr.Namespace,
-	}
-	err = r.client.List(ctx, deployments, opts)
-	if err != nil {
-		return err
-	}
-
-	for _, deployment := range deployments.Items {
-		if deployment.Name == "prometheus-operator" {
-			err = r.client.Delete(ctx, &deployment)
-			if err != nil && !errors.IsNotFound(err) {
-				return err
-			}
-		}
-	}
-
-	//delete csv to uninstall
+	// Delete csv to uninstall
 	csv := &v1alpha1.ClusterServiceVersion{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "prometheusoperator.0.45.0",
@@ -282,5 +245,6 @@ func (r *Reconciler) removePrometheusOperatorIndexResources(ctx context.Context,
 	if err != nil && !errors.IsNotFound(err) {
 		return err
 	}
+
 	return nil
 }
