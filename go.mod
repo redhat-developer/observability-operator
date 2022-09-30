@@ -19,7 +19,7 @@ require (
 	k8s.io/api v0.20.6
 	k8s.io/apimachinery v0.20.6
 	k8s.io/client-go v12.0.0+incompatible
-	sigs.k8s.io/controller-runtime v0.6.2
+	sigs.k8s.io/controller-runtime v0.12.1
 )
 
 require (
@@ -41,22 +41,17 @@ require (
 	sigs.k8s.io/apiserver-network-proxy/konnectivity-client v0.0.15 // indirect
 )
 
-replace k8s.io/client-go => k8s.io/client-go v0.19.2
-
-replace k8s.io/api => k8s.io/api v0.19.2
-
-replace k8s.io/apimachinery => k8s.io/apimachinery v0.19.2
-
-replace k8s.io/apiserver => k8s.io/apiserver v0.19.2
-
-replace github.com/opencontainers/runc => github.com/opencontainers/runc v1.1.2
-
-replace github.com/containerd/containerd => github.com/containerd/containerd v1.5.13
-
-replace github.com/gogo/protobuf => github.com/gogo/protobuf v1.3.2
-
-replace github.com/docker/distribution => github.com/docker/distribution v2.8.0+incompatible
-
-replace go.mongodb.org/mongo-driver => go.mongodb.org/mongo-driver v1.5.1
-
-replace github.com/opencontainers/image-spec => github.com/opencontainers/image-spec v1.0.2
+replace (
+	github.com/containerd/containerd => github.com/containerd/containerd v1.5.13
+	github.com/docker/distribution => github.com/docker/distribution v2.8.0+incompatible
+	github.com/gogo/protobuf => github.com/gogo/protobuf v1.3.2
+	github.com/opencontainers/image-spec => github.com/opencontainers/image-spec v1.0.2
+	github.com/opencontainers/runc => github.com/opencontainers/runc v1.1.2
+	go.mongodb.org/mongo-driver => go.mongodb.org/mongo-driver v1.5.1
+	k8s.io/api => k8s.io/api v0.19.2
+	k8s.io/apimachinery => k8s.io/apimachinery v0.19.2
+	k8s.io/apiserver => k8s.io/apiserver v0.19.2
+	k8s.io/client-go => k8s.io/client-go v0.19.2
+	sigs.k8s.io/controller-runtime => sigs.k8s.io/controller-runtime v0.6.3
+	sigs.k8s.io/controller-runtime/pkg/client/fake => sigs.k8s.io/controller-runtime/pkg/client/fake v0.12.1
+)
