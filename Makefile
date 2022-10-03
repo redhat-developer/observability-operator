@@ -1,5 +1,5 @@
 # Current Operator version
-VERSION ?= 3.0.15
+VERSION ?= 3.0.16
 # Options for 'bundle-build'
 ifneq ($(origin CHANNELS), undefined)
 BUNDLE_CHANNELS := --channels=$(CHANNELS)
