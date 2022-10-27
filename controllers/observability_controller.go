@@ -23,6 +23,7 @@ import (
 	"github.com/redhat-developer/observability-operator/v3/controllers/reconcilers/csv"
 	"github.com/redhat-developer/observability-operator/v3/controllers/reconcilers/grafana_configuration"
 	"github.com/redhat-developer/observability-operator/v3/controllers/reconcilers/grafana_installation"
+	"github.com/redhat-developer/observability-operator/v3/controllers/reconcilers/logging_installation"
 	"github.com/redhat-developer/observability-operator/v3/controllers/reconcilers/prometheus_configuration"
 	"github.com/redhat-developer/observability-operator/v3/controllers/reconcilers/prometheus_installation"
 	"github.com/redhat-developer/observability-operator/v3/controllers/reconcilers/promtail_installation"
@@ -287,6 +288,7 @@ func (r *ObservabilityReconciler) getInstallationStages() []apiv1.ObservabilityS
 		apiv1.GrafanaConfiguration,
 		apiv1.AlertmanagerInstallation,
 		apiv1.PromtailInstallation,
+		apiv1.LoggingInstallation,
 		apiv1.Csv,
 		apiv1.Configuration,
 	}
@@ -300,6 +302,7 @@ func (r *ObservabilityReconciler) getCleanupStages() []apiv1.ObservabilityStageN
 		apiv1.GrafanaInstallation,
 		apiv1.AlertmanagerInstallation,
 		apiv1.PromtailInstallation,
+		apiv1.LoggingInstallation,
 		apiv1.Configuration,
 		apiv1.TokenRequest,
 		apiv1.Csv,
@@ -413,6 +416,9 @@ func (r *ObservabilityReconciler) getReconcilerForStage(stage apiv1.Observabilit
 
 	case apiv1.Configuration:
 		return configuration.NewReconciler(r.Client, r.Log)
+
+	case apiv1.LoggingInstallation:
+		return logging_installation.NewReconciler(r.Client, r.Log)
 
 	default:
 		return nil
