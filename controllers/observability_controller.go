@@ -70,6 +70,7 @@ type ObservabilityReconciler struct {
 // +kubebuilder:rbac:groups="",resources=namespaces;pods;nodes;nodes/proxy,verbs=get;list;watch;delete;create
 // +kubebuilder:rbac:groups="",resources=secrets;serviceaccounts;configmaps;endpoints;services;nodes/proxy,verbs=get;list;create;update;delete;watch
 // +kubebuilder:rbac:groups=networking.k8s.io,resources=networkpolicies,verbs=get;list;create;update;delete;watch
+// +kubebuilder:rbac:groups=logging.openshift.io,resources=clusterloggings;clusterlogforwarders,verbs=get;list;create;update;delete;watch
 
 func (r *ObservabilityReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	ctx := context.Background()
