@@ -1,5 +1,5 @@
 # Build the manager binary
-FROM registry.access.redhat.com/ubi8/go-toolset:1.17.10 as builder
+FROM golang:1.18 as builder
 
 USER root
 

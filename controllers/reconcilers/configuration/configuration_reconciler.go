@@ -13,7 +13,7 @@ import (
 	v14 "k8s.io/api/networking/v1"
 
 	"github.com/go-logr/logr"
-	"github.com/integr8ly/grafana-operator/v3/pkg/apis/integreatly/v1alpha1"
+	"github.com/grafana-operator/grafana-operator/v4/api/integreatly/v1alpha1"
 	errors2 "github.com/pkg/errors"
 	prometheusv1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
 	v1 "github.com/redhat-developer/observability-operator/v3/api/v1"

@@ -4,7 +4,7 @@ import (
 	"context"
 
 	"github.com/blang/semver"
-	"github.com/integr8ly/grafana-operator/v3/pkg/apis/integreatly/v1alpha1"
+	"github.com/grafana-operator/grafana-operator/v4/api/integreatly/v1alpha1"
 	v1 "github.com/redhat-developer/observability-operator/v3/api/v1"
 	"github.com/redhat-developer/observability-operator/v3/controllers/model"
 	core "k8s.io/api/core/v1"
@@ -22,6 +22,7 @@ func (r *Reconciler) reconcileGrafanaCr(ctx context.Context, cr *v1.Observabilit
 
 	var f = false
 	var t = true
+	var replicaCount int32 = 1
 
 	specVer, verError := semver.ParseTolerant(model.GetGrafanaVersion(indexes, cr))
 	GrafanaImage := ""
@@ -122,10 +123,10 @@ func (r *Reconciler) reconcileGrafanaCr(ctx context.Context, cr *v1.Observabilit
 				},
 			},
 			Client: &v1alpha1.GrafanaClient{
-				PreferService: true,
+				PreferService: &t,
 			},
 			Deployment: &v1alpha1.GrafanaDeployment{
-				Replicas:          1,
+				Replicas:          &replicaCount,
 				PriorityClassName: model.ObservabilityPriorityClassName,
 				Annotations: map[string]string{
 					"cluster-autoscaler.kubernetes.io/safe-to-evict": "true",

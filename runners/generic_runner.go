@@ -1,6 +1,10 @@
 package runners
 
-import "sigs.k8s.io/controller-runtime/pkg/manager"
+import (
+	"context"
+
+	"sigs.k8s.io/controller-runtime/pkg/manager"
+)
 
 type OperandInitializer struct {
 	cb func() error
@@ -12,6 +16,6 @@ func NewOperandInitializer(cb func() error) manager.Runnable {
 	}
 }
 
-func (r *OperandInitializer) Start(<-chan struct{}) error {
+func (r *OperandInitializer) Start(context.Context) error {
 	return r.cb()
 }

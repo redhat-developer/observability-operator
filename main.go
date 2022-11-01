@@ -22,7 +22,7 @@ import (
 	"os"
 
 	"github.com/go-logr/logr"
-	grafana "github.com/integr8ly/grafana-operator/v3/pkg/apis/integreatly/v1alpha1"
+	grafana "github.com/grafana-operator/grafana-operator/v4/api/integreatly/v1alpha1"
 	configv1 "github.com/openshift/api/config/v1"
 	projectv1 "github.com/openshift/api/project/v1"
 	routev1 "github.com/openshift/api/route/v1"

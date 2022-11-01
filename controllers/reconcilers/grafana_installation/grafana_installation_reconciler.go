@@ -13,6 +13,7 @@ import (
 	"github.com/redhat-developer/observability-operator/v3/controllers/utils"
 	v12 "k8s.io/api/apps/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
@@ -79,14 +80,8 @@ func (r *Reconciler) Reconcile(ctx context.Context, cr *v1.Observability, s *v1.
 		return v1.ResultSuccess, nil
 	}
 
-	// Remove old subscriptions
-	status, err := r.deleteUnrequestedSubscriptions(ctx, cr)
-	if status != v1.ResultSuccess {
-		return status, err
-	}
-
 	// Grafana catalog source
-	status, err = r.reconcileCatalogSource(ctx, cr)
+	status, err := r.reconcileCatalogSource(ctx, cr)
 	if status != v1.ResultSuccess {
 		return status, err
 	}
@@ -111,69 +106,31 @@ func (r *Reconciler) Reconcile(ctx context.Context, cr *v1.Observability, s *v1.
 	return v1.ResultSuccess, nil
 }
 
-func (r *Reconciler) deleteUnrequestedSubscriptions(ctx context.Context, cr *v1.Observability) (v1.ObservabilityStageStatus, error) {
-	grafanaSubscription := model.GetGrafanaSubscription(cr)
-	list := &v1alpha1.SubscriptionList{}
-	opts := &client.ListOptions{
-		Namespace: cr.Namespace,
+func (r *Reconciler) reconcileCatalogSource(ctx context.Context, cr *v1.Observability) (v1.ObservabilityStageStatus, error) {
+	source := &v1alpha1.CatalogSource{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "grafana-operator-catalog-source",
+			Namespace: cr.Namespace,
+		},
+	}
+	selector := client.ObjectKey{
+		Namespace: source.Namespace,
+		Name:      source.Name,
 	}
 
-	err := r.client.List(ctx, list, opts)
-	if err != nil {
+	//look for catalogSource for old Grafana Operator index. If found migrate to community image
+	err := r.client.Get(ctx, selector, source)
+	if err != nil && !errors.IsNotFound(err) {
 		return v1.ResultFailed, err
 	}
-
-	var foundOldSubscription = false
-	for _, subscription := range list.Items {
-		if subscription.Name == grafanaSubscription.Name &&
-			subscription.Spec.CatalogSourceNamespace == "openshift-marketplace" &&
-			subscription.Spec.CatalogSource == "community-operators" {
-			err = r.client.Delete(ctx, &subscription)
-			foundOldSubscription = true
+	if err == nil {
+		if source.Spec.Image == "quay.io/rhoas/grafana-operator-index:v3.10.5" {
+			err := r.removeUnusedGrafanaOperatorIndexResources(ctx, source, cr)
 			if err != nil {
 				return v1.ResultFailed, err
 			}
+			return v1.ResultSuccess, nil
 		}
-	}
-
-	// If no old (pre product) subscription is found, we can just exit here
-	if !foundOldSubscription {
-		return v1.ResultSuccess, nil
-	}
-
-	// Remove the old CSV
-	csvList := &v1alpha1.ClusterServiceVersionList{}
-	err = r.client.List(ctx, csvList, opts)
-	if err != nil {
-		return v1.ResultFailed, err
-	}
-
-	for _, csv := range csvList.Items {
-		if csv.Namespace == cr.Namespace && strings.HasPrefix(csv.Name, "grafana-operator.") {
-			err := r.client.Delete(ctx, &csv)
-			if err != nil && !errors.IsNotFound(err) {
-				return v1.ResultFailed, err
-			}
-			return v1.ResultInProgress, nil
-		}
-	}
-
-	return v1.ResultSuccess, nil
-}
-
-func (r *Reconciler) reconcileCatalogSource(ctx context.Context, cr *v1.Observability) (v1.ObservabilityStageStatus, error) {
-	source := model.GetGrafanaCatalogSource(cr)
-
-	_, err := controllerutil.CreateOrUpdate(ctx, r.client, source, func() error {
-		source.Spec = v1alpha1.CatalogSourceSpec{
-			SourceType: v1alpha1.SourceTypeGrpc,
-			Image:      "quay.io/rhoas/grafana-operator-index:v3.10.5",
-		}
-		return nil
-	})
-
-	if err != nil {
-		return v1.ResultFailed, err
 	}
 
 	return v1.ResultSuccess, nil
@@ -181,20 +138,25 @@ func (r *Reconciler) reconcileCatalogSource(ctx context.Context, cr *v1.Observab
 
 func (r *Reconciler) reconcileSubscription(ctx context.Context, cr *v1.Observability) (v1.ObservabilityStageStatus, error) {
 	subscription := model.GetGrafanaSubscription(cr)
-	source := model.GetGrafanaCatalogSource(cr)
 
 	_, err := controllerutil.CreateOrUpdate(ctx, r.client, subscription, func() error {
 		subscription.Spec = &v1alpha1.SubscriptionSpec{
-			CatalogSource:          source.Name,
-			CatalogSourceNamespace: source.Namespace,
+			CatalogSource:          "community-operators",
+			CatalogSourceNamespace: "openshift-marketplace",
 			Package:                "grafana-operator",
-			Channel:                "alpha",
-			StartingCSV:            "grafana-operator.v3.10.5",
-			Config:                 v1alpha1.SubscriptionConfig{Resources: *model.GetGrafanaOperatorResourceRequirement(cr)},
+			Channel:                "v4",
+			InstallPlanApproval:    v1alpha1.ApprovalManual,
+			Config:                 &v1alpha1.SubscriptionConfig{Resources: model.GetGrafanaOperatorResourceRequirement(cr)},
+			StartingCSV:            "grafana-operator.v4.7.0",
 		}
 		return nil
 	})
 
+	if err != nil {
+		return v1.ResultFailed, err
+	}
+
+	err = r.approveGrafanaOperatorInstallPlan(ctx, cr)
 	if err != nil {
 		return v1.ResultFailed, err
 	}
@@ -247,4 +209,59 @@ func (r *Reconciler) waitForGrafanaOperator(ctx context.Context, cr *v1.Observab
 		}
 	}
 	return v1.ResultInProgress, nil
+}
+
+func (r *Reconciler) removeUnusedGrafanaOperatorIndexResources(ctx context.Context, source *v1alpha1.CatalogSource, cr *v1.Observability) error {
+	// Delete subscription
+	subscription := &v1alpha1.Subscription{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "grafana-subscription",
+			Namespace: cr.Namespace,
+		},
+	}
+	err := r.client.Delete(ctx, subscription)
+	if err != nil && !errors.IsNotFound(err) {
+		return err
+	}
+
+	// Delete catalog source
+	err = r.client.Delete(ctx, source)
+	if err != nil && !errors.IsNotFound(err) {
+		return err
+	}
+
+	// Delete csv to uninstall
+	csv := &v1alpha1.ClusterServiceVersion{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "grafana-operator.v3.10.5",
+			Namespace: cr.Namespace,
+		},
+	}
+	err = r.client.Delete(ctx, csv)
+	if err != nil && !errors.IsNotFound(err) {
+		return err
+	}
+
+	return nil
+}
+
+func (r *Reconciler) approveGrafanaOperatorInstallPlan(ctx context.Context, cr *v1.Observability) error {
+	plans := &v1alpha1.InstallPlanList{}
+	opts := &client.ListOptions{
+		Namespace: cr.Namespace,
+	}
+	err := r.client.List(ctx, plans, opts)
+	if err != nil && !errors.IsNotFound(err) {
+		return err
+	}
+	for _, plan := range plans.Items {
+		if plan.Spec.ClusterServiceVersionNames[0] == "grafana-operator.v4.7.0" && !plan.Spec.Approved {
+			plan.Spec.Approved = true
+			err := r.client.Update(ctx, &plan)
+			if err != nil {
+				return err
+			}
+		}
+	}
+	return nil
 }

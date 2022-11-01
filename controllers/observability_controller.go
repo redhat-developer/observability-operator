@@ -73,9 +73,9 @@ type ObservabilityReconciler struct {
 // +kubebuilder:rbac:groups="",resources=secrets;serviceaccounts;configmaps;endpoints;services;nodes/proxy,verbs=get;list;create;update;delete;watch
 // +kubebuilder:rbac:groups=networking.k8s.io,resources=networkpolicies,verbs=get;list;create;update;delete;watch
 // +kubebuilder:rbac:groups=logging.openshift.io,resources=clusterloggings;clusterlogforwarders,verbs=get;list;create;update;delete;watch
+// +kubebuilder:rbac:groups=coordination.k8s.io,resources=leases,verbs=get;list;create;update
 
-func (r *ObservabilityReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
-	ctx := context.Background()
+func (r *ObservabilityReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	log := r.Log.WithValues("observability", req.NamespacedName)
 
 	// fetch Observability instance
@@ -215,10 +215,8 @@ func (r *ObservabilityReconciler) InitializeOperand(mgr ctrl.Manager) error {
 			Namespace: strings.TrimSpace(namespace),
 		},
 	}
-	key, err := client.ObjectKeyFromObject(configMap)
-	if err != nil {
-		return err
-	}
+	key := client.ObjectKeyFromObject(configMap)
+
 	err = apiReader.Get(context.Background(), key, configMap)
 	if err == nil {
 		// if there is no error that means that the config map is found.
