@@ -18,6 +18,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
 
+const GrafanaOperatorDefaultVersion = "grafana-operator.v4.7.0"
+
 type Reconciler struct {
 	client client.Client
 	logger logr.Logger
@@ -147,7 +149,7 @@ func (r *Reconciler) reconcileSubscription(ctx context.Context, cr *v1.Observabi
 			Channel:                "v4",
 			InstallPlanApproval:    v1alpha1.ApprovalManual,
 			Config:                 &v1alpha1.SubscriptionConfig{Resources: model.GetGrafanaOperatorResourceRequirement(cr)},
-			StartingCSV:            "grafana-operator.v4.7.0",
+			StartingCSV:            GrafanaOperatorDefaultVersion,
 		}
 		return nil
 	})
@@ -255,7 +257,7 @@ func (r *Reconciler) approveGrafanaOperatorInstallPlan(ctx context.Context, cr *
 		return err
 	}
 	for _, plan := range plans.Items {
-		if plan.Spec.ClusterServiceVersionNames[0] == "grafana-operator.v4.7.0" && !plan.Spec.Approved {
+		if plan.Spec.ClusterServiceVersionNames[0] == GrafanaOperatorDefaultVersion && !plan.Spec.Approved {
 			plan.Spec.Approved = true
 			err := r.client.Update(ctx, &plan)
 			if err != nil {

@@ -194,3 +194,114 @@ func TestPrometheusInstallationReconciler_ReconcileCatalogSource(t *testing.T) {
 		})
 	}
 }
+
+func TestPrometheusInstallationReconciler_ApprovePrometheusOperatorInstallPlan(t *testing.T) {
+	scheme := runtime.NewScheme()
+	_ = v1alpha1.SchemeBuilder.AddToScheme(scheme)
+
+	type fields struct {
+		client client.Client
+		scheme *runtime.Scheme
+	}
+
+	type args struct {
+		ctx context.Context
+		cr  *v1.Observability
+	}
+
+	tests := []struct {
+		name    string
+		args    args
+		fields  fields
+		wantErr bool
+	}{
+		{
+			name: "Success when correct installPlan to be approved is found",
+			args: args{
+				ctx: context.TODO(),
+				cr: &v1.Observability{
+					ObjectMeta: metav1.ObjectMeta{
+						Namespace: "test-namespace",
+					},
+				},
+			},
+			fields: fields{
+				client: fakeclient.NewClientBuilder().WithScheme(scheme).WithRuntimeObjects(&v1alpha1.InstallPlanList{
+					Items: []v1alpha1.InstallPlan{
+						{
+							ObjectMeta: metav1.ObjectMeta{
+								Name:      "test-install-plan",
+								Namespace: "test-namespace",
+							},
+							Spec: v1alpha1.InstallPlanSpec{
+								ClusterServiceVersionNames: []string{PrometheusOperatorDefaultVersion},
+								Approved:                   false,
+							},
+						},
+					},
+				}).Build(),
+			},
+			wantErr: false,
+		},
+		{
+			name: "Error when installPlan Update fails",
+			args: args{
+				ctx: context.TODO(),
+				cr: &v1.Observability{
+					ObjectMeta: metav1.ObjectMeta{
+						Namespace: "test-namespace",
+					},
+				},
+			},
+			fields: fields{
+				client: fakeclient.NewClientBuilder().WithScheme(scheme).WithRuntimeObjects(&v1alpha1.InstallPlanList{
+					Items: []v1alpha1.InstallPlan{
+						{
+							ObjectMeta: metav1.ObjectMeta{
+								Namespace: "test-namespace",
+							},
+							Spec: v1alpha1.InstallPlanSpec{
+								ClusterServiceVersionNames: []string{PrometheusOperatorDefaultVersion},
+								Approved:                   false,
+							},
+						},
+					},
+				}).Build(),
+			},
+			wantErr: true,
+		},
+		{
+			name: "No error when installPlan absent",
+			args: args{
+				ctx: context.TODO(),
+				cr: &v1.Observability{
+					ObjectMeta: metav1.ObjectMeta{
+						Namespace: "test-namespace",
+					},
+				},
+			},
+			fields: fields{
+				client: fakeclient.NewClientBuilder().WithScheme(scheme).WithRuntimeObjects(
+					&v1alpha1.InstallPlanList{
+						Items: []v1alpha1.InstallPlan{},
+					},
+				).Build(),
+			},
+			wantErr: false,
+		},
+	}
+
+	for _, tt := range tests {
+		test := tt
+		t.Run(test.name, func(t *testing.T) {
+			g := NewWithT(t)
+			r := &Reconciler{
+				client: test.fields.client,
+				scheme: test.fields.scheme,
+			}
+
+			err := r.approvePrometheusOperatorInstallPlan(test.args.ctx, test.args.cr)
+			g.Expect(err != nil).To(Equal(test.wantErr))
+		})
+	}
+}

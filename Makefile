@@ -58,7 +58,6 @@ test/unit: generate fmt vet manifests
 	-e "github.com/redhat-developer/observability-operator/v3/controllers/reconcilers/alertmanager_installation/" \
 	-e "github.com/redhat-developer/observability-operator/v3/controllers/reconcilers/csv/" \
 	-e "github.com/redhat-developer/observability-operator/v3/controllers/reconcilers/grafana_configuration/" \
-	-e "github.com/redhat-developer/observability-operator/v3/controllers/reconcilers/grafana_installation/" \
 	-e "github.com/redhat-developer/observability-operator/v3/controllers/reconcilers/prometheus_configuration/" \
 	-e "github.com/redhat-developer/observability-operator/v3/controllers/reconcilers/promtail_installation/" \
 	-e "github.com/redhat-developer/observability-operator/v3/controllers/token/token_fetcher.go" \
