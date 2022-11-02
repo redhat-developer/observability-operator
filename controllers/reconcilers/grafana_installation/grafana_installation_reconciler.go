@@ -205,8 +205,11 @@ func (r *Reconciler) waitForGrafanaOperator(ctx context.Context, cr *v1.Observab
 
 	for _, deployment := range deployments.Items {
 		if strings.HasPrefix(deployment.Name, "grafana-operator") {
-			if deployment.Status.ReadyReplicas > 0 {
-				return v1.ResultSuccess, nil
+			ownerRefs := deployment.GetOwnerReferences()
+			for _, ownerRef := range ownerRefs {
+				if ownerRef.Name == GrafanaOperatorDefaultVersion && deployment.Status.ReadyReplicas > 0 {
+					return v1.ResultSuccess, nil
+				}
 			}
 		}
 	}
