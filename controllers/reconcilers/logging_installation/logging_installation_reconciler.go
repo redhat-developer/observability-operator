@@ -53,11 +53,29 @@ func (r *Reconciler) Cleanup(ctx context.Context, cr *v1.Observability) (v1.Obse
 		return v1.ResultFailed, err
 	}
 
+	// Delete clusterLoggings
+	cl := model.GetClusterLoggingCR()
+	err = r.client.Delete(ctx, cl)
+	if err != nil && !errors.IsNotFound(err) {
+		return v1.ResultFailed, err
+	}
+
+	// delete clusterLogForwarder
+	clf := model.GetClusterLogForwarderCR()
+	err = r.client.Delete(ctx, clf)
+	if err != nil && !errors.IsNotFound(err) {
+		return v1.ResultFailed, err
+	}
 	return v1.ResultSuccess, nil
 }
 
 func (r *Reconciler) Reconcile(ctx context.Context, cr *v1.Observability, s *v1.ObservabilityStatus) (v1.ObservabilityStageStatus, error) {
 	if cr.DescopedModeEnabled() {
+		return v1.ResultSuccess, nil
+	}
+
+	// if logging is specifically disabled
+	if cr.Spec.SelfContained.DisableLogging != nil && *cr.Spec.SelfContained.DisableLogging {
 		return v1.ResultSuccess, nil
 	}
 
@@ -77,12 +95,11 @@ func (r *Reconciler) Reconcile(ctx context.Context, cr *v1.Observability, s *v1.
 	for _, deployment := range deployments.Items {
 		if strings.HasPrefix(deployment.Name, "cluster-logging-operator") {
 			foundLoggingOperator = true
-			r.logger.Info("Found cluster-logging-operator: skipping install")
 		}
 	}
 
 	// If there was no logging-operator and we want to install the operator go ahead and set it up
-	if !foundLoggingOperator || cr.Spec.SelfContained.DisableLogging == nil || !*cr.Spec.SelfContained.DisableLogging {
+	if !foundLoggingOperator {
 		// logging subscription
 		status, err := r.reconcileSubscription(ctx, cr)
 		if status != v1.ResultSuccess {
@@ -94,19 +111,15 @@ func (r *Reconciler) Reconcile(ctx context.Context, cr *v1.Observability, s *v1.
 			return status, err
 		}
 	}
+	
+	status, err := r.createClusterLoggingCr(ctx, cr)
+	if status != v1.ResultSuccess {
+		return status, err
+	}
 
-	// if logging install is false then dont create the logging resources
-	if cr.Spec.SelfContained.DisableLogging == nil || !*cr.Spec.SelfContained.DisableLogging {
-
-		status, err := r.createClusterLoggingCr(ctx, cr)
-		if status != v1.ResultSuccess {
-			return status, err
-		}
-
-		status, err = r.createClusterLogForwarderCr(ctx, cr)
-		if status != v1.ResultSuccess {
-			return status, err
-		}
+	status, err = r.createClusterLogForwarderCr(ctx, cr)
+	if status != v1.ResultSuccess {
+		return status, err
 	}
 
 	return v1.ResultSuccess, nil
@@ -157,6 +170,7 @@ func (r *Reconciler) waitForLoggingOperator(ctx context.Context, cr *v1.Observab
 
 func (r *Reconciler) createClusterLoggingCr(ctx context.Context, cr *v1.Observability) (v1.ObservabilityStageStatus, error) {
 
+
 	// Is there any clusterLogging CR?
 	opts := &client.ListOptions{
 		Namespace: "openshift-logging",
@@ -180,6 +194,7 @@ func (r *Reconciler) createClusterLoggingCr(ctx context.Context, cr *v1.Observab
 	if err != nil {
 		return v1.ResultFailed, err
 	}
+
 
 	if len(list.Items) == 0 || len(OOlist.Items) == 0 || len(OOlist.Items) > 0 {
 		// There's no ClusterLogging or one that we manage
