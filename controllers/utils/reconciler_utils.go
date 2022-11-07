@@ -32,7 +32,7 @@ func GetClusterId(ctx context.Context, client k8sclient.Client) (string, error) 
 	return string(v.Spec.ClusterID), nil
 }
 
-//returns cluster Openshift version
+// returns cluster Openshift version
 func GetClusterOSVersion(ctx context.Context, client k8sclient.Client) (string, error) {
 	v := &v13.ClusterVersion{}
 	selector := k8sclient.ObjectKey{
