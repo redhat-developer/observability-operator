@@ -2,7 +2,6 @@ package grafana_installation
 
 import (
 	"context"
-	"strings"
 
 	"github.com/go-logr/logr"
 	coreosv1 "github.com/operator-framework/api/pkg/operators/v1"
@@ -147,18 +146,13 @@ func (r *Reconciler) reconcileSubscription(ctx context.Context, cr *v1.Observabi
 			CatalogSourceNamespace: "openshift-marketplace",
 			Package:                "grafana-operator",
 			Channel:                "v4",
-			InstallPlanApproval:    v1alpha1.ApprovalManual,
+			InstallPlanApproval:    v1alpha1.ApprovalAutomatic,
 			Config:                 &v1alpha1.SubscriptionConfig{Resources: model.GetGrafanaOperatorResourceRequirement(cr)},
 			StartingCSV:            GrafanaOperatorDefaultVersion,
 		}
 		return nil
 	})
 
-	if err != nil {
-		return v1.ResultFailed, err
-	}
-
-	err = r.approveGrafanaOperatorInstallPlan(ctx, cr)
 	if err != nil {
 		return v1.ResultFailed, err
 	}
@@ -193,7 +187,6 @@ func (r *Reconciler) reconcileOperatorgroup(ctx context.Context, cr *v1.Observab
 }
 
 func (r *Reconciler) waitForGrafanaOperator(ctx context.Context, cr *v1.Observability) (v1.ObservabilityStageStatus, error) {
-	// We have to remove the prometheus operator deployment manually
 	deployments := &v12.DeploymentList{}
 	opts := &client.ListOptions{
 		Namespace: cr.Namespace,
@@ -204,12 +197,9 @@ func (r *Reconciler) waitForGrafanaOperator(ctx context.Context, cr *v1.Observab
 	}
 
 	for _, deployment := range deployments.Items {
-		if strings.HasPrefix(deployment.Name, "grafana-operator") {
-			ownerRefs := deployment.GetOwnerReferences()
-			for _, ownerRef := range ownerRefs {
-				if ownerRef.Name == GrafanaOperatorDefaultVersion && deployment.Status.ReadyReplicas > 0 {
-					return v1.ResultSuccess, nil
-				}
+		if deployment.Name == "grafana-operator-controller-manager" {
+			if deployment.Status.ReadyReplicas > 0 {
+				return v1.ResultSuccess, nil
 			}
 		}
 	}
@@ -247,26 +237,5 @@ func (r *Reconciler) removeUnusedGrafanaOperatorIndexResources(ctx context.Conte
 		return err
 	}
 
-	return nil
-}
-
-func (r *Reconciler) approveGrafanaOperatorInstallPlan(ctx context.Context, cr *v1.Observability) error {
-	plans := &v1alpha1.InstallPlanList{}
-	opts := &client.ListOptions{
-		Namespace: cr.Namespace,
-	}
-	err := r.client.List(ctx, plans, opts)
-	if err != nil && !errors.IsNotFound(err) {
-		return err
-	}
-	for _, plan := range plans.Items {
-		if plan.Spec.ClusterServiceVersionNames[0] == GrafanaOperatorDefaultVersion && !plan.Spec.Approved {
-			plan.Spec.Approved = true
-			err := r.client.Update(ctx, &plan)
-			if err != nil {
-				return err
-			}
-		}
-	}
 	return nil
 }

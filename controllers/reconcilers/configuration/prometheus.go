@@ -135,7 +135,7 @@ func (r *Reconciler) getRemoteWriteSpecForDex(index v1.RepositoryIndex, observat
 	return &prometheusv1.RemoteWriteSpec{
 		URL:                 fmt.Sprintf("%s/api/metrics/v1/%s/api/v1/receive", observatoriumConfig.Gateway, observatoriumConfig.Tenant),
 		Name:                index.Id,
-		RemoteTimeout:       remoteWrite.RemoteTimeout,
+		RemoteTimeout:       prometheusv1.Duration(remoteWrite.RemoteTimeout),
 		WriteRelabelConfigs: remoteWrite.WriteRelabelConfigs,
 		BearerTokenFile:     fmt.Sprintf("/etc/prometheus/secrets/%s/token", tokenSecret),
 		TLSConfig: &prometheusv1.TLSConfig{
@@ -156,7 +156,7 @@ func (r *Reconciler) getRemoteWriteSpecForRedHat(cr *v1.Observability, index v1.
 	return &prometheusv1.RemoteWriteSpec{
 		URL:                 tokenRefresherUrl,
 		Name:                index.Id,
-		RemoteTimeout:       remoteWrite.RemoteTimeout,
+		RemoteTimeout:       prometheusv1.Duration(remoteWrite.RemoteTimeout),
 		WriteRelabelConfigs: remoteWrite.WriteRelabelConfigs,
 		TLSConfig: &prometheusv1.TLSConfig{
 			SafeTLSConfig: prometheusv1.SafeTLSConfig{
@@ -348,55 +348,59 @@ func (r *Reconciler) reconcilePrometheus(ctx context.Context, cr *v1.Observabili
 		}
 
 		prometheus.Spec = prometheusv1.PrometheusSpec{
-			PodMetadata: &prometheusv1.EmbeddedObjectMetadata{
-				Annotations: map[string]string{
-					"cluster-autoscaler.kubernetes.io/safe-to-evict": "true",
+			CommonPrometheusFields: prometheusv1.CommonPrometheusFields{
+				PodMetadata: &prometheusv1.EmbeddedObjectMetadata{
+					Annotations: map[string]string{
+						"cluster-autoscaler.kubernetes.io/safe-to-evict": "true",
+					},
 				},
-			},
-			// Custom Prometheus version
-			Image:   &image,
-			Version: model.GetPrometheusVersion(cr),
+				// Custom Prometheus version
+				Image:   &image,
+				Version: model.GetPrometheusVersion(cr),
 
-			PriorityClassName: model.ObservabilityPriorityClassName,
+				PriorityClassName: model.ObservabilityPriorityClassName,
 
-			// Spec
-			ServiceAccountName: sa.Name,
-			Retention:          getRetentionHelper(cr),
-			ExternalURL:        fmt.Sprintf("https://%v", host),
-			AdditionalScrapeConfigs: &kv1.SecretKeySelector{
-				LocalObjectReference: kv1.LocalObjectReference{
-					Name: "additional-scrape-configs",
+				// Spec
+				ServiceAccountName: sa.Name,
+				ExternalURL:        fmt.Sprintf("https://%v", host),
+				AdditionalScrapeConfigs: &kv1.SecretKeySelector{
+					LocalObjectReference: kv1.LocalObjectReference{
+						Name: "additional-scrape-configs",
+					},
+					Key: "additional-scrape-config.yaml",
 				},
-				Key: "additional-scrape-config.yaml",
-			},
-			ExternalLabels: map[string]string{
-				"cluster_id": cr.Status.ClusterID,
-			},
-			Volumes: []kv1.Volume{
-				{
-					Name: "black-box-config",
-					VolumeSource: kv1.VolumeSource{
-						ConfigMap: &kv1.ConfigMapVolumeSource{
-							LocalObjectReference: kv1.LocalObjectReference{
-								Name: "black-box-config",
+				ExternalLabels: map[string]string{
+					"cluster_id": cr.Status.ClusterID,
+				},
+				Volumes: []kv1.Volume{
+					{
+						Name: "black-box-config",
+						VolumeSource: kv1.VolumeSource{
+							ConfigMap: &kv1.ConfigMapVolumeSource{
+								LocalObjectReference: kv1.LocalObjectReference{
+									Name: "black-box-config",
+								},
 							},
 						},
 					},
 				},
+				PodMonitorSelector:              model.GetPrometheusPodMonitorLabelSelectors(cr, indexes),
+				PodMonitorNamespaceSelector:     model.GetPrometheusPodMonitorNamespaceSelectors(cr, indexes),
+				ServiceMonitorSelector:          model.GetPrometheusServiceMonitorLabelSelectors(cr, indexes),
+				ServiceMonitorNamespaceSelector: model.GetPrometheusServiceMonitorNamespaceSelectors(cr, indexes),
+
+				ProbeSelector:          model.GetProbeLabelSelectors(cr, indexes),
+				ProbeNamespaceSelector: model.GetProbeNamespaceSelectors(cr, indexes),
+				RemoteWrite:            remoteWrites,
+
+				Secrets:    secrets,
+				Containers: sidecars,
+				Resources:  *model.GetPrometheusResourceRequirement(cr),
 			},
-			PodMonitorSelector:              model.GetPrometheusPodMonitorLabelSelectors(cr, indexes),
-			PodMonitorNamespaceSelector:     model.GetPrometheusPodMonitorNamespaceSelectors(cr, indexes),
-			ServiceMonitorSelector:          model.GetPrometheusServiceMonitorLabelSelectors(cr, indexes),
-			ServiceMonitorNamespaceSelector: model.GetPrometheusServiceMonitorNamespaceSelectors(cr, indexes),
-			RuleSelector:                    model.GetPrometheusRuleLabelSelectors(cr, indexes),
-			RuleNamespaceSelector:           model.GetPrometheusRuleNamespaceSelectors(cr, indexes),
-			ProbeSelector:                   model.GetProbeLabelSelectors(cr, indexes),
-			ProbeNamespaceSelector:          model.GetProbeNamespaceSelectors(cr, indexes),
-			RemoteWrite:                     remoteWrites,
-			Alerting:                        r.getAlerting(cr),
-			Secrets:                         secrets,
-			Containers:                      sidecars,
-			Resources:                       *model.GetPrometheusResourceRequirement(cr),
+			Retention:             getRetentionHelper(cr),
+			RuleSelector:          model.GetPrometheusRuleLabelSelectors(cr, indexes),
+			RuleNamespaceSelector: model.GetPrometheusRuleNamespaceSelectors(cr, indexes),
+			Alerting:              r.getAlerting(cr),
 		}
 		if cr.Spec.Storage != nil && cr.Spec.Storage.PrometheusStorageSpec != nil {
 			prometheusStorageSpec, err := getPrometheusStorageSpecHelper(cr, indexes)
@@ -450,11 +454,11 @@ func getPrometheusStorageSpecHelper(cr *v1.Observability, indexes []v1.Repositor
 	return prometheusStorageSpec, err
 }
 
-func getRetentionHelper(cr *v1.Observability) string {
+func getRetentionHelper(cr *v1.Observability) prometheusv1.Duration {
 	match, err := regexp.MatchString("^[0-9]+(((ms)|y|w|d|h|m|s)){1}$", cr.Spec.Retention)
 	if err != nil || !match {
-		return PrometheusRetention
+		return prometheusv1.Duration(PrometheusRetention)
 	}
 
-	return cr.Spec.Retention
+	return prometheusv1.Duration(cr.Spec.Retention)
 }

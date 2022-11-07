@@ -175,7 +175,7 @@ func (r *Reconciler) reconcileSubscription(ctx context.Context, cr *v1.Observabi
 			CatalogSourceNamespace: "openshift-marketplace",
 			Package:                "prometheus",
 			Channel:                "beta",
-			InstallPlanApproval:    v1alpha1.ApprovalManual,
+			InstallPlanApproval:    v1alpha1.ApprovalAutomatic,
 			Config:                 &v1alpha1.SubscriptionConfig{Resources: model.GetPrometheusOperatorResourceRequirement(cr)},
 			StartingCSV:            PrometheusOperatorDefaultVersion,
 		}
@@ -183,11 +183,6 @@ func (r *Reconciler) reconcileSubscription(ctx context.Context, cr *v1.Observabi
 		return nil
 	})
 
-	if err != nil {
-		return v1.ResultFailed, err
-	}
-
-	err = r.approvePrometheusOperatorInstallPlan(ctx, cr)
 	if err != nil {
 		return v1.ResultFailed, err
 	}
@@ -253,26 +248,5 @@ func (r *Reconciler) removePrometheusOperatorIndexResources(ctx context.Context,
 		return err
 	}
 
-	return nil
-}
-
-func (r *Reconciler) approvePrometheusOperatorInstallPlan(ctx context.Context, cr *v1.Observability) error {
-	plans := &v1alpha1.InstallPlanList{}
-	opts := &client.ListOptions{
-		Namespace: cr.GetPrometheusOperatorNamespace(),
-	}
-	err := r.client.List(ctx, plans, opts)
-	if err != nil && !errors.IsNotFound(err) {
-		return err
-	}
-	for _, plan := range plans.Items {
-		if plan.Spec.ClusterServiceVersionNames[0] == PrometheusOperatorDefaultVersion && !plan.Spec.Approved {
-			plan.Spec.Approved = true
-			err := r.client.Update(ctx, &plan)
-			if err != nil {
-				return err
-			}
-		}
-	}
 	return nil
 }
