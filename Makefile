@@ -58,6 +58,7 @@ test/unit: generate fmt vet manifests
 	-e "github.com/redhat-developer/observability-operator/v3/controllers/reconcilers/alertmanager_installation/" \
 	-e "github.com/redhat-developer/observability-operator/v3/controllers/reconcilers/csv/" \
 	-e "github.com/redhat-developer/observability-operator/v3/controllers/reconcilers/grafana_configuration/" \
+	-e "github.com/redhat-developer/observability-operator/v3/controllers/reconcilers/grafana_installation/" \
 	-e "github.com/redhat-developer/observability-operator/v3/controllers/reconcilers/prometheus_configuration/" \
 	-e "github.com/redhat-developer/observability-operator/v3/controllers/reconcilers/promtail_installation/" \
 	-e "github.com/redhat-developer/observability-operator/v3/controllers/token/token_fetcher.go" \
@@ -140,7 +141,7 @@ ifeq (, $(shell which kustomize))
 	KUSTOMIZE_GEN_TMP_DIR=$$(mktemp -d) ;\
 	cd $$KUSTOMIZE_GEN_TMP_DIR ;\
 	go mod init tmp ;\
-	go get sigs.k8s.io/kustomize/kustomize/v3@v3.5.4 ;\
+	go install sigs.k8s.io/kustomize/kustomize/v3@v3.5.4 ;\
 	rm -rf $$KUSTOMIZE_GEN_TMP_DIR ;\
 	}
 KUSTOMIZE=$(GOBIN)/kustomize
