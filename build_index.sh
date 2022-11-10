@@ -17,7 +17,7 @@
 
 # This script builds and deploys the Observability Operator Index using the OPM CLI.
 
-OPM_VERSION=v1.17.5
+OPM_VERSION=v1.26.2
 OPM_PLATFORM=linux-amd64
 OPM_DOWNLOAD_URL="https://github.com/operator-framework/operator-registry/releases/download/$OPM_VERSION/$OPM_PLATFORM-opm"
 
@@ -46,4 +46,4 @@ while read -r bundle; do
   BUNDLES+="--bundles ${bundle} "
 done <bundle_history.txt
 
-$OPM index add --build-tool=docker $BUNDLES --tag $INDEX_IMG
+$OPM index add --build-tool=docker $BUNDLES --tag $INDEX_IMG --permissive
