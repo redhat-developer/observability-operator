@@ -35,37 +35,51 @@ func (r *Reconciler) Cleanup(ctx context.Context, cr *v1.Observability) (v1.Obse
 		return v1.ResultSuccess, nil
 	}
 
-	subscription := model.GetLoggingSubscription(cr)
-	err := r.client.Delete(ctx, subscription)
-	if err != nil && !errors.IsNotFound(err) {
+	managed, err := r.checkLoggingSubscriptionForLabel(ctx)
+	if err != nil {
 		return v1.ResultFailed, err
 	}
 
-	// Delete csv to uninstall
-	csv := &v1alpha1.ClusterServiceVersion{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "cluster-logging.5.5.3",
-			Namespace: "openshift-logging",
-		},
-	}
-	err = r.client.Delete(ctx, csv)
-	if err != nil && !errors.IsNotFound(err) {
-		return v1.ResultFailed, err
+	if managed {
+		subscription := model.GetLoggingSubscription(cr)
+		err = r.client.Delete(ctx, subscription)
+		if err != nil && !errors.IsNotFound(err) {
+			return v1.ResultFailed, err
+		}
+
+		installedCsv, err := r.getInstalledLoggingCSVName(ctx)
+		if installedCsv == "" || err != nil {
+			return v1.ResultFailed, err
+		}
+
+		// Delete csv to uninstall
+		csv := &v1alpha1.ClusterServiceVersion{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      installedCsv,
+				Namespace: "openshift-logging",
+			},
+		}
+		err = r.client.Delete(ctx, csv)
+		if err != nil && !errors.IsNotFound(err) {
+			return v1.ResultFailed, err
+		}
+
+		// Delete clusterLoggings
+		cl := model.GetClusterLoggingCR()
+		err = r.client.Delete(ctx, cl)
+		if err != nil && !errors.IsNotFound(err) {
+			return v1.ResultFailed, err
+		}
+
+		// delete clusterLogForwarder
+		clf := model.GetClusterLogForwarderCR()
+		err = r.client.Delete(ctx, clf)
+		if err != nil && !errors.IsNotFound(err) {
+			return v1.ResultFailed, err
+		}
+		return v1.ResultSuccess, nil
 	}
 
-	// Delete clusterLoggings
-	cl := model.GetClusterLoggingCR()
-	err = r.client.Delete(ctx, cl)
-	if err != nil && !errors.IsNotFound(err) {
-		return v1.ResultFailed, err
-	}
-
-	// delete clusterLogForwarder
-	clf := model.GetClusterLogForwarderCR()
-	err = r.client.Delete(ctx, clf)
-	if err != nil && !errors.IsNotFound(err) {
-		return v1.ResultFailed, err
-	}
 	return v1.ResultSuccess, nil
 }
 
@@ -111,15 +125,23 @@ func (r *Reconciler) Reconcile(ctx context.Context, cr *v1.Observability, s *v1.
 			return status, err
 		}
 	}
-	
-	status, err := r.createClusterLoggingCr(ctx, cr)
-	if status != v1.ResultSuccess {
-		return status, err
+
+	// if we installed the logging operator then we want to set up our resources
+	managed, err := r.checkLoggingSubscriptionForLabel(ctx)
+	if err != nil {
+		return v1.ResultFailed, err
 	}
 
-	status, err = r.createClusterLogForwarderCr(ctx, cr)
-	if status != v1.ResultSuccess {
-		return status, err
+	if managed {
+		status, err := r.createClusterLoggingCr(ctx, cr)
+		if status != v1.ResultSuccess {
+			return status, err
+		}
+
+		status, err = r.createClusterLogForwarderCr(ctx, cr)
+		if status != v1.ResultSuccess {
+			return status, err
+		}
 	}
 
 	return v1.ResultSuccess, nil
@@ -148,6 +170,41 @@ func (r *Reconciler) reconcileSubscription(ctx context.Context, cr *v1.Observabi
 	return v1.ResultSuccess, nil
 }
 
+func (r *Reconciler) checkLoggingSubscriptionForLabel(ctx context.Context) (bool, error) {
+	csv := &v1alpha1.SubscriptionList{}
+	opts := &client.ListOptions{
+		LabelSelector: labels.SelectorFromSet(map[string]string{"app.kubernetes.io/managed-by": "observability-operator"}),
+		Namespace:     "openshift-logging",
+	}
+
+	err := r.client.List(ctx, csv, opts)
+	if err != nil {
+		return false, err
+	}
+
+	if len(csv.Items) > 0 {
+		return true, nil
+	}
+
+	return false, nil
+}
+
+func (r *Reconciler) getInstalledLoggingCSVName(ctx context.Context) (string, error) {
+	csv := &v1alpha1.SubscriptionList{}
+	opts := &client.ListOptions{
+		LabelSelector: labels.SelectorFromSet(map[string]string{"app.kubernetes.io/managed-by": "observability-operator"}),
+		Namespace:     "openshift-logging",
+	}
+
+	err := r.client.List(ctx, csv, opts)
+	if err != nil {
+		return "", err
+	}
+
+	return csv.Items[0].Status.InstalledCSV, nil
+
+}
+
 func (r *Reconciler) waitForLoggingOperator(ctx context.Context, cr *v1.Observability) (v1.ObservabilityStageStatus, error) {
 	deployments := &v12.DeploymentList{}
 	opts := &client.ListOptions{
@@ -170,7 +227,6 @@ func (r *Reconciler) waitForLoggingOperator(ctx context.Context, cr *v1.Observab
 
 func (r *Reconciler) createClusterLoggingCr(ctx context.Context, cr *v1.Observability) (v1.ObservabilityStageStatus, error) {
 
-
 	// Is there any clusterLogging CR?
 	opts := &client.ListOptions{
 		Namespace: "openshift-logging",
@@ -183,20 +239,19 @@ func (r *Reconciler) createClusterLoggingCr(ctx context.Context, cr *v1.Observab
 	}
 
 	// Is there a clusterLogging CR with our label?
-	OOopts := &client.ListOptions{
+	labelOpts := &client.ListOptions{
 		Namespace: "openshift-logging",
 		LabelSelector: labels.SelectorFromSet(map[string]string{
 			"app.kubernetes.io/managed-by": "observability-operator",
 		}),
 	}
-	OOlist := &v14.ClusterLoggingList{}
-	err = r.client.List(ctx, OOlist, OOopts)
+	labelList := &v14.ClusterLoggingList{}
+	err = r.client.List(ctx, labelList, labelOpts)
 	if err != nil {
 		return v1.ResultFailed, err
 	}
 
-
-	if len(list.Items) == 0 || len(OOlist.Items) == 0 || len(OOlist.Items) > 0 {
+	if len(list.Items) == 0 || len(labelList.Items) > 0 {
 		// There's no ClusterLogging or one that we manage
 		clCr := model.GetClusterLoggingCR()
 		_, err = controllerutil.CreateOrUpdate(ctx, r.client, clCr, func() error {
@@ -239,7 +294,7 @@ func (r *Reconciler) createClusterLogForwarderCr(ctx context.Context, cr *v1.Obs
 	}
 
 	if len(list.Items) == 0 || len(labelList.Items) > 0 {
-
+		// There's no ClusterLogforwarder or one that we manage
 		clusterLogForwarder := model.GetClusterLogForwarderCR()
 		newPipeline := model.GetClusterLogForwarderPipeline()
 		clusterLogForwarder.Spec.Pipelines = append(clusterLogForwarder.Spec.Pipelines, *newPipeline)
@@ -279,7 +334,7 @@ func (r *Reconciler) createClusterLogForwarderCr(ctx context.Context, cr *v1.Obs
 			newPipeline := model.GetClusterLogForwarderPipeline()
 			newPipeline.InputRefs = append(newPipeline.InputRefs, "kafka-log-resources")
 			clusterLogForwarder.Spec.Pipelines = append(clusterLogForwarder.Spec.Pipelines, *newPipeline)
-	
+
 		}
 
 		_, err = controllerutil.CreateOrUpdate(ctx, r.client, clusterLogForwarder, func() error {

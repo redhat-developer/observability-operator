@@ -14,6 +14,7 @@ func GetLoggingSubscription(cr *v1.Observability) *v1alpha1.Subscription {
 		ObjectMeta: v12.ObjectMeta{
 			Name:      "cluster-logging",
 			Namespace: "openshift-logging",
+			Labels:    map[string]string{"app.kubernetes.io/managed-by": "observability-operator"},
 		},
 	}
 }
@@ -58,9 +59,9 @@ func GetClusterLogForwarderPipeline() *v14.PipelineSpec {
 func GetClusterLogForwarderCR() *v14.ClusterLogForwarder {
 
 	kafkaOperatorsInput := v14.InputSpec{
-		Name:           "kafka-operator-application-logs",
-		Application:    &v14.Application{Namespaces: []string{"redhat-kas-fleetshard-operator", "redhat-managed-kafka-operator", 
-		"redhat-kas-fleetshard-operator-qe", "redhat-managed-kafka-operator-qe"}},
+		Name: "kafka-operator-application-logs",
+		Application: &v14.Application{Namespaces: []string{"redhat-kas-fleetshard-operator", "redhat-managed-kafka-operator",
+			"redhat-kas-fleetshard-operator-qe", "redhat-managed-kafka-operator-qe"}},
 		Infrastructure: nil,
 		Audit:          nil,
 	}
