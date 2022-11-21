@@ -45,7 +45,7 @@ func (r *Reconciler) Cleanup(ctx context.Context, cr *v1.Observability) (v1.Obse
 		if installedCsv == "" || err != nil {
 			return v1.ResultFailed, err
 		}
-		
+
 		subscription := model.GetLoggingSubscription(cr)
 		err = r.client.Delete(ctx, subscription)
 		if err != nil && !errors.IsNotFound(err) {
@@ -93,13 +93,27 @@ func (r *Reconciler) Reconcile(ctx context.Context, cr *v1.Observability, s *v1.
 		return v1.ResultSuccess, nil
 	}
 
-	// First let's check if there is already a cluster-logging-operator
+	// if openshift-namespace is not present skip logging operator installation
+	namespace := &corev1.Namespace{}
+	selector := client.ObjectKey{
+		Name: "openshift-logging",
+	}
+
+	err := r.client.Get(ctx, selector, namespace)
+	if err != nil {
+		if !errors.IsNotFound(err) {
+			return v1.ResultFailed, err
+		}
+		return v1.ResultSuccess, nil
+	}
+
+	// Let's check if there is already a cluster-logging-operator
 	// If the operator is already installed we want to leave it in place for now
 	deployments := &v12.DeploymentList{}
 	opts := &client.ListOptions{
 		Namespace: "openshift-logging",
 	}
-	err := r.client.List(ctx, deployments, opts)
+	err = r.client.List(ctx, deployments, opts)
 	if err != nil {
 		return v1.ResultFailed, err
 	}
