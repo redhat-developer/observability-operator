@@ -26,6 +26,7 @@ import (
 	configv1 "github.com/openshift/api/config/v1"
 	projectv1 "github.com/openshift/api/project/v1"
 	routev1 "github.com/openshift/api/route/v1"
+	loggingv1 "github.com/openshift/cluster-logging-operator/apis/logging/v1"
 	coreosv1 "github.com/operator-framework/api/pkg/operators/v1"
 	coreosv1alpha1 "github.com/operator-framework/api/pkg/operators/v1alpha1"
 	prometheusv1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
@@ -65,6 +66,8 @@ func init() {
 	utilruntime.Must(grafana.AddToScheme(scheme))
 
 	utilruntime.Must(configv1.AddToScheme(scheme))
+
+	utilruntime.Must(loggingv1.AddToScheme(scheme))
 
 	// +kubebuilder:scaffold:scheme
 }

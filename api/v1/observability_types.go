@@ -41,6 +41,7 @@ const (
 	PromtailInstallation     ObservabilityStageName = "PromtailInstallation"
 	AlertmanagerInstallation ObservabilityStageName = "AlertmanagerInstallation"
 	Configuration            ObservabilityStageName = "configuration"
+	LoggingInstallation      ObservabilityStageName = "Logging"
 )
 
 const (
@@ -88,6 +89,7 @@ type SelfContained struct {
 	GrafanaResourceRequirement            *v1.ResourceRequirements `json:"grafanaResourceRequirement,omitempty"`
 	GrafanaOperatorResourceRequirement    *v1.ResourceRequirements `json:"grafanaOperatorResourceRequirement,omitempty"`
 	GrafanaVersion                        string                   `json:"grafanaVersion,omitempty"`
+	DisableLogging                        *bool                    `json:"disableLogging,omitempty"`
 }
 
 // ObservabilitySpec defines the desired state of Observability
