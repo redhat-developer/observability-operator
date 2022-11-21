@@ -41,14 +41,14 @@ func (r *Reconciler) Cleanup(ctx context.Context, cr *v1.Observability) (v1.Obse
 	}
 
 	if managed {
+		installedCsv, err := r.getInstalledLoggingCSVName(ctx)
+		if installedCsv == "" || err != nil {
+			return v1.ResultFailed, err
+		}
+		
 		subscription := model.GetLoggingSubscription(cr)
 		err = r.client.Delete(ctx, subscription)
 		if err != nil && !errors.IsNotFound(err) {
-			return v1.ResultFailed, err
-		}
-
-		installedCsv, err := r.getInstalledLoggingCSVName(ctx)
-		if installedCsv == "" || err != nil {
 			return v1.ResultFailed, err
 		}
 
