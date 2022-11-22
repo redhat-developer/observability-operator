@@ -16,13 +16,12 @@ require (
 	github.com/pkg/errors v0.9.1
 	github.com/prometheus-operator/prometheus-operator v0.43.0
 	github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring v0.55.1
+	github.com/prometheus/client_golang v1.13.0
 	github.com/sirupsen/logrus v1.8.1
 	k8s.io/api v0.23.5
 	k8s.io/apimachinery v0.23.5
 	k8s.io/client-go v12.0.0+incompatible
 	sigs.k8s.io/controller-runtime v0.12.1
-	github.com/prometheus/client_golang v1.13.0
-	github.com/blang/semver v3.5.1+incompatible
 )
 
 require (
@@ -50,16 +49,16 @@ replace (
 	github.com/gogo/protobuf => github.com/gogo/protobuf v1.3.2
 	github.com/opencontainers/image-spec => github.com/opencontainers/image-spec v1.0.2
 	github.com/opencontainers/runc => github.com/opencontainers/runc v1.1.2
+	github.com/operator-framework/api => github.com/operator-framework/api v0.3.20
 	github.com/prometheus-operator/prometheus-operator => github.com/prometheus-operator/prometheus-operator v0.43.0
 	github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring => github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring v0.43.0
 	go.mongodb.org/mongo-driver => go.mongodb.org/mongo-driver v1.5.1
 	k8s.io/api => k8s.io/api v0.19.2
+	k8s.io/apiextensions-apiserver => k8s.io/apiextensions-apiserver v0.19.2
 	k8s.io/apimachinery => k8s.io/apimachinery v0.19.2
 	k8s.io/apiserver => k8s.io/apiserver v0.19.2
 	k8s.io/client-go => k8s.io/client-go v0.19.2
 	k8s.io/klog/v2 => k8s.io/klog/v2 v2.0.0
 	sigs.k8s.io/controller-runtime => sigs.k8s.io/controller-runtime v0.6.3
 	sigs.k8s.io/controller-runtime/pkg/client/fake => sigs.k8s.io/controller-runtime/pkg/client/fake v0.12.1
-	github.com/operator-framework/api => github.com/operator-framework/api v0.3.20
-	k8s.io/apiextensions-apiserver => k8s.io/apiextensions-apiserver v0.19.2
 )
