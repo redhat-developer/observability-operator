@@ -4,11 +4,16 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/base64"
+	"fmt"
 
 	v13 "github.com/openshift/api/config/v1"
 	routev1 "github.com/openshift/api/route/v1"
 	v12 "github.com/operator-framework/api/pkg/operators/v1"
-	v1 "k8s.io/api/core/v1"
+	v1 "github.com/redhat-developer/observability-operator/v3/api/v1"
+	"github.com/redhat-developer/observability-operator/v3/controllers/model"
+	appsv1 "k8s.io/api/apps/v1"
+	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
 	k8sclient "sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -73,7 +78,7 @@ func IsRouteReady(route *routev1.Route) bool {
 	for _, ingress := range route.Status.Ingress {
 		for _, condition := range ingress.Conditions {
 			// A successful route will have the admitted condition type as true
-			if condition.Type == routev1.RouteAdmitted && condition.Status != v1.ConditionTrue {
+			if condition.Type == routev1.RouteAdmitted && condition.Status != corev1.ConditionTrue {
 				return false
 			}
 		}
@@ -102,4 +107,65 @@ func GenerateRandomBytes(n int) []byte {
 func GenerateRandomString(s int) string {
 	b := GenerateRandomBytes(s)
 	return base64.URLEncoding.EncodeToString(b)
+}
+
+func WaitForGrafanaToBeRemoved(ctx context.Context, cr *v1.Observability, client k8sclient.Client) (v1.ObservabilityStageStatus, error) {
+	list := &appsv1.DeploymentList{}
+	opts := &k8sclient.ListOptions{
+		Namespace: cr.Namespace,
+	}
+	err := client.List(ctx, list, opts)
+	if err != nil && !errors.IsNotFound(err) {
+		return v1.ResultFailed, err
+	}
+
+	for _, ss := range list.Items {
+		if ss.Name == "grafana-deployment" {
+			return v1.ResultInProgress, nil
+		}
+	}
+
+	return v1.ResultSuccess, nil
+}
+
+func WaitForAlertmanagerToBeRemoved(ctx context.Context, cr *v1.Observability, client k8sclient.Client) (v1.ObservabilityStageStatus, error) {
+	list := &appsv1.StatefulSetList{}
+	opts := &k8sclient.ListOptions{
+		Namespace: cr.Namespace,
+	}
+	err := client.List(ctx, list, opts)
+	if err != nil && !errors.IsNotFound(err) {
+		return v1.ResultFailed, err
+	}
+
+	alertmanager := model.GetAlertmanagerCr(cr)
+
+	for _, ss := range list.Items {
+		if ss.Name == fmt.Sprintf("alertmanager-%s", alertmanager.Name) {
+			return v1.ResultInProgress, nil
+		}
+	}
+
+	return v1.ResultSuccess, nil
+}
+
+func WaitForPrometheusToBeRemoved(ctx context.Context, cr *v1.Observability, client k8sclient.Client) (v1.ObservabilityStageStatus, error) {
+	list := &appsv1.StatefulSetList{}
+	opts := &k8sclient.ListOptions{
+		Namespace: cr.Namespace,
+	}
+	err := client.List(ctx, list, opts)
+	if err != nil && !errors.IsNotFound(err) {
+		return v1.ResultFailed, err
+	}
+
+	prom := model.GetPrometheus(cr)
+
+	for _, ss := range list.Items {
+		if ss.Name == fmt.Sprintf("prometheus-%s", prom.Name) {
+			return v1.ResultInProgress, nil
+		}
+	}
+
+	return v1.ResultSuccess, nil
 }

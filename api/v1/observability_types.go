@@ -42,6 +42,7 @@ const (
 	AlertmanagerInstallation ObservabilityStageName = "AlertmanagerInstallation"
 	Configuration            ObservabilityStageName = "configuration"
 	LoggingInstallation      ObservabilityStageName = "Logging"
+	Migration                ObservabilityStageName = "resource name migration"
 )
 
 const (
@@ -122,6 +123,7 @@ type ObservabilityStatus struct {
 	TokenExpires int64                    `json:"tokenExpires,omitempty"`
 	ClusterID    string                   `json:"clusterId,omitempty"`
 	LastSynced   int64                    `json:"lastSynced,omitempty"`
+	Migrated     bool                     `json:"migrated,omitempty"`
 }
 
 // +kubebuilder:object:root=true

@@ -12,11 +12,13 @@ import (
 
 var defaultGrafanaLabelSelectors = map[string]string{"app": "strimzi"}
 
+const GrafanaOldDefaultName = "kafka-grafana"
+
 func GetDefaultNameGrafana(cr *v1.Observability) string {
 	if cr.Spec.SelfContained != nil && cr.Spec.GrafanaDefaultName != "" {
 		return cr.Spec.GrafanaDefaultName
 	}
-	return "kafka-grafana"
+	return "observability-grafana"
 }
 
 func GetGrafanaCatalogSource(cr *v1.Observability) *v1alpha1.CatalogSource {

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/redhat-developer/observability-operator/v3/controllers/reconcilers/migration"
 	"io/ioutil"
 	"os"
 	"reflect"
@@ -282,6 +283,7 @@ func (r *ObservabilityReconciler) InitializeOperand(mgr ctrl.Manager) error {
 
 func (r *ObservabilityReconciler) getInstallationStages() []apiv1.ObservabilityStageName {
 	return []apiv1.ObservabilityStageName{
+		apiv1.Migration,
 		apiv1.TokenRequest,
 		apiv1.PrometheusInstallation,
 		apiv1.PrometheusConfiguration,
@@ -420,6 +422,9 @@ func (r *ObservabilityReconciler) getReconcilerForStage(stage apiv1.Observabilit
 
 	case apiv1.LoggingInstallation:
 		return logging_installation.NewReconciler(r.Client, r.Log)
+
+	case apiv1.Migration:
+		return migration.NewReconciler(r.Client, r.Log)
 
 	default:
 		return nil
