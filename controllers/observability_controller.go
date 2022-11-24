@@ -4,12 +4,13 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/redhat-developer/observability-operator/v3/controllers/reconcilers/migration"
 	"io/ioutil"
 	"os"
 	"reflect"
 	"strings"
 	"time"
+
+	"github.com/redhat-developer/observability-operator/v3/controllers/reconcilers/migration"
 
 	infrastructure "github.com/openshift/api/config/v1"
 	prometheusv1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
@@ -284,7 +285,6 @@ func (r *ObservabilityReconciler) InitializeOperand(mgr ctrl.Manager) error {
 
 func (r *ObservabilityReconciler) getInstallationStages() []apiv1.ObservabilityStageName {
 	return []apiv1.ObservabilityStageName{
-		apiv1.Migration,
 		apiv1.TokenRequest,
 		apiv1.PrometheusInstallation,
 		apiv1.PrometheusConfiguration,
@@ -295,6 +295,7 @@ func (r *ObservabilityReconciler) getInstallationStages() []apiv1.ObservabilityS
 		apiv1.LoggingInstallation,
 		apiv1.Csv,
 		apiv1.Configuration,
+		apiv1.Migration,
 	}
 }
 
