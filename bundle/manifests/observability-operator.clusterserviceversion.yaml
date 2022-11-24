@@ -181,6 +181,18 @@ spec:
           - update
           - watch
         - apiGroups:
+          - logging.openshift.io
+          resources:
+          - clusterlogforwarders
+          - clusterloggings
+          verbs:
+          - create
+          - delete
+          - get
+          - list
+          - update
+          - watch
+        - apiGroups:
           - monitoring.coreos.com
           resources:
           - alertmanagers
