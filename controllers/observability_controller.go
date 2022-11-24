@@ -294,8 +294,8 @@ func (r *ObservabilityReconciler) getInstallationStages() []apiv1.ObservabilityS
 		apiv1.PromtailInstallation,
 		apiv1.LoggingInstallation,
 		apiv1.Csv,
-		apiv1.Configuration,
 		apiv1.Migration,
+		apiv1.Configuration,
 	}
 }
 
