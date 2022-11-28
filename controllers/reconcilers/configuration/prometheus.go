@@ -16,6 +16,7 @@ import (
 	kv1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
@@ -435,6 +436,10 @@ func (r *Reconciler) reconcilePrometheus(ctx context.Context, cr *v1.Observabili
 	}
 
 	// need to remove the unbound PVC once new PVC is bound to existing PV
+	err = r.removePVCPostMigration(ctx, cr)
+	if err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -463,14 +468,13 @@ func (r *Reconciler) useExistingPVForVolumeClaim(volumeName string, ctx context.
 	prometheusStorageSpec := cr.Spec.Storage.PrometheusStorageSpec
 	pv := &kv1.PersistentVolume{}
 	selector := client.ObjectKey{
-		Namespace: cr.GetPrometheusOperatorNamespace(),
-		Name:      volumeName,
+		Name: volumeName,
 	}
 	err := r.client.Get(ctx, selector, pv)
 	if err != nil {
 		return prometheusStorageSpec, err
 	}
-	pv.Spec.PersistentVolumeReclaimPolicy = kv1.PersistentVolumeReclaimRetain
+	//pv.Spec.PersistentVolumeReclaimPolicy = kv1.PersistentVolumeReclaimRetain
 	pv.Spec.ClaimRef = &kv1.ObjectReference{
 		Name:      "managed-services-prometheus-observability-prometheus-0",
 		Namespace: cr.GetPrometheusOperatorNamespace(),
@@ -492,6 +496,23 @@ func (r *Reconciler) useExistingPVForVolumeClaim(volumeName string, ctx context.
 	}
 
 	return prometheusStorageSpec, err
+}
+
+// remove redundant PVC once new PVC is bound to existing volume
+func (r *Reconciler) removePVCPostMigration(ctx context.Context, cr *v1.Observability) error {
+	pvc := &kv1.PersistentVolumeClaim{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "managed-services-prometheus-kafka-prometheus-0",
+			Namespace: cr.GetPrometheusOperatorNamespace(),
+		},
+	}
+
+	err := r.client.Delete(ctx, pvc)
+	if err != nil && !errors.IsNotFound(err) {
+		return err
+	}
+
+	return nil
 }
 
 // construct Prometheus storage spec with either default or override value from resources
