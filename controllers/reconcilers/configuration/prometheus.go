@@ -474,7 +474,7 @@ func (r *Reconciler) useExistingPVForVolumeClaim(volumeName string, ctx context.
 	if err != nil {
 		return prometheusStorageSpec, err
 	}
-	//pv.Spec.PersistentVolumeReclaimPolicy = kv1.PersistentVolumeReclaimRetain
+
 	pv.Spec.ClaimRef = &kv1.ObjectReference{
 		Name:      "managed-services-prometheus-observability-prometheus-0",
 		Namespace: cr.GetPrometheusOperatorNamespace(),
