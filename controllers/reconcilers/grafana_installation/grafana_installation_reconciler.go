@@ -17,6 +17,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
 
+const GrafanaOperatorDefaultVersion = "v3.10.7"
+
 type Reconciler struct {
 	client client.Client
 	logger logr.Logger
@@ -167,7 +169,7 @@ func (r *Reconciler) reconcileCatalogSource(ctx context.Context, cr *v1.Observab
 	_, err := controllerutil.CreateOrUpdate(ctx, r.client, source, func() error {
 		source.Spec = v1alpha1.CatalogSourceSpec{
 			SourceType: v1alpha1.SourceTypeGrpc,
-			Image:      "quay.io/rhoas/grafana-operator-index:v3.10.5",
+			Image:      "quay.io/rhoas/grafana-operator-index:" + GrafanaOperatorDefaultVersion,
 		}
 		return nil
 	})
@@ -189,8 +191,8 @@ func (r *Reconciler) reconcileSubscription(ctx context.Context, cr *v1.Observabi
 			CatalogSourceNamespace: source.Namespace,
 			Package:                "grafana-operator",
 			Channel:                "alpha",
-			StartingCSV:            "grafana-operator.v3.10.5",
-			Config:                 v1alpha1.SubscriptionConfig{Resources: *model.GetGrafanaOperatorResourceRequirement(cr)},
+			StartingCSV:            "grafana-operator." + GrafanaOperatorDefaultVersion,
+			Config:                 &v1alpha1.SubscriptionConfig{Resources: model.GetGrafanaOperatorResourceRequirement(cr)},
 		}
 		return nil
 	})
@@ -229,7 +231,6 @@ func (r *Reconciler) reconcileOperatorgroup(ctx context.Context, cr *v1.Observab
 }
 
 func (r *Reconciler) waitForGrafanaOperator(ctx context.Context, cr *v1.Observability) (v1.ObservabilityStageStatus, error) {
-	// We have to remove the prometheus operator deployment manually
 	deployments := &v12.DeploymentList{}
 	opts := &client.ListOptions{
 		Namespace: cr.Namespace,
@@ -240,7 +241,7 @@ func (r *Reconciler) waitForGrafanaOperator(ctx context.Context, cr *v1.Observab
 	}
 
 	for _, deployment := range deployments.Items {
-		if strings.HasPrefix(deployment.Name, "grafana-operator") {
+		if deployment.Name == "grafana-operator" {
 			if deployment.Status.ReadyReplicas > 0 {
 				return v1.ResultSuccess, nil
 			}

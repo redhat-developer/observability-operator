@@ -13,15 +13,17 @@ import (
 	v14 "k8s.io/api/networking/v1"
 
 	"github.com/go-logr/logr"
-	"github.com/integr8ly/grafana-operator/v3/pkg/apis/integreatly/v1alpha1"
+	"github.com/grafana-operator/grafana-operator/v4/api/integreatly/v1alpha1"
 	errors2 "github.com/pkg/errors"
 	prometheusv1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
 	v1 "github.com/redhat-developer/observability-operator/v3/api/v1"
 	"github.com/redhat-developer/observability-operator/v3/controllers/metrics"
+	"github.com/redhat-developer/observability-operator/v3/controllers/model"
 	"github.com/redhat-developer/observability-operator/v3/controllers/reconcilers"
 	token2 "github.com/redhat-developer/observability-operator/v3/controllers/reconcilers/token"
 	v13 "k8s.io/api/apps/v1"
 	v12 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/labels"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -226,6 +228,18 @@ func (r *Reconciler) Reconcile(ctx context.Context, cr *v1.Observability, s *v1.
 	// Always react to CR updates when external repo sync is disabled
 	if cr.ExternalSyncDisabled() {
 		overrideLastSync = true
+	}
+
+	// Force resync if any CRs missing post-migration
+	if s.Migrated {
+		var missingCR bool
+		missingCR, err = r.checkForMissingCR(ctx, cr)
+		if err != nil {
+			return v1.ResultFailed, errors2.Wrap(err, "error checking for migrated CR")
+		}
+		if missingCR {
+			overrideLastSync = true
+		}
 	}
 
 	// Then check if the next sync is due
@@ -617,4 +631,51 @@ func (r *Reconciler) fetchResource(path string, tag string, token string) ([]byt
 	}
 
 	return body, nil
+}
+
+func (r *Reconciler) checkForMissingCR(ctx context.Context, cr *v1.Observability) (bool, error) {
+	var missingCR bool
+	alertmanagerCR := model.GetAlertmanagerCr(cr)
+	selector := client.ObjectKey{
+		Namespace: cr.Namespace,
+		Name:      model.GetDefaultNameAlertmanager(cr),
+	}
+
+	err := r.client.Get(ctx, selector, alertmanagerCR)
+	if err != nil {
+		if !errors.IsGone(err) {
+			missingCR = true
+		} else {
+			return missingCR, err
+		}
+	}
+	prometheusCR := model.GetPrometheus(cr)
+	selector = client.ObjectKey{
+		Namespace: cr.GetPrometheusOperatorNamespace(),
+		Name:      model.GetDefaultNamePrometheus(cr),
+	}
+
+	err = r.client.Get(ctx, selector, prometheusCR)
+	if err != nil {
+		if !errors.IsGone(err) {
+			missingCR = true
+		} else {
+			return missingCR, err
+		}
+	}
+	grafanaCR := model.GetGrafanaCr(cr)
+	selector = client.ObjectKey{
+		Namespace: cr.Namespace,
+		Name:      model.GetDefaultNameGrafana(cr),
+	}
+
+	err = r.client.Get(ctx, selector, grafanaCR)
+	if err != nil {
+		if !errors.IsGone(err) {
+			missingCR = true
+		} else {
+			return missingCR, err
+		}
+	}
+	return missingCR, nil
 }

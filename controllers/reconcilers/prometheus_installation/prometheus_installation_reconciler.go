@@ -18,6 +18,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
 
+const PrometheusOperatorDefaultVersion = "prometheusoperator.0.56.3"
+
 type Reconciler struct {
 	client client.Client
 	logger logr.Logger
@@ -174,8 +176,8 @@ func (r *Reconciler) reconcileSubscription(ctx context.Context, cr *v1.Observabi
 			Package:                "prometheus",
 			Channel:                "beta",
 			InstallPlanApproval:    v1alpha1.ApprovalAutomatic,
-			Config:                 v1alpha1.SubscriptionConfig{Resources: *model.GetPrometheusOperatorResourceRequirement(cr)},
-			StartingCSV:            "prometheusoperator.0.56.3",
+			Config:                 &v1alpha1.SubscriptionConfig{Resources: model.GetPrometheusOperatorResourceRequirement(cr)},
+			StartingCSV:            PrometheusOperatorDefaultVersion,
 		}
 
 		return nil

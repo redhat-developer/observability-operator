@@ -11,8 +11,7 @@ import (
 
 	"github.com/ghodss/yaml"
 	"github.com/go-logr/logr"
-	"github.com/integr8ly/grafana-operator/v3/pkg/apis/integreatly/v1alpha1"
-	"github.com/operator-framework/operator-registry/pkg/lib/bundle"
+	"github.com/grafana-operator/grafana-operator/v4/api/integreatly/v1alpha1"
 	v1 "github.com/redhat-developer/observability-operator/v3/api/v1"
 	"github.com/redhat-developer/observability-operator/v3/controllers/model"
 	"github.com/redhat-developer/observability-operator/v3/controllers/reconcilers"
@@ -171,7 +170,7 @@ func (r *Reconciler) reconcileClusterRoleBinding(ctx context.Context, cr *v1.Obs
 	_, err := controllerutil.CreateOrUpdate(ctx, r.client, clusterRoleBinding, func() error {
 		clusterRoleBinding.RoleRef = v12.RoleRef{
 			APIGroup: "rbac.authorization.k8s.io",
-			Kind:     bundle.ClusterRoleKind,
+			Kind:     "ClusterRole",
 			Name:     clusterRole.Name,
 		}
 		clusterRoleBinding.Subjects = []v12.Subject{

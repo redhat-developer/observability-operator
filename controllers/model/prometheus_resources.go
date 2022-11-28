@@ -25,7 +25,7 @@ import (
 var defaultPrometheusLabelSelectors = map[string]string{"app": "strimzi"}
 
 const (
-	PrometheusVersion        = "v2.22.2"
+	PrometheusVersion        = "v2.36.2"
 	PrometheusDefaultStorage = "250Gi"
 	PrometheusOldDefaultName = "kafka-prometheus"
 )

@@ -148,6 +148,15 @@ spec:
           - list
           - watch
         - apiGroups:
+          - coordination.k8s.io
+          resources:
+          - leases
+          verbs:
+          - create
+          - get
+          - list
+          - update
+        - apiGroups:
           - corev1
           resources:
           - configmaps
@@ -164,6 +173,18 @@ spec:
           - grafanadashboards
           - grafanadatasources
           - grafanas
+          verbs:
+          - create
+          - delete
+          - get
+          - list
+          - update
+          - watch
+        - apiGroups:
+          - logging.openshift.io
+          resources:
+          - clusterlogforwarders
+          - clusterloggings
           verbs:
           - create
           - delete
@@ -380,7 +401,7 @@ spec:
   version: 3.0.16
   webhookdefinitions:
   - admissionReviewVersions:
-    - v1beta1
+    - v1
     containerPort: 443
     deploymentName: observability-operator-controller-manager
     failurePolicy: Fail
