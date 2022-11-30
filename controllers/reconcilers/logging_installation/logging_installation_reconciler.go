@@ -19,6 +19,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
 
+const NoInitConfigMapName = "observability-operator-no-init"
+
 type Reconciler struct {
 	client client.Client
 	logger logr.Logger
@@ -88,6 +90,27 @@ func (r *Reconciler) Reconcile(ctx context.Context, cr *v1.Observability, s *v1.
 		return v1.ResultSuccess, nil
 	}
 
+	// check for observability-operator-no-init configmap. If present check applied CR
+	configMap := &corev1.ConfigMap{}
+	selector := client.ObjectKey{
+		Name:      NoInitConfigMapName,
+		Namespace: cr.Namespace,
+	}
+
+	var selfContainedMode bool
+	err := r.client.Get(ctx, selector, configMap)
+	if err == nil {
+		selfContainedMode = true
+	}
+	if err != nil && !errors.IsNotFound(err) {
+		return v1.ResultFailed, err
+	}
+
+	// skip logging operator install if disableLogging is unset
+	if selfContainedMode && cr.Spec.SelfContained != nil && cr.Spec.SelfContained.DisableLogging == nil {
+		return v1.ResultSuccess, nil
+	}
+
 	// if logging is specifically disabled
 	if cr.Spec.SelfContained.DisableLogging != nil && *cr.Spec.SelfContained.DisableLogging {
 		return v1.ResultSuccess, nil
@@ -95,11 +118,11 @@ func (r *Reconciler) Reconcile(ctx context.Context, cr *v1.Observability, s *v1.
 
 	// if openshift-namespace is not present skip logging operator installation
 	namespace := &corev1.Namespace{}
-	selector := client.ObjectKey{
+	selector = client.ObjectKey{
 		Name: "openshift-logging",
 	}
 
-	err := r.client.Get(ctx, selector, namespace)
+	err = r.client.Get(ctx, selector, namespace)
 	if err != nil {
 		if !errors.IsNotFound(err) {
 			return v1.ResultFailed, err
