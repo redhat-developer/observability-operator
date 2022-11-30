@@ -35,10 +35,28 @@ export QUAY_TOKEN=${QUAY_USER_PASSWORD:-$RHOAS_QUAY_TOKEN}
 export DOCKER_CONFIG="${PWD}/.docker"
 mkdir -p "${DOCKER_CONFIG}"
 
+OPM_VERSION=v1.26.2
+OPM_PLATFORM=linux-amd64
+OPM_DOWNLOAD_URL="https://github.com/operator-framework/operator-registry/releases/download/$OPM_VERSION/$OPM_PLATFORM-opm"
+
+mkdir -p ${PWD}/.bin
+
+# Download OPM
+if [ ! -f "${PWD}/.bin/opm" ]; then
+  curl -Lo "${PWD}/.bin/opm" -k $OPM_DOWNLOAD_URL
+  chmod +x "${PWD}/.bin/opm"
+fi
+
+export OPM=${PWD}/.bin/opm
+
+# Print OPM version
+$OPM version
+
 make docker-login
 make docker-build
 make docker-push
 make bundle-build
 make bundle-push
+make index-add
 make index-build
 make index-push

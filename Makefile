@@ -1,5 +1,7 @@
 # Current Operator version
-VERSION ?= 3.0.16
+VERSION ?= 4.0.0
+# Previous Operator version
+PREV_VERSION ?= 3.0.16
 # Options for 'bundle-build'
 ifneq ($(origin CHANNELS), undefined)
 BUNDLE_CHANNELS := --channels=$(CHANNELS)
@@ -181,13 +183,14 @@ bundle-build:
 bundle-push:
 	docker push $(BUNDLE_IMG)
 
+# Update index.db in build_deploy script
+.PHONY: index-add
+index-add:
+	 $(OPM) index add --build-tool=docker --bundles $(BUNDLE_IMG) --tag ${INDEX_IMG} -f quay.io/${REG}/observability-operator-index:v${PREV_VERSION} --generate
+
 .PHONY: index-build
 index-build:
-	docker build -t $(INDEX_IMG) -f opm.Dockerfile .
-
-.PHONY: opm-build
-opm-build:
-	@bash build_index.sh
+	docker build -t $(INDEX_IMG) -f index.Dockerfile .
 
 .PHONY: index-push
 index-push:
