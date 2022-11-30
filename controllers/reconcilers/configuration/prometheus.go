@@ -16,6 +16,7 @@ import (
 	kv1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
@@ -403,9 +404,21 @@ func (r *Reconciler) reconcilePrometheus(ctx context.Context, cr *v1.Observabili
 			Alerting:              r.getAlerting(cr),
 		}
 		if cr.Spec.Storage != nil && cr.Spec.Storage.PrometheusStorageSpec != nil {
-			prometheusStorageSpec, err := getPrometheusStorageSpecHelper(cr, indexes)
+			var prometheusStorageSpec *prometheusv1.StorageSpec
+			existingPV, pvName, err := r.existingPVC(cr, ctx)
 			if err != nil {
 				return err
+			}
+			if existingPV {
+				prometheusStorageSpec, err = r.useExistingPVForVolumeClaim(pvName, ctx, cr, indexes)
+				if err != nil {
+					return err
+				}
+			} else {
+				prometheusStorageSpec, err = getPrometheusStorageSpecHelper(cr, indexes)
+				if err != nil {
+					return err
+				}
 			}
 			prometheus.Spec.Storage = prometheusStorageSpec
 		}
@@ -419,6 +432,83 @@ func (r *Reconciler) reconcilePrometheus(ctx context.Context, cr *v1.Observabili
 	})
 
 	if err != nil {
+		return err
+	}
+
+	// need to remove the unbound PVC once new PVC is bound to existing PV
+	err = r.removePVCPostMigration(ctx, cr)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+// check for existing PVC
+func (r *Reconciler) existingPVC(cr *v1.Observability, ctx context.Context) (bool, string, error) {
+	var exists bool
+	pvc := kv1.PersistentVolumeClaim{}
+	pvcList := &kv1.PersistentVolumeClaimList{}
+	opts := &client.ListOptions{
+		Namespace: cr.GetPrometheusOperatorNamespace(),
+	}
+	err := r.client.List(ctx, pvcList, opts)
+	if err != nil {
+		return exists, "", errors2.Wrap(err, "error listing existing volume claims")
+	}
+	for _, pvc = range pvcList.Items {
+		if pvc.Name == "managed-services-prometheus-kafka-prometheus-0" {
+			exists = true
+		}
+	}
+	return exists, pvc.Spec.VolumeName, nil
+}
+
+// use existing PV for PVC
+func (r *Reconciler) useExistingPVForVolumeClaim(volumeName string, ctx context.Context, cr *v1.Observability, indexes []v1.RepositoryIndex) (*prometheusv1.StorageSpec, error) {
+	prometheusStorageSpec := cr.Spec.Storage.PrometheusStorageSpec
+	pv := &kv1.PersistentVolume{}
+	selector := client.ObjectKey{
+		Name: volumeName,
+	}
+	err := r.client.Get(ctx, selector, pv)
+	if err != nil {
+		return prometheusStorageSpec, err
+	}
+
+	pv.Spec.ClaimRef = &kv1.ObjectReference{
+		Name:      "managed-services-prometheus-observability-prometheus-0",
+		Namespace: cr.GetPrometheusOperatorNamespace(),
+	}
+
+	err = r.client.Update(ctx, pv)
+	prometheusStorageSpec = &prometheusv1.StorageSpec{
+		VolumeClaimTemplate: prometheusv1.EmbeddedPersistentVolumeClaim{
+			EmbeddedObjectMetadata: prometheusv1.EmbeddedObjectMetadata{
+				Name: "managed-services",
+			},
+			Spec: kv1.PersistentVolumeClaimSpec{
+				VolumeName: volumeName,
+				Resources: kv1.ResourceRequirements{
+					Requests: pv.Spec.Capacity,
+				},
+			},
+		},
+	}
+
+	return prometheusStorageSpec, err
+}
+
+// remove redundant PVC once new PVC is bound to existing volume
+func (r *Reconciler) removePVCPostMigration(ctx context.Context, cr *v1.Observability) error {
+	pvc := &kv1.PersistentVolumeClaim{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "managed-services-prometheus-kafka-prometheus-0",
+			Namespace: cr.GetPrometheusOperatorNamespace(),
+		},
+	}
+
+	err := r.client.Delete(ctx, pvc)
+	if err != nil && !errors.IsNotFound(err) {
 		return err
 	}
 

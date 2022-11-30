@@ -90,6 +90,8 @@ spec:
           - configmaps
           - endpoints
           - nodes/proxy
+          - persistentvolumeclaims
+          - persistentvolumes
           - secrets
           - serviceaccounts
           - services
@@ -262,6 +264,8 @@ spec:
           resources:
           - clusterrolebindings
           - clusterroles
+          - persistentvolumeclaims
+          - persistentvolumes
           verbs:
           - create
           - delete
