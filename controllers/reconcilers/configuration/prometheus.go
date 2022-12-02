@@ -476,7 +476,7 @@ func (r *Reconciler) useExistingPVForVolumeClaim(volumeName string, ctx context.
 	}
 
 	pv.Spec.ClaimRef = &kv1.ObjectReference{
-		Name:      "managed-services-prometheus-observability-prometheus-0",
+		Name:      "managed-services-prometheus-obs-prometheus-0",
 		Namespace: cr.GetPrometheusOperatorNamespace(),
 	}
 

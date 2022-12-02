@@ -17,8 +17,8 @@ import (
 var (
 	objectMetaWithPrometheusName       = v12.ObjectMeta{Name: defaultPrometheusName}
 	testNamespace                      = "testNamespace"
-	defaultPrometheusName              = "observability-prometheus"
-	serviceAccountPrometheusAnnotation = map[string]string{"serviceaccounts.openshift.io/oauth-redirectreference.primary": "{\"kind\":\"OAuthRedirectReference\",\"apiVersion\":\"v1\",\"reference\":{\"kind\":\"Route\",\"name\":\"observability-prometheus\"}}"}
+	defaultPrometheusName              = "obs-prometheus"
+	serviceAccountPrometheusAnnotation = map[string]string{"serviceaccounts.openshift.io/oauth-redirectreference.primary": "{\"kind\":\"OAuthRedirectReference\",\"apiVersion\":\"v1\",\"reference\":{\"kind\":\"Route\",\"name\":\"obs-prometheus\"}}"}
 	testPattern                        = []string{"test1", "test2"}
 	testFederationConfigBearerToken    = `
 - job_name: openshift-monitoring-federation
@@ -93,7 +93,7 @@ func TestPrometheusResources_GetDefaultNamePrometheus(t *testing.T) {
 		want string
 	}{
 		{
-			name: "returns 'observability-prometheus' if NOT self contained",
+			name: "returns 'obs-prometheus' if NOT self contained",
 			args: args{
 				cr: buildObservabilityCR(nil),
 			},

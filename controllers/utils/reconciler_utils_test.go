@@ -192,7 +192,7 @@ func TestReconcilerUtils_WaitForAlertmanagerToBeRemoved(t *testing.T) {
 	_ = v1.SchemeBuilder.AddToScheme(scheme)
 	alertmanagerStatefulSet := &appsv1.StatefulSet{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      "alertmanager-observability-alertmanager",
+			Name:      "alertmanager-obs-alertmanager",
 			Namespace: "test-namespace",
 		},
 	}
@@ -251,7 +251,7 @@ func TestReconcilerUtils_WaitForPrometheusToBeRemoved(t *testing.T) {
 	_ = v1.SchemeBuilder.AddToScheme(scheme)
 	prometheusStatefulSet := &appsv1.StatefulSet{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      "prometheus-observability-prometheus",
+			Name:      "prometheus-obs-prometheus",
 			Namespace: "test-namespace",
 		},
 	}

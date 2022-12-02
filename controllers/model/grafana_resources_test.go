@@ -14,7 +14,7 @@ import (
 )
 
 var (
-	defaultGrafanaName         = "observability-grafana"
+	defaultGrafanaName         = "obs-grafana"
 	objectMetaWithNamespace    = v12.ObjectMeta{Namespace: testNamespace}
 	labelSelectorWithNamespace = &v12.LabelSelector{MatchLabels: map[string]string{"namespace": "test"}}
 	testRepoConfig             = []v1.RepositoryIndex{
@@ -40,7 +40,7 @@ func TestGrafanaResources_GetDefaultNameGrafana(t *testing.T) {
 		want string
 	}{
 		{
-			name: "returns 'observability-grafana' if NOT self contained",
+			name: "returns 'obs-grafana' if NOT self contained",
 			args: args{
 				cr: buildObservabilityCR(nil),
 			},

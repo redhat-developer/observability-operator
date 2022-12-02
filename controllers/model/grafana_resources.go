@@ -18,7 +18,7 @@ func GetDefaultNameGrafana(cr *v1.Observability) string {
 	if cr.Spec.SelfContained != nil && cr.Spec.GrafanaDefaultName != "" {
 		return cr.Spec.GrafanaDefaultName
 	}
-	return "observability-grafana"
+	return "obs-grafana"
 }
 
 func GetGrafanaCatalogSource(cr *v1.Observability) *v1alpha1.CatalogSource {
