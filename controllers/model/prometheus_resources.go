@@ -42,7 +42,7 @@ func GetDefaultNamePrometheus(cr *v1.Observability) string {
 	if cr.Spec.SelfContained != nil && cr.Spec.PrometheusDefaultName != "" {
 		return cr.Spec.PrometheusDefaultName
 	}
-	return "observability-prometheus"
+	return "obs-prometheus"
 }
 
 func GetPrometheusAuthTokenLifetimes(cr *v1.Observability) *v13.ConfigMap {

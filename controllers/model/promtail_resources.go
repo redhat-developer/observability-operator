@@ -17,7 +17,7 @@ import (
 
 const (
 	PromtailOldDefaultName = "kafka-promtail"
-	PromtailDefaultName    = "observability-promtail"
+	PromtailDefaultName    = "obs-promtail"
 )
 
 func GetPromtailConfigmap(cr *v1.Observability, name string) *v12.ConfigMap {
