@@ -26,6 +26,12 @@ func GetClusterLoggingCR() *v14.ClusterLogging {
 		Requests: map[v13.ResourceName]resource.Quantity{v13.ResourceMemory: resource.MustParse("736Mi")},
 	}
 
+	profileToleration := v13.Toleration{
+		Key:      "bf2.org/kafkaInstanceProfileType",
+		Operator: "Exists",
+		Effect:   "NoExecute",
+	}
+
 	return &v14.ClusterLogging{
 		TypeMeta: v12.TypeMeta{},
 		ObjectMeta: v12.ObjectMeta{
@@ -39,7 +45,8 @@ func GetClusterLoggingCR() *v14.ClusterLogging {
 				Logs: &v14.LogCollectionSpec{
 					Type: "fluentd",
 					CollectorSpec: v14.CollectorSpec{
-						Resources: memoryRequests,
+						Resources:   memoryRequests,
+						Tolerations: []v13.Toleration{profileToleration},
 					},
 				},
 			},
