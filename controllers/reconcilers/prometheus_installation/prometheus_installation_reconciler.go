@@ -168,16 +168,16 @@ func (r *Reconciler) reconcileCatalogSource(ctx context.Context, cr *v1.Observab
 
 func (r *Reconciler) reconcileSubscription(ctx context.Context, cr *v1.Observability) (v1.ObservabilityStageStatus, error) {
 	subscription := model.GetPrometheusSubscription(cr)
+	source := model.GetPrometheusCatalogSource(cr)
 
 	_, err := controllerutil.CreateOrUpdate(ctx, r.client, subscription, func() error {
 		subscription.Spec = &v1alpha1.SubscriptionSpec{
-			CatalogSource:          "community-operators",
-			CatalogSourceNamespace: "openshift-marketplace",
+			CatalogSource:          source.Name,
+			CatalogSourceNamespace: cr.GetPrometheusOperatorNamespace(),
 			Package:                "prometheus",
-			Channel:                "beta",
+			Channel:                "preview",
 			InstallPlanApproval:    v1alpha1.ApprovalAutomatic,
 			Config:                 &v1alpha1.SubscriptionConfig{Resources: model.GetPrometheusOperatorResourceRequirement(cr)},
-			StartingCSV:            PrometheusOperatorDefaultVersion,
 		}
 
 		return nil
@@ -189,7 +189,6 @@ func (r *Reconciler) reconcileSubscription(ctx context.Context, cr *v1.Observabi
 
 	return v1.ResultSuccess, nil
 }
-
 func (r *Reconciler) reconcileOperatorgroup(ctx context.Context, cr *v1.Observability) (v1.ObservabilityStageStatus, error) {
 	exists, err := utils.HasOperatorGroupForNamespace(ctx, r.client, cr.Namespace)
 	if err != nil {
