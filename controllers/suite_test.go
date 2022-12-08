@@ -33,7 +33,7 @@ import (
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
-	observabilityv1 "github.com/redhat-developer/observability-operator/v3/api/v1"
+	observabilityv1 "github.com/redhat-developer/observability-operator/v4/api/v1"
 	// +kubebuilder:scaffold:imports
 )
 

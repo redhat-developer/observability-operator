@@ -380,9 +380,9 @@ Add the following into your `launch.json` file to enable running and debugging.
 
 ## Issues
 
-If you'd like to report an issue, feel free to use our [project Issues page](https://github.com/redhat-developer/observability-operator/v3/issues).
+If you'd like to report an issue, feel free to use our [project Issues page](https://github.com/redhat-developer/observability-operator/v4/issues).
 
 
 ## Contact
 
-If all else fails, you can reach us at mk-config-user\[at\]redhat.com
+If all else fails, you can reach us at `mk-config-user@redhat.com`

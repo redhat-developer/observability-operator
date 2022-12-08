@@ -5,7 +5,7 @@ import (
 
 	"github.com/grafana-operator/grafana-operator/v4/api/integreatly/v1alpha1"
 	. "github.com/onsi/gomega"
-	v1 "github.com/redhat-developer/observability-operator/v3/api/v1"
+	v1 "github.com/redhat-developer/observability-operator/v4/api/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 

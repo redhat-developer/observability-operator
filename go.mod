@@ -1,4 +1,4 @@
-module github.com/redhat-developer/observability-operator/v3
+module github.com/redhat-developer/observability-operator/v4
 
 go 1.19
 

@@ -7,9 +7,9 @@ import (
 
 	goyaml "github.com/goccy/go-yaml"
 	prometheusv1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
-	v1 "github.com/redhat-developer/observability-operator/v3/api/v1"
-	"github.com/redhat-developer/observability-operator/v3/controllers/model"
-	"github.com/redhat-developer/observability-operator/v3/controllers/utils"
+	v1 "github.com/redhat-developer/observability-operator/v4/api/v1"
+	"github.com/redhat-developer/observability-operator/v4/controllers/model"
+	"github.com/redhat-developer/observability-operator/v4/controllers/utils"
 	v12 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"

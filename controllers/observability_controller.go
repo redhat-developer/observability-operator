@@ -10,7 +10,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/redhat-developer/observability-operator/v3/controllers/reconcilers/migration"
+	"github.com/redhat-developer/observability-operator/v4/controllers/reconcilers/migration"
 
 	infrastructure "github.com/openshift/api/config/v1"
 	prometheusv1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
@@ -18,19 +18,19 @@ import (
 
 	"github.com/go-logr/logr"
 	"github.com/prometheus-operator/prometheus-operator/pkg/k8sutil"
-	"github.com/redhat-developer/observability-operator/v3/controllers/metrics"
-	"github.com/redhat-developer/observability-operator/v3/controllers/model"
-	"github.com/redhat-developer/observability-operator/v3/controllers/reconcilers"
-	"github.com/redhat-developer/observability-operator/v3/controllers/reconcilers/alertmanager_installation"
-	"github.com/redhat-developer/observability-operator/v3/controllers/reconcilers/configuration"
-	"github.com/redhat-developer/observability-operator/v3/controllers/reconcilers/csv"
-	"github.com/redhat-developer/observability-operator/v3/controllers/reconcilers/grafana_configuration"
-	"github.com/redhat-developer/observability-operator/v3/controllers/reconcilers/grafana_installation"
-	"github.com/redhat-developer/observability-operator/v3/controllers/reconcilers/logging_installation"
-	"github.com/redhat-developer/observability-operator/v3/controllers/reconcilers/prometheus_configuration"
-	"github.com/redhat-developer/observability-operator/v3/controllers/reconcilers/prometheus_installation"
-	"github.com/redhat-developer/observability-operator/v3/controllers/reconcilers/promtail_installation"
-	"github.com/redhat-developer/observability-operator/v3/controllers/reconcilers/token"
+	"github.com/redhat-developer/observability-operator/v4/controllers/metrics"
+	"github.com/redhat-developer/observability-operator/v4/controllers/model"
+	"github.com/redhat-developer/observability-operator/v4/controllers/reconcilers"
+	"github.com/redhat-developer/observability-operator/v4/controllers/reconcilers/alertmanager_installation"
+	"github.com/redhat-developer/observability-operator/v4/controllers/reconcilers/configuration"
+	"github.com/redhat-developer/observability-operator/v4/controllers/reconcilers/csv"
+	"github.com/redhat-developer/observability-operator/v4/controllers/reconcilers/grafana_configuration"
+	"github.com/redhat-developer/observability-operator/v4/controllers/reconcilers/grafana_installation"
+	"github.com/redhat-developer/observability-operator/v4/controllers/reconcilers/logging_installation"
+	"github.com/redhat-developer/observability-operator/v4/controllers/reconcilers/prometheus_configuration"
+	"github.com/redhat-developer/observability-operator/v4/controllers/reconcilers/prometheus_installation"
+	"github.com/redhat-developer/observability-operator/v4/controllers/reconcilers/promtail_installation"
+	"github.com/redhat-developer/observability-operator/v4/controllers/reconcilers/token"
 	v1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -38,7 +38,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	apiv1 "github.com/redhat-developer/observability-operator/v3/api/v1"
+	apiv1 "github.com/redhat-developer/observability-operator/v4/api/v1"
 )
 
 const (

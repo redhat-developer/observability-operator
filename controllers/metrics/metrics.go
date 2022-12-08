@@ -2,7 +2,7 @@ package metrics
 
 import (
 	"github.com/prometheus/client_golang/prometheus"
-	apiv1 "github.com/redhat-developer/observability-operator/v3/api/v1"
+	apiv1 "github.com/redhat-developer/observability-operator/v4/api/v1"
 	"sigs.k8s.io/controller-runtime/pkg/metrics"
 )
 

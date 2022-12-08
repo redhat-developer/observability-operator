@@ -5,8 +5,8 @@ import (
 	"testing"
 
 	. "github.com/onsi/gomega"
-	v1 "github.com/redhat-developer/observability-operator/v3/api/v1"
-	"github.com/redhat-developer/observability-operator/v3/controllers/model"
+	v1 "github.com/redhat-developer/observability-operator/v4/api/v1"
+	"github.com/redhat-developer/observability-operator/v4/controllers/model"
 )
 
 var (

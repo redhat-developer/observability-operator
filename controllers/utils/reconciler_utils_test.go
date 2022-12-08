@@ -6,7 +6,7 @@ import (
 
 	. "github.com/onsi/gomega"
 	routev1 "github.com/openshift/api/route/v1"
-	v1 "github.com/redhat-developer/observability-operator/v3/api/v1"
+	v1 "github.com/redhat-developer/observability-operator/v4/api/v1"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
