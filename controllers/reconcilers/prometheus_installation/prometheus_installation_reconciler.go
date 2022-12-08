@@ -18,8 +18,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
 
-const PrometheusOperatorDefaultVersion = "prometheusoperator.0.56.3"
-
 type Reconciler struct {
 	client client.Client
 	logger logr.Logger
@@ -102,7 +100,6 @@ func (r *Reconciler) Reconcile(ctx context.Context, cr *v1.Observability, s *v1.
 }
 
 func (r *Reconciler) waitForPrometheusOperator(ctx context.Context, cr *v1.Observability) (v1.ObservabilityStageStatus, error) {
-	// We have to remove the prometheus operator deployment manually
 	deployments := &appsv1.DeploymentList{}
 	opts := &client.ListOptions{
 		Namespace: cr.GetPrometheusOperatorNamespace(),
@@ -148,19 +145,29 @@ func (r *Reconciler) reconcileCatalogSource(ctx context.Context, cr *v1.Observab
 		Name:      source.Name,
 	}
 
-	//look for catalogSource for old Prometheus Operator index. If found migrate to community image
+	// look for catalogSource for Prometheus Operator index. If not found check for unwanted Operator and remove
 	err := r.client.Get(ctx, selector, source)
-	if err != nil && !errors.IsNotFound(err) {
-		return v1.ResultFailed, err
-	}
-	if err == nil {
-		if source.Spec.Image == "quay.io/integreatly/custom-prometheus-index:1.0.0" {
-			err := r.removePrometheusOperatorIndexResources(ctx, source, cr)
-			if err != nil {
-				return v1.ResultFailed, err
-			}
-			return v1.ResultSuccess, nil
+	if err != nil {
+		if !errors.IsNotFound(err) {
+			return v1.ResultFailed, err
 		}
+		err = r.removePrometheusOperatorResources(ctx, cr)
+		if err != nil {
+			return v1.ResultFailed, err
+		}
+	}
+
+	// install Promethues Operator by catalogSource
+	_, err = controllerutil.CreateOrUpdate(ctx, r.client, source, func() error {
+		source.Spec = v1alpha1.CatalogSourceSpec{
+			SourceType: v1alpha1.SourceTypeGrpc,
+			Image:      "quay.io/integreatly/custom-prometheus-index:1.0.0",
+		}
+		return nil
+	})
+
+	if err != nil {
+		return v1.ResultFailed, err
 	}
 
 	return v1.ResultSuccess, nil
@@ -216,12 +223,15 @@ func (r *Reconciler) reconcileOperatorgroup(ctx context.Context, cr *v1.Observab
 	return v1.ResultSuccess, nil
 }
 
-func (r *Reconciler) removePrometheusOperatorIndexResources(ctx context.Context, source *v1alpha1.CatalogSource, cr *v1.Observability) error {
+func (r *Reconciler) removePrometheusOperatorResources(ctx context.Context, cr *v1.Observability) error {
 	// Delete subscription
 	subscription := &v1alpha1.Subscription{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "prometheus-subscription",
 			Namespace: cr.GetPrometheusOperatorNamespace(),
+		},
+		Spec: &v1alpha1.SubscriptionSpec{
+			StartingCSV: "prometheusoperator.0.56.3",
 		},
 	}
 	err := r.client.Delete(ctx, subscription)
@@ -229,16 +239,10 @@ func (r *Reconciler) removePrometheusOperatorIndexResources(ctx context.Context,
 		return err
 	}
 
-	// Delete catalog source
-	err = r.client.Delete(ctx, source)
-	if err != nil && !errors.IsNotFound(err) {
-		return err
-	}
-
-	// Delete csv to uninstall
+	// Delete csv to uninstall unwanted operator
 	csv := &v1alpha1.ClusterServiceVersion{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      "prometheusoperator.0.45.0",
+			Name:      "prometheusoperator.0.56.3",
 			Namespace: cr.GetPrometheusOperatorNamespace(),
 		},
 	}
