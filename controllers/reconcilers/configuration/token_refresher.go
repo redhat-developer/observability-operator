@@ -7,8 +7,8 @@ import (
 	"path"
 
 	errors2 "github.com/pkg/errors"
-	v1 "github.com/redhat-developer/observability-operator/v3/api/v1"
-	"github.com/redhat-developer/observability-operator/v3/controllers/model"
+	v1 "github.com/redhat-developer/observability-operator/v4/api/v1"
+	"github.com/redhat-developer/observability-operator/v4/controllers/model"
 	v13 "k8s.io/api/apps/v1"
 	v12 "k8s.io/api/core/v1"
 	v15 "k8s.io/api/networking/v1"

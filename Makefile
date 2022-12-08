@@ -52,23 +52,23 @@ test/unit: generate fmt vet manifests
 	@if [ $(PKG) ]; then go test -coverprofile cover.out.tmp -tags unit ./$(PKG); else go test -coverprofile cover.out.tmp -tags unit $(pkgs); fi;
 	grep -v -e "zz_generated" \
 	-e "priorityclass_resources.go" \
-	-e "github.com/redhat-developer/observability-operator/v3/controllers/reconcilers/configuration/alertmanager.go" \
-	-e "github.com/redhat-developer/observability-operator/v3/controllers/reconcilers/configuration/configuration_reconciler.go" \
-	-e "github.com/redhat-developer/observability-operator/v3/controllers/reconcilers/configuration/grafana.go" \
-	-e "github.com/redhat-developer/observability-operator/v3/controllers/reconcilers/configuration/promtail.go" \
-	-e "github.com/redhat-developer/observability-operator/v3/controllers/reconcilers/token/token_reconciler.go" \
-	-e "github.com/redhat-developer/observability-operator/v3/controllers/reconcilers/alertmanager_installation/" \
-	-e "github.com/redhat-developer/observability-operator/v3/controllers/reconcilers/csv/" \
-	-e "github.com/redhat-developer/observability-operator/v3/controllers/reconcilers/grafana_configuration/" \
-	-e "github.com/redhat-developer/observability-operator/v3/controllers/reconcilers/grafana_installation/" \
-	-e "github.com/redhat-developer/observability-operator/v3/controllers/reconcilers/prometheus_configuration/" \
-	-e "github.com/redhat-developer/observability-operator/v3/controllers/reconcilers/promtail_installation/" \
-	-e "github.com/redhat-developer/observability-operator/v3/controllers/token/token_fetcher.go" \
-	-e "github.com/redhat-developer/observability-operator/v3/controllers/reconcilers/reconciler.go" \
-	-e "github.com/redhat-developer/observability-operator/v3/controllers/observability_controller.go" \
-	-e "github.com/redhat-developer/observability-operator/v3/controllers/suite_test.go" \
-	-e "github.com/redhat-developer/observability-operator/v3/runners" \
-	-e "github.com/redhat-developer/observability-operator/v3/main.go" \
+	-e "github.com/redhat-developer/observability-operator/v4/controllers/reconcilers/configuration/alertmanager.go" \
+	-e "github.com/redhat-developer/observability-operator/v4/controllers/reconcilers/configuration/configuration_reconciler.go" \
+	-e "github.com/redhat-developer/observability-operator/v4/controllers/reconcilers/configuration/grafana.go" \
+	-e "github.com/redhat-developer/observability-operator/v4/controllers/reconcilers/configuration/promtail.go" \
+	-e "github.com/redhat-developer/observability-operator/v4/controllers/reconcilers/token/token_reconciler.go" \
+	-e "github.com/redhat-developer/observability-operator/v4/controllers/reconcilers/alertmanager_installation/" \
+	-e "github.com/redhat-developer/observability-operator/v4/controllers/reconcilers/csv/" \
+	-e "github.com/redhat-developer/observability-operator/v4/controllers/reconcilers/grafana_configuration/" \
+	-e "github.com/redhat-developer/observability-operator/v4/controllers/reconcilers/grafana_installation/" \
+	-e "github.com/redhat-developer/observability-operator/v4/controllers/reconcilers/prometheus_configuration/" \
+	-e "github.com/redhat-developer/observability-operator/v4/controllers/reconcilers/promtail_installation/" \
+	-e "github.com/redhat-developer/observability-operator/v4/controllers/token/token_fetcher.go" \
+	-e "github.com/redhat-developer/observability-operator/v4/controllers/reconcilers/reconciler.go" \
+	-e "github.com/redhat-developer/observability-operator/v4/controllers/observability_controller.go" \
+	-e "github.com/redhat-developer/observability-operator/v4/controllers/suite_test.go" \
+	-e "github.com/redhat-developer/observability-operator/v4/runners" \
+	-e "github.com/redhat-developer/observability-operator/v4/main.go" \
 	cover.out.tmp > cover.out
 	rm cover.out.tmp
 

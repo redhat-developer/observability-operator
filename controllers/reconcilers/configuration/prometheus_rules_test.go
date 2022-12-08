@@ -5,7 +5,7 @@ import (
 
 	. "github.com/onsi/gomega"
 	v12 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
-	apiv1 "github.com/redhat-developer/observability-operator/v3/api/v1"
+	apiv1 "github.com/redhat-developer/observability-operator/v4/api/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 

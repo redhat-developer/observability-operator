@@ -3,7 +3,7 @@ package model
 import (
 	v14 "github.com/openshift/cluster-logging-operator/apis/logging/v1"
 	"github.com/operator-framework/api/pkg/operators/v1alpha1"
-	v1 "github.com/redhat-developer/observability-operator/v3/api/v1"
+	v1 "github.com/redhat-developer/observability-operator/v4/api/v1"
 	v13 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	v12 "k8s.io/apimachinery/pkg/apis/meta/v1"
