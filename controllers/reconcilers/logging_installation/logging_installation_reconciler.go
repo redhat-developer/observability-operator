@@ -332,6 +332,7 @@ func (r *Reconciler) createClusterLogForwarderCr(ctx context.Context, cr *v1.Obs
 
 	if len(list.Items) == 0 || len(labelList.Items) > 0 {
 		// There's no ClusterLogforwarder or one that we manage
+		// Add the operator namespaces
 		clusterLogForwarder := model.GetClusterLogForwarderCR()
 		newPipeline := model.GetClusterLogForwarderPipeline()
 		clusterLogForwarder.Spec.Pipelines = append(clusterLogForwarder.Spec.Pipelines, *newPipeline)
@@ -370,8 +371,7 @@ func (r *Reconciler) createClusterLogForwarderCr(ctx context.Context, cr *v1.Obs
 			clusterLogForwarder.Spec.Inputs = append(clusterLogForwarder.Spec.Inputs, kafkaInput)
 			newPipeline := model.GetClusterLogForwarderPipeline()
 			newPipeline.InputRefs = append(newPipeline.InputRefs, "kafka-log-resources")
-			clusterLogForwarder.Spec.Pipelines = append(clusterLogForwarder.Spec.Pipelines, *newPipeline)
-
+			clusterLogForwarder.Spec.Pipelines = []v14.PipelineSpec{*newPipeline}
 		}
 
 		_, err = controllerutil.CreateOrUpdate(ctx, r.client, clusterLogForwarder, func() error {
