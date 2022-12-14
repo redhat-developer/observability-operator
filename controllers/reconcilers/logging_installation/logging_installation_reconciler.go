@@ -350,31 +350,39 @@ func (r *Reconciler) createClusterLogForwarderCr(ctx context.Context, cr *v1.Obs
 			return v1.ResultFailed, err
 		}
 
-		namespaces := []string{}
+		findKafkaLogResourcesInput := func() *v14.InputSpec {
+			for _, input := range clusterLogForwarder.Spec.Inputs {
+				if input.Name == "kafka-log-resources" {
+					return &input
+				}
+			}
+			return nil
+		}
 
-		if len(list.Items) > 0 {
+		newPipeline.InputRefs = append(newPipeline.InputRefs, "kafka-log-resources")
+		clusterLogForwarder.Spec.Pipelines = []v14.PipelineSpec{*newPipeline}
 
+		_, err = controllerutil.CreateOrUpdate(ctx, r.client, clusterLogForwarder, func() error {
+			var namespaces []string
 			for _, namespace := range list.Items {
 				namespaces = append(namespaces, namespace.Name)
 			}
 
-			kafkaInput := v14.InputSpec{
-				Name: "kafka-log-resources",
-				Application: &v14.Application{
-					Namespaces: namespaces,
-					Selector:   nil,
-				},
-				Infrastructure: nil,
-				Audit:          nil,
+			input := findKafkaLogResourcesInput()
+			if input == nil {
+				kafkaInput := v14.InputSpec{
+					Name: "kafka-log-resources",
+					Application: &v14.Application{
+						Namespaces: namespaces,
+						Selector:   nil,
+					},
+					Infrastructure: nil,
+					Audit:          nil,
+				}
+				clusterLogForwarder.Spec.Inputs = append(clusterLogForwarder.Spec.Inputs, kafkaInput)
+			} else {
+				input.Application.Namespaces = namespaces
 			}
-
-			clusterLogForwarder.Spec.Inputs = append(clusterLogForwarder.Spec.Inputs, kafkaInput)
-			newPipeline := model.GetClusterLogForwarderPipeline()
-			newPipeline.InputRefs = append(newPipeline.InputRefs, "kafka-log-resources")
-			clusterLogForwarder.Spec.Pipelines = []v14.PipelineSpec{*newPipeline}
-		}
-
-		_, err = controllerutil.CreateOrUpdate(ctx, r.client, clusterLogForwarder, func() error {
 			return nil
 		})
 		if err != nil {
