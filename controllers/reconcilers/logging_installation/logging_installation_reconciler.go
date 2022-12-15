@@ -2,6 +2,7 @@ package logging_installation
 
 import (
 	"context"
+	"sort"
 	"strings"
 
 	"github.com/go-logr/logr"
@@ -360,13 +361,15 @@ func (r *Reconciler) createClusterLogForwarderCr(ctx context.Context, cr *v1.Obs
 		}
 
 		newPipeline.InputRefs = append(newPipeline.InputRefs, "kafka-log-resources")
-		clusterLogForwarder.Spec.Pipelines = []v14.PipelineSpec{*newPipeline}
 
 		_, err = controllerutil.CreateOrUpdate(ctx, r.client, clusterLogForwarder, func() error {
+			clusterLogForwarder.Spec.Pipelines = []v14.PipelineSpec{*newPipeline}
 			var namespaces []string
 			for _, namespace := range list.Items {
 				namespaces = append(namespaces, namespace.Name)
 			}
+
+			sort.Strings(namespaces)
 
 			input := findKafkaLogResourcesInput()
 			if input == nil {
@@ -385,10 +388,6 @@ func (r *Reconciler) createClusterLogForwarderCr(ctx context.Context, cr *v1.Obs
 			}
 			return nil
 		})
-		if err != nil {
-			return v1.ResultFailed, err
-		}
-
 		if err != nil {
 			return v1.ResultFailed, err
 		}
