@@ -8,6 +8,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/url"
+	"strings"
 	"time"
 
 	v14 "k8s.io/api/networking/v1"
@@ -21,8 +22,9 @@ import (
 	"github.com/redhat-developer/observability-operator/v4/controllers/model"
 	"github.com/redhat-developer/observability-operator/v4/controllers/reconcilers"
 	token2 "github.com/redhat-developer/observability-operator/v4/controllers/reconcilers/token"
-	v13 "k8s.io/api/apps/v1"
-	v12 "k8s.io/api/core/v1"
+	"github.com/redhat-developer/observability-operator/v4/controllers/utils"
+	appsv1 "k8s.io/api/apps/v1"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/labels"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -64,7 +66,7 @@ func (r *Reconciler) Cleanup(ctx context.Context, cr *v1.Observability) (v1.Obse
 		Namespace: cr.Namespace,
 	}
 
-	list := &v12.SecretList{}
+	list := &corev1.SecretList{}
 	err := r.client.List(ctx, list, opts)
 	if err != nil {
 		return v1.ResultFailed, err
@@ -78,7 +80,7 @@ func (r *Reconciler) Cleanup(ctx context.Context, cr *v1.Observability) (v1.Obse
 		}
 	}
 
-	configMapList := &v12.ConfigMapList{}
+	configMapList := &corev1.ConfigMapList{}
 	err = r.client.List(ctx, configMapList, opts)
 	if err != nil {
 		return v1.ResultFailed, err
@@ -139,7 +141,7 @@ func (r *Reconciler) Cleanup(ctx context.Context, cr *v1.Observability) (v1.Obse
 	}
 
 	// Delete Promtail daemonsets
-	daemonsetList := &v13.DaemonSetList{}
+	daemonsetList := &appsv1.DaemonSetList{}
 	err = r.client.List(ctx, daemonsetList, opts)
 	if err != nil {
 		return v1.ResultFailed, err
@@ -153,7 +155,7 @@ func (r *Reconciler) Cleanup(ctx context.Context, cr *v1.Observability) (v1.Obse
 	}
 
 	// Delete token refresher deployments
-	tokenRefreshers := &v13.DeploymentList{}
+	tokenRefreshers := &appsv1.DeploymentList{}
 	opts = &client.ListOptions{
 		LabelSelector: labels.SelectorFromSet(map[string]string{
 			"app.kubernetes.io/component": "authentication-proxy",
@@ -170,6 +172,20 @@ func (r *Reconciler) Cleanup(ctx context.Context, cr *v1.Observability) (v1.Obse
 		if err != nil {
 			return v1.ResultFailed, err
 		}
+	}
+
+	// Delete resources deployment
+	resourceDeployment := model.GetResourcesDeployment(cr)
+	err = r.client.Delete(ctx, resourceDeployment)
+	if err != nil && !errors.IsNotFound(err) {
+		return v1.ResultFailed, err
+	}
+
+	// Delete resources service
+	service := model.GetResourcesService(cr)
+	err = r.client.Delete(ctx, service)
+	if err != nil && !errors.IsNotFound(err) {
+		return v1.ResultFailed, err
 	}
 
 	// Delete the network policies
@@ -211,6 +227,8 @@ func (r *Reconciler) stampConfigSource(ctx context.Context, index *v1.Repository
 }
 
 func (r *Reconciler) Reconcile(ctx context.Context, cr *v1.Observability, s *v1.ObservabilityStatus) (v1.ObservabilityStageStatus, error) {
+	var containerResources bool
+
 	log := r.logger.WithValues("observability", cr.Name)
 	if cr.Spec.ConfigurationSelector == nil && !cr.ExternalSyncDisabled() {
 		log.Info("warning: configuration label selector not present, dynamic configuration will be skipped")
@@ -265,7 +283,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, cr *v1.Observability, s *v1.
 	}
 
 	// Get all configuration secret sets as well
-	configSecretList := &v12.SecretList{}
+	configSecretList := &corev1.SecretList{}
 
 	if !cr.ExternalSyncDisabled() {
 		err = r.client.List(ctx, configSecretList, opts)
@@ -288,13 +306,6 @@ func (r *Reconciler) Reconcile(ctx context.Context, cr *v1.Observability, s *v1.
 
 	// pull all config repo indices from secrets first
 	for _, configSecret := range configSecretList.Items {
-		repoUrl := string(configSecret.Data[RemoteRepository])
-		_, err := url.Parse(repoUrl)
-		if err != nil {
-			log.Error(err, "failed to resync configuration from secret, invalid repository url specified")
-			continue
-		}
-
 		// take note if we hit any secrets with duplicate names and only keep the 1st one
 		if _, found := repos[configSecret.Name]; found {
 			log.Info("skipping duplicate configuration secret", "namespace", configSecret.Namespace,
@@ -304,16 +315,47 @@ func (r *Reconciler) Reconcile(ctx context.Context, cr *v1.Observability, s *v1.
 				AccessToken: string(configSecret.Data[RemoteAccessToken]),
 				Channel:     string(configSecret.Data[RemoteChannel]),
 				Tag:         string(configSecret.Data[RemoteTag]),
-				Repository:  repoUrl,
+				Repository:  string(configSecret.Data[RemoteRepository]),
 				Source:      &configSecret,
 			}
+			// if Repository is not a Github repo, attempt to create resources deployment and service
+			if !strings.HasPrefix(repos[configSecret.Name].Repository, "https://api.github.com") && !cr.ExternalSyncDisabled() {
+				containerResources = true
+				// build image repo tag
+				image := repos[configSecret.Name].Repository + ":" + repos[configSecret.Name].Tag
+				err = r.ReconcileResourcesDeployment(ctx, cr, image)
+				if err != nil {
+					metrics.IncreaseFailedConfigurationSyncsMetric()
+					log.Error(err, "failed to create configuration resources deployment")
+					return v1.ResultFailed, err
+				}
+				err = r.ReconcileResourcesService(ctx, cr)
+				if err != nil {
+					metrics.IncreaseFailedConfigurationSyncsMetric()
+					log.Error(err, "failed to create configuration resources service")
+					return v1.ResultFailed, err
+				}
+			}
+		}
+	}
+
+	// if deploying resources container ensure deployment and service are ready
+	if containerResources {
+		var status v1.ObservabilityStageStatus
+		status, err = r.waitForResourcesDeployment(ctx, cr)
+		if status != v1.ResultSuccess {
+			return status, err
+		}
+		status, err = r.waitForResourcesService(ctx, cr)
+		if status != v1.ResultSuccess {
+			return status, err
 		}
 	}
 
 	// Collect index files
 	var indexes []v1.RepositoryIndex
 	for _, repoInfo := range repos {
-		indexBytes, err := r.readIndexFile(&repoInfo)
+		indexBytes, err := r.readIndexFile(&repoInfo, cr)
 		if err != nil {
 			metrics.IncreaseFailedConfigurationSyncsMetric()
 			log.Error(err, "failed to fetch configuration repository index file")
@@ -327,7 +369,12 @@ func (r *Reconciler) Reconcile(ctx context.Context, cr *v1.Observability, s *v1.
 			log.Error(err, "failed to unmarshal configuration repository index")
 			return v1.ResultFailed, err
 		}
-		index.BaseUrl = fmt.Sprintf("%s/%s", repoInfo.Repository, repoInfo.Channel)
+		// use Service URL when container resources are used
+		if containerResources {
+			index.BaseUrl = fmt.Sprintf("http://%s.%s:8080/%s", model.GetResourcesDefaultName(cr), cr.GetPrometheusOperatorNamespace(), repoInfo.Channel)
+		} else {
+			index.BaseUrl = fmt.Sprintf("%s/%s", repoInfo.Repository, repoInfo.Channel)
+		}
 		index.Tag = repoInfo.Tag
 		index.AccessToken = repoInfo.AccessToken
 		index.Source = repoInfo.Source
@@ -505,7 +552,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, cr *v1.Observability, s *v1.
 }
 
 func (r *Reconciler) deleteUnrequestedCredentialSecrets(ctx context.Context, cr *v1.Observability, indexes []v1.RepositoryIndex) error {
-	list := v12.SecretList{}
+	list := corev1.SecretList{}
 	selector := labels.SelectorFromSet(map[string]string{
 		"managed-by": "observability-operator",
 		"purpose":    "observatorium-token-secret",
@@ -550,28 +597,42 @@ func (r *Reconciler) deleteUnrequestedCredentialSecrets(ctx context.Context, cr 
 	return nil
 }
 
-func (r *Reconciler) readIndexFile(repo *v1.RepositoryInfo) ([]byte, error) {
-	repoUrl, err := url.ParseRequestURI(fmt.Sprintf("%s/%s/index.json", repo.Repository, repo.Channel))
-	if err != nil {
-		return nil, err
+func (r *Reconciler) readIndexFile(repo *v1.RepositoryInfo, cr *v1.Observability) ([]byte, error) {
+	// if no access token provided try to use containered resources
+	var containerResources bool
+	var repoUrl *url.URL
+	var err error
+	if repo.AccessToken == "" {
+		containerResources = true
 	}
 
-	if repo.AccessToken == "" {
-		return nil, fmt.Errorf("repository ConfigMap missing required AccessToken")
+	// use Service URL if container resources used
+	if containerResources {
+		serviceUrl := fmt.Sprintf("http://%s.%s:8080", model.GetResourcesDefaultName(cr), cr.GetPrometheusOperatorNamespace())
+		repoUrl, err = url.ParseRequestURI(fmt.Sprintf("%s/%s/index.json", serviceUrl, repo.Channel))
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		repoUrl, err = url.ParseRequestURI(fmt.Sprintf("%s/%s/index.json", repo.Repository, repo.Channel))
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	req, err := http.NewRequest(http.MethodGet, repoUrl.String(), nil)
 	if err != nil {
 		return nil, err
 	}
+	if !containerResources {
+		req.Header.Set("Authorization", fmt.Sprintf("token %s", repo.AccessToken))
+		req.Header.Set("Accept", "application/vnd.github.v3.raw")
 
-	req.Header.Set("Authorization", fmt.Sprintf("token %s", repo.AccessToken))
-	req.Header.Set("Accept", "application/vnd.github.v3.raw")
-
-	if repo.Tag != "" {
-		q := req.URL.Query()
-		q.Add("ref", repo.Tag)
-		req.URL.RawQuery = q.Encode()
+		if repo.Tag != "" {
+			q := req.URL.Query()
+			q.Add("ref", repo.Tag)
+			req.URL.RawQuery = q.Encode()
+		}
 	}
 
 	resp, err := r.httpClient.Do(req)
@@ -598,16 +659,19 @@ func (r *Reconciler) fetchResource(path string, tag string, token string) ([]byt
 		return nil, errors2.Wrap(err, fmt.Sprintf("error parsing resource url: %s", path))
 	}
 
+	var containerResources bool
 	if token == "" {
-		return nil, fmt.Errorf("repository ConfigMap missing required AccessToken")
+		containerResources = true
 	}
 
 	req, err := http.NewRequest(http.MethodGet, resourceUrl.String(), nil)
 	if err != nil {
 		return nil, errors2.Wrap(err, "error creating http request")
 	}
-	req.Header.Set("Authorization", fmt.Sprintf("token %s", token))
-	req.Header.Set("Accept", "application/vnd.github.v3.raw")
+	if !containerResources {
+		req.Header.Set("Authorization", fmt.Sprintf("token %s", token))
+		req.Header.Set("Accept", "application/vnd.github.v3.raw")
+	}
 
 	if tag != "" {
 		q := req.URL.Query()
@@ -681,4 +745,44 @@ func (r *Reconciler) checkForMissingCR(ctx context.Context, cr *v1.Observability
 		}
 	}
 	return missingCR, nil
+}
+
+func (r *Reconciler) waitForResourcesService(ctx context.Context, cr *v1.Observability) (v1.ObservabilityStageStatus, error) {
+	service := model.GetResourcesService(cr)
+	selector := client.ObjectKey{
+		Namespace: cr.Namespace,
+		Name:      model.GetResourcesDefaultName(cr),
+	}
+	err := r.client.Get(ctx, selector, service)
+	if err != nil {
+		if errors.IsNotFound(err) {
+			return v1.ResultInProgress, nil
+		}
+		return v1.ResultFailed, err
+	}
+
+	if utils.IsServiceReady(service) {
+		return v1.ResultSuccess, nil
+	}
+	return v1.ResultInProgress, nil
+}
+
+func (r *Reconciler) waitForResourcesDeployment(ctx context.Context, cr *v1.Observability) (v1.ObservabilityStageStatus, error) {
+	deployments := &appsv1.DeploymentList{}
+	opts := &client.ListOptions{
+		Namespace: cr.Namespace,
+	}
+	err := r.client.List(ctx, deployments, opts)
+	if err != nil {
+		return v1.ResultFailed, err
+	}
+
+	for _, deployment := range deployments.Items {
+		if strings.HasPrefix(deployment.Name, model.GetResourcesDefaultName(cr)) {
+			if deployment.Status.ReadyReplicas > 0 {
+				return v1.ResultSuccess, nil
+			}
+		}
+	}
+	return v1.ResultInProgress, nil
 }

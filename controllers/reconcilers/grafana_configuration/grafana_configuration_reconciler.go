@@ -3,10 +3,6 @@ package grafana_configuration
 import (
 	"context"
 	"fmt"
-
-	"io/ioutil"
-	"net/http"
-	url2 "net/url"
 	"strings"
 
 	"github.com/ghodss/yaml"
@@ -219,31 +215,6 @@ func (r *Reconciler) reconcileGrafanaDatasource(ctx context.Context, cr *v1.Obse
 	}
 
 	return v1.ResultSuccess, nil
-}
-
-func (r *Reconciler) fetchDashboard(path string) (SourceType, []byte, error) {
-	url, err := url2.ParseRequestURI(path)
-	if err != nil {
-		return SourceTypeUnknown, nil, err
-	}
-
-	resp, err := http.Get(url.String())
-	if err != nil {
-		return SourceTypeUnknown, nil, err
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != 200 {
-		return SourceTypeUnknown, nil, fmt.Errorf("unexpected status code: %v", resp.StatusCode)
-	}
-
-	body, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return SourceTypeUnknown, nil, err
-	}
-
-	sourceType := r.getFileType(url.Path)
-	return sourceType, body, nil
 }
 
 // Try to determine the type (json or grafonnet) or a remote file by looking
