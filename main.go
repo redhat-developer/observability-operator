@@ -18,6 +18,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"flag"
 	"os"
 
@@ -101,10 +102,18 @@ func main() {
 		os.Exit(1)
 	}
 
+	var watchNamespace string
+
+	if watchNamespace, err = getWatchNamespace(); err != nil {
+		setupLog.Error(err, "unable to determine watched namespace")
+		os.Exit(1)
+	}
+
 	observabilityReconciler := &controllers.ObservabilityReconciler{
-		Client: mgr.GetClient(),
-		Log:    ctrl.Log.WithName("controllers").WithName("Observability"),
-		Scheme: mgr.GetScheme(),
+		Client:         mgr.GetClient(),
+		WatchNamespace: watchNamespace,
+		Log:            ctrl.Log.WithName("controllers").WithName("Observability"),
+		Scheme:         mgr.GetScheme(),
 	}
 
 	if err = observabilityReconciler.SetupWithManager(mgr); err != nil {
@@ -151,4 +160,23 @@ func injectStopHandler(mgr ctrl.Manager, o *apiv1.Observability, setupLog logr.L
 	}()
 	err := mgr.Start(ctrl.SetupSignalHandler())
 	return err
+}
+
+func getWatchNamespace() (string, error) {
+	var namespace string
+	namespacePath := "/var/run/secrets/kubernetes.io/serviceaccount/namespace"
+	ns, err := os.ReadFile(namespacePath)
+	if err != nil {
+		// If that does not work (running locally?) try the env vars
+		namespace = os.Getenv("WATCH_NAMESPACE")
+	} else {
+		namespace = string(ns)
+	}
+
+	if namespace == "" {
+		err := errors.New("unable to create operand: cannot detect operator namespace")
+		return "", err
+	}
+
+	return namespace, nil
 }

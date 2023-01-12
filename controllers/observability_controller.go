@@ -2,7 +2,7 @@ package controllers
 
 import (
 	"context"
-	"errors"
+	"encoding/json"
 	"fmt"
 	"os"
 	"reflect"
@@ -50,6 +50,7 @@ const (
 // ObservabilityReconciler reconciles a Observability object
 type ObservabilityReconciler struct {
 	client.Client
+	WatchNamespace  string
 	Log             logr.Logger
 	Scheme          *runtime.Scheme
 	installComplete bool
@@ -78,6 +79,11 @@ type ObservabilityReconciler struct {
 
 func (r *ObservabilityReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	log := r.Log.WithValues("observability", req.NamespacedName)
+
+	if r.WatchNamespace != req.Namespace {
+		log.Info(fmt.Sprintf("Skipping Observability CR in unwatched namespace %v (watching namespace %v)", req.Namespace, r.WatchNamespace))
+		return ctrl.Result{}, nil
+	}
 
 	// fetch Observability instance
 	obs := &apiv1.Observability{}
@@ -200,20 +206,8 @@ func (r *ObservabilityReconciler) UpdateOperand(from *apiv1.Observability, to *a
 func (r *ObservabilityReconciler) InitializeOperand(mgr ctrl.Manager) error {
 	// Try to retrieve the namespace from the pod filesystem first
 	r.Log.Info("determining if operand instantiation required")
-	var namespace string
-	namespacePath := "/var/run/secrets/kubernetes.io/serviceaccount/namespace"
-	ns, err := os.ReadFile(namespacePath)
-	if err != nil {
-		// If that does not work (running locally?) try the env vars
-		namespace = os.Getenv("WATCH_NAMESPACE")
-	} else {
-		namespace = string(ns)
-	}
-
-	if namespace == "" {
-		err := errors.New("unable to create operand: cannot detect operator namespace")
-		return err
-	}
+	var namespace = r.WatchNamespace
+	var err error
 
 	// controller/cache will not be ready during operator 'setup', use manager client & API Reader instead
 	mgrClient := mgr.GetClient()
@@ -247,8 +241,24 @@ func (r *ObservabilityReconciler) InitializeOperand(mgr ctrl.Manager) error {
 		instance = observabilityInstanceWithoutStorage(namespace)
 	}
 
+	defaultConfigSelector := os.Getenv("DEFAULT_CONFIG_SELECTOR")
+
+	if defaultConfigSelector != "" {
+		var configSelector metav1.LabelSelector
+
+		if err := json.Unmarshal([]byte(defaultConfigSelector), &configSelector); err != nil {
+			r.Log.Error(err, "failed to parse DEFAULT_CONFIG_SELECTOR")
+			return err
+		}
+
+		instance.Spec.ConfigurationSelector = &configSelector
+	}
+
 	instances := apiv1.ObservabilityList{}
-	if err := apiReader.List(context.Background(), &instances); err != nil {
+	listOptions := &client.ListOptions{
+		Namespace: namespace,
+	}
+	if err := apiReader.List(context.Background(), &instances, listOptions); err != nil {
 		r.Log.Error(err, "failed to retrieve list of Observability instances")
 		return err
 	}
@@ -265,6 +275,13 @@ func (r *ObservabilityReconciler) InitializeOperand(mgr ctrl.Manager) error {
 		} else if (instances.Items[0].Spec.Storage == nil || instances.Items[0].Spec.Retention == "") && runningOnCloud {
 			r.Log.Info("Adding retention period and storage spec to the pre-existing operand")
 			if err := r.UpdateOperand(&existing, &instance); err != nil {
+				return err
+			}
+			found = true
+		} else if !reflect.DeepEqual(&existing.Spec.ConfigurationSelector, instance.Spec.ConfigurationSelector) {
+			r.Log.Info("Updating configuration selector of the pre-existing operand")
+			existing.Spec.ConfigurationSelector = instance.Spec.ConfigurationSelector
+			if err := r.Client.Update(context.Background(), &existing); err != nil {
 				return err
 			}
 			found = true
