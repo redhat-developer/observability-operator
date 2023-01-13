@@ -637,7 +637,7 @@ func (r *Reconciler) checkForMissingCR(ctx context.Context, cr *v1.Observability
 	var missingCR bool
 	alertmanagerCR := model.GetAlertmanagerCr(cr)
 	selector := client.ObjectKey{
-		Namespace: cr.Namespace,
+		Namespace: cr.GetPrometheusOperatorNamespace(),
 		Name:      model.GetDefaultNameAlertmanager(cr),
 	}
 
@@ -663,18 +663,21 @@ func (r *Reconciler) checkForMissingCR(ctx context.Context, cr *v1.Observability
 			return missingCR, err
 		}
 	}
-	grafanaCR := model.GetGrafanaCr(cr)
-	selector = client.ObjectKey{
-		Namespace: cr.Namespace,
-		Name:      model.GetDefaultNameGrafana(cr),
-	}
 
-	err = r.client.Get(ctx, selector, grafanaCR)
-	if err != nil {
-		if !errors.IsGone(err) {
-			missingCR = true
-		} else {
-			return missingCR, err
+	if !cr.DescopedModeEnabled() {
+		grafanaCR := model.GetGrafanaCr(cr)
+		selector = client.ObjectKey{
+			Namespace: cr.Namespace,
+			Name:      model.GetDefaultNameGrafana(cr),
+		}
+
+		err = r.client.Get(ctx, selector, grafanaCR)
+		if err != nil {
+			if !errors.IsGone(err) {
+				missingCR = true
+			} else {
+				return missingCR, err
+			}
 		}
 	}
 	return missingCR, nil
