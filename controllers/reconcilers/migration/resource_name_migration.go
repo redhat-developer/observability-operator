@@ -143,16 +143,18 @@ func (r *Reconciler) Reconcile(ctx context.Context, cr *v1.Observability, s *v1.
 	}
 
 	//check if Grafana CR need migration
-	if cr.Spec.GrafanaDefaultName == "" {
-		//remove Grafana resources
-		grafanaCR := model.GetGrafanaCr(cr)
-		grafanaCR.Name = model.GrafanaOldDefaultName
-		err := r.client.Delete(ctx, grafanaCR)
-		if err != nil && !errors.IsNotFound(err) {
-			return v1.ResultFailed, err
-		}
+	if !cr.DescopedModeEnabled() {
+		if cr.Spec.GrafanaDefaultName == "" {
+			//remove Grafana resources
+			grafanaCR := model.GetGrafanaCr(cr)
+			grafanaCR.Name = model.GrafanaOldDefaultName
+			err := r.client.Delete(ctx, grafanaCR)
+			if err != nil && !errors.IsNotFound(err) {
+				return v1.ResultFailed, err
+			}
 
-		utils.WaitForGrafanaToBeRemoved(ctx, cr, r.client)
+			utils.WaitForGrafanaToBeRemoved(ctx, cr, r.client)
+		}
 	}
 
 	//check if Promtail resources need migration
