@@ -2,6 +2,9 @@ package configuration
 
 import (
 	"context"
+	routev1 "github.com/openshift/api/route/v1"
+	"github.com/redhat-developer/observability-operator/v4/controllers/utils"
+	"k8s.io/apimachinery/pkg/api/errors"
 
 	v1 "github.com/redhat-developer/observability-operator/v4/api/v1"
 	"github.com/redhat-developer/observability-operator/v4/controllers/model"
@@ -78,6 +81,7 @@ func (r *Reconciler) ReconcileResourcesService(ctx context.Context, cr *v1.Obser
 			{
 				Protocol: "TCP",
 				Port:     8080,
+				Name:     "web",
 				TargetPort: intstr.IntOrString{
 					IntVal: 8080,
 				},
@@ -91,6 +95,34 @@ func (r *Reconciler) ReconcileResourcesService(ctx context.Context, cr *v1.Obser
 
 	if err != nil {
 		return err
+	}
+
+	return nil
+}
+
+func (r *Reconciler) ReconcileResourcesRoute(ctx context.Context, cr *v1.Observability, nextStatus *v1.ObservabilityStatus) error {
+	route := model.GetResourcesRoute(cr)
+	service := model.GetResourcesService(cr)
+
+	_, err := controllerutil.CreateOrUpdate(ctx, r.client, route, func() error {
+		route.Spec = routev1.RouteSpec{
+			To: routev1.RouteTargetReference{
+				Kind: "Service",
+				Name: service.Name,
+			},
+			Port: &routev1.RoutePort{
+				TargetPort: intstr.FromString("web"),
+			},
+		}
+		return nil
+	})
+
+	if err != nil && !errors.IsAlreadyExists(err) {
+		return err
+	}
+
+	if utils.IsRouteReady(route) {
+		nextStatus.ResourcesRoute = route.Spec.Host
 	}
 
 	return nil

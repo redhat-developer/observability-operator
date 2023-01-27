@@ -188,6 +188,12 @@ func (r *Reconciler) Cleanup(ctx context.Context, cr *v1.Observability) (v1.Obse
 		return v1.ResultFailed, err
 	}
 
+	resourcesRoute := model.GetResourcesRoute(cr)
+	err = r.client.Delete(ctx, resourcesRoute)
+	if err != nil && !errors.IsNotFound(err) {
+		return v1.ResultFailed, err
+	}
+
 	// Delete the network policies
 	networkPolicies := &v14.NetworkPolicyList{}
 	opts = &client.ListOptions{
@@ -335,6 +341,13 @@ func (r *Reconciler) Reconcile(ctx context.Context, cr *v1.Observability, s *v1.
 					log.Error(err, "failed to create configuration resources service")
 					return v1.ResultFailed, err
 				}
+
+				if cr.ResourcesRouteEnabled() {
+					err = r.ReconcileResourcesRoute(ctx, cr, s)
+					if err != nil {
+						return v1.ResultFailed, err
+					}
+				}
 			}
 		}
 	}
@@ -369,12 +382,13 @@ func (r *Reconciler) Reconcile(ctx context.Context, cr *v1.Observability, s *v1.
 			log.Error(err, "failed to unmarshal configuration repository index")
 			return v1.ResultFailed, err
 		}
-		// use Service URL when container resources are used
-		if containerResources {
-			index.BaseUrl = fmt.Sprintf("http://%s.%s:8080/%s", model.GetResourcesDefaultName(cr), cr.GetPrometheusOperatorNamespace(), repoInfo.Channel)
-		} else {
-			index.BaseUrl = fmt.Sprintf("%s/%s", repoInfo.Repository, repoInfo.Channel)
+
+		baseUrl, err := r.getResourcesUrl(&repoInfo, cr)
+		if err != nil {
+			return v1.ResultFailed, err
 		}
+
+		index.BaseUrl = baseUrl.String()
 		index.Tag = repoInfo.Tag
 		index.AccessToken = repoInfo.AccessToken
 		index.Source = repoInfo.Source
@@ -597,34 +611,36 @@ func (r *Reconciler) deleteUnrequestedCredentialSecrets(ctx context.Context, cr 
 	return nil
 }
 
-func (r *Reconciler) readIndexFile(repo *v1.RepositoryInfo, cr *v1.Observability) ([]byte, error) {
-	// if no access token provided try to use containered resources
-	var containerResources bool
-	var repoUrl *url.URL
-	var err error
+func (r *Reconciler) getResourcesUrl(repo *v1.RepositoryInfo, cr *v1.Observability) (*url.URL, error) {
+	// assume container resources if there is no access token
 	if repo.AccessToken == "" {
-		containerResources = true
+		if cr.ResourcesRouteEnabled() {
+			if cr.Status.ResourcesRoute == "" {
+				return nil, errors.NewBadRequest("resources route not ready yet")
+			}
+			return url.ParseRequestURI(fmt.Sprintf("http://%v/%v", cr.Status.ResourcesRoute, repo.Channel))
+		} else {
+			serviceUrl := fmt.Sprintf("http://%s.%s:8080", model.GetResourcesDefaultName(cr), cr.GetPrometheusOperatorNamespace())
+			return url.ParseRequestURI(fmt.Sprintf("%s/%s", serviceUrl, repo.Channel))
+		}
 	}
 
-	// use Service URL if container resources used
-	if containerResources {
-		serviceUrl := fmt.Sprintf("http://%s.%s:8080", model.GetResourcesDefaultName(cr), cr.GetPrometheusOperatorNamespace())
-		repoUrl, err = url.ParseRequestURI(fmt.Sprintf("%s/%s/index.json", serviceUrl, repo.Channel))
-		if err != nil {
-			return nil, err
-		}
-	} else {
-		repoUrl, err = url.ParseRequestURI(fmt.Sprintf("%s/%s/index.json", repo.Repository, repo.Channel))
-		if err != nil {
-			return nil, err
-		}
+	return url.ParseRequestURI(fmt.Sprintf("%s/%s/index.json", repo.Repository, repo.Channel))
+}
+
+func (r *Reconciler) readIndexFile(repo *v1.RepositoryInfo, cr *v1.Observability) ([]byte, error) {
+	repoUrl, err := r.getResourcesUrl(repo, cr)
+	if err != nil {
+		return nil, err
 	}
+
+	repoUrl.Path = fmt.Sprintf("%v/%v", repoUrl.Path, "index.json")
 
 	req, err := http.NewRequest(http.MethodGet, repoUrl.String(), nil)
 	if err != nil {
 		return nil, err
 	}
-	if !containerResources {
+	if strings.Contains(repoUrl.Host, "github.com") {
 		req.Header.Set("Authorization", fmt.Sprintf("token %s", repo.AccessToken))
 		req.Header.Set("Accept", "application/vnd.github.v3.raw")
 
