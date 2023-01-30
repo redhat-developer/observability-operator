@@ -84,7 +84,7 @@ func GetClusterLogForwarderCR() *v14.ClusterLogForwarder {
 		},
 		TLS: &v14.OutputTLSSpec{},
 		Secret: &v14.OutputSecretSpec{
-			Name: "instance",
+			Name: "clo-cloudwatchlogs-creds",
 		},
 	}
 
