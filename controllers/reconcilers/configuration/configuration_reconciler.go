@@ -625,7 +625,7 @@ func (r *Reconciler) getResourcesUrl(repo *v1.RepositoryInfo, cr *v1.Observabili
 		}
 	}
 
-	return url.ParseRequestURI(fmt.Sprintf("%s/%s/index.json", repo.Repository, repo.Channel))
+	return url.ParseRequestURI(fmt.Sprintf("%s/%s", repo.Repository, repo.Channel))
 }
 
 func (r *Reconciler) readIndexFile(repo *v1.RepositoryInfo, cr *v1.Observability) ([]byte, error) {

@@ -1,10 +1,9 @@
-
 ---
 apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: ""
+    controller-gen.kubebuilder.io/version: v0.9.2
   creationTimestamp: null
   name: observabilities.observability.redhat.com
 spec:
@@ -138,6 +137,7 @@ spec:
                                     type: object
                                   type: array
                               type: object
+                              x-kubernetes-map-type: atomic
                             weight:
                               description: Weight associated with matching the corresponding
                                 nodeSelectorTerm, in the range 1-100.
@@ -238,10 +238,12 @@ spec:
                                     type: object
                                   type: array
                               type: object
+                              x-kubernetes-map-type: atomic
                             type: array
                         required:
                         - nodeSelectorTerms
                         type: object
+                        x-kubernetes-map-type: atomic
                     type: object
                   podAffinity:
                     description: Describes pod affinity scheduling rules (e.g. co-locate
@@ -318,6 +320,7 @@ spec:
                                         The requirements are ANDed.
                                       type: object
                                   type: object
+                                  x-kubernetes-map-type: atomic
                                 namespaceSelector:
                                   description: A label query over the set of namespaces
                                     that the term applies to. The term is applied
@@ -374,6 +377,7 @@ spec:
                                         The requirements are ANDed.
                                       type: object
                                   type: object
+                                  x-kubernetes-map-type: atomic
                                 namespaces:
                                   description: namespaces specifies a static list
                                     of namespace names that the term applies to. The
@@ -472,6 +476,7 @@ spec:
                                     requirements are ANDed.
                                   type: object
                               type: object
+                              x-kubernetes-map-type: atomic
                             namespaceSelector:
                               description: A label query over the set of namespaces
                                 that the term applies to. The term is applied to the
@@ -523,6 +528,7 @@ spec:
                                     requirements are ANDed.
                                   type: object
                               type: object
+                              x-kubernetes-map-type: atomic
                             namespaces:
                               description: namespaces specifies a static list of namespace
                                 names that the term applies to. The term is applied
@@ -623,6 +629,7 @@ spec:
                                         The requirements are ANDed.
                                       type: object
                                   type: object
+                                  x-kubernetes-map-type: atomic
                                 namespaceSelector:
                                   description: A label query over the set of namespaces
                                     that the term applies to. The term is applied
@@ -679,6 +686,7 @@ spec:
                                         The requirements are ANDed.
                                       type: object
                                   type: object
+                                  x-kubernetes-map-type: atomic
                                 namespaces:
                                   description: namespaces specifies a static list
                                     of namespace names that the term applies to. The
@@ -777,6 +785,7 @@ spec:
                                     requirements are ANDed.
                                   type: object
                               type: object
+                              x-kubernetes-map-type: atomic
                             namespaceSelector:
                               description: A label query over the set of namespaces
                                 that the term applies to. The term is applied to the
@@ -828,6 +837,7 @@ spec:
                                     requirements are ANDed.
                                   type: object
                               type: object
+                              x-kubernetes-map-type: atomic
                             namespaces:
                               description: namespaces specifies a static list of namespace
                                 names that the term applies to. The term is applied
@@ -906,6 +916,7 @@ spec:
                       are ANDed.
                     type: object
                 type: object
+                x-kubernetes-map-type: atomic
               descopedMode:
                 properties:
                   enabled:
@@ -1023,6 +1034,7 @@ spec:
                           "value". The requirements are ANDed.
                         type: object
                     type: object
+                    x-kubernetes-map-type: atomic
                   grafanaOperatorResourceRequirement:
                     description: ResourceRequirements describes the compute resource
                       requirements.
@@ -1128,6 +1140,7 @@ spec:
                           "value". The requirements are ANDed.
                         type: object
                     type: object
+                    x-kubernetes-map-type: atomic
                   podMonitorNamespaceSelector:
                     description: A label selector is a label query over a set of resources.
                       The result of matchLabels and matchExpressions are ANDed. An
@@ -1175,6 +1188,7 @@ spec:
                           "value". The requirements are ANDed.
                         type: object
                     type: object
+                    x-kubernetes-map-type: atomic
                   probeNamespaceSelector:
                     description: A label selector is a label query over a set of resources.
                       The result of matchLabels and matchExpressions are ANDed. An
@@ -1222,6 +1236,7 @@ spec:
                           "value". The requirements are ANDed.
                         type: object
                     type: object
+                    x-kubernetes-map-type: atomic
                   probeSelector:
                     description: A label selector is a label query over a set of resources.
                       The result of matchLabels and matchExpressions are ANDed. An
@@ -1269,6 +1284,7 @@ spec:
                           "value". The requirements are ANDed.
                         type: object
                     type: object
+                    x-kubernetes-map-type: atomic
                   prometheusOperatorResourceRequirement:
                     description: ResourceRequirements describes the compute resource
                       requirements.
@@ -1372,6 +1388,7 @@ spec:
                           "value". The requirements are ANDed.
                         type: object
                     type: object
+                    x-kubernetes-map-type: atomic
                   ruleNamespaceSelector:
                     description: A label selector is a label query over a set of resources.
                       The result of matchLabels and matchExpressions are ANDed. An
@@ -1419,6 +1436,7 @@ spec:
                           "value". The requirements are ANDed.
                         type: object
                     type: object
+                    x-kubernetes-map-type: atomic
                   selfSignedCerts:
                     type: boolean
                   serviceMonitorLabelSelector:
@@ -1468,6 +1486,7 @@ spec:
                           "value". The requirements are ANDed.
                         type: object
                     type: object
+                    x-kubernetes-map-type: atomic
                   serviceMonitorNamespaceSelector:
                     description: A label selector is a label query over a set of resources.
                       The result of matchLabels and matchExpressions are ANDed. An
@@ -1515,6 +1534,7 @@ spec:
                           "value". The requirements are ANDed.
                         type: object
                     type: object
+                    x-kubernetes-map-type: atomic
                 type: object
               storage:
                 properties:
@@ -1635,6 +1655,7 @@ spec:
                                     - kind
                                     - name
                                     type: object
+                                    x-kubernetes-map-type: atomic
                                   dataSourceRef:
                                     description: 'dataSourceRef specifies the object
                                       from which to populate the volume with data,
@@ -1653,12 +1674,12 @@ spec:
                                       if one of them is empty and the other is non-empty.
                                       There are two important differences between
                                       DataSource and DataSourceRef: * While DataSource
-                                      only allows two specific types of objects, DataSourceRef   allows
-                                      any non-core object, as well as PersistentVolumeClaim
+                                      only allows two specific types of objects, DataSourceRef
+                                      allows any non-core object, as well as PersistentVolumeClaim
                                       objects. * While DataSource ignores disallowed
-                                      values (dropping them), DataSourceRef   preserves
+                                      values (dropping them), DataSourceRef preserves
                                       all values, and generates an error if a disallowed
-                                      value is   specified. (Beta) Using this field
+                                      value is specified. (Beta) Using this field
                                       requires the AnyVolumeDataSource feature gate
                                       to be enabled.'
                                     properties:
@@ -1681,6 +1702,7 @@ spec:
                                     - kind
                                     - name
                                     type: object
+                                    x-kubernetes-map-type: atomic
                                   resources:
                                     description: 'resources represents the minimum
                                       resources the volume should have. If RecoverVolumeExpansionFailure
@@ -1767,6 +1789,7 @@ spec:
                                           "value". The requirements are ANDed.
                                         type: object
                                     type: object
+                                    x-kubernetes-map-type: atomic
                                   storageClassName:
                                     description: 'storageClassName is the name of
                                       the StorageClass required by the claim. More
@@ -1871,6 +1894,7 @@ spec:
                                 - kind
                                 - name
                                 type: object
+                                x-kubernetes-map-type: atomic
                               dataSourceRef:
                                 description: 'dataSourceRef specifies the object from
                                   which to populate the volume with data, if a non-empty
@@ -1888,13 +1912,13 @@ spec:
                                   them is empty and the other is non-empty. There
                                   are two important differences between DataSource
                                   and DataSourceRef: * While DataSource only allows
-                                  two specific types of objects, DataSourceRef   allows
+                                  two specific types of objects, DataSourceRef allows
                                   any non-core object, as well as PersistentVolumeClaim
                                   objects. * While DataSource ignores disallowed values
-                                  (dropping them), DataSourceRef   preserves all values,
-                                  and generates an error if a disallowed value is   specified.
-                                  (Beta) Using this field requires the AnyVolumeDataSource
-                                  feature gate to be enabled.'
+                                  (dropping them), DataSourceRef preserves all values,
+                                  and generates an error if a disallowed value is
+                                  specified. (Beta) Using this field requires the
+                                  AnyVolumeDataSource feature gate to be enabled.'
                                 properties:
                                   apiGroup:
                                     description: APIGroup is the group for the resource
@@ -1915,6 +1939,7 @@ spec:
                                 - kind
                                 - name
                                 type: object
+                                x-kubernetes-map-type: atomic
                               resources:
                                 description: 'resources represents the minimum resources
                                   the volume should have. If RecoverVolumeExpansionFailure
@@ -1996,6 +2021,7 @@ spec:
                                       The requirements are ANDed.
                                     type: object
                                 type: object
+                                x-kubernetes-map-type: atomic
                               storageClassName:
                                 description: 'storageClassName is the name of the
                                   StorageClass required by the claim. More info: https://kubernetes.io/docs/concepts/storage/persistent-volumes#class-1'
@@ -2229,6 +2255,7 @@ spec:
                                     - kind
                                     - name
                                     type: object
+                                    x-kubernetes-map-type: atomic
                                   dataSourceRef:
                                     description: 'dataSourceRef specifies the object
                                       from which to populate the volume with data,
@@ -2247,12 +2274,12 @@ spec:
                                       if one of them is empty and the other is non-empty.
                                       There are two important differences between
                                       DataSource and DataSourceRef: * While DataSource
-                                      only allows two specific types of objects, DataSourceRef   allows
-                                      any non-core object, as well as PersistentVolumeClaim
+                                      only allows two specific types of objects, DataSourceRef
+                                      allows any non-core object, as well as PersistentVolumeClaim
                                       objects. * While DataSource ignores disallowed
-                                      values (dropping them), DataSourceRef   preserves
+                                      values (dropping them), DataSourceRef preserves
                                       all values, and generates an error if a disallowed
-                                      value is   specified. (Beta) Using this field
+                                      value is specified. (Beta) Using this field
                                       requires the AnyVolumeDataSource feature gate
                                       to be enabled.'
                                     properties:
@@ -2275,6 +2302,7 @@ spec:
                                     - kind
                                     - name
                                     type: object
+                                    x-kubernetes-map-type: atomic
                                   resources:
                                     description: 'resources represents the minimum
                                       resources the volume should have. If RecoverVolumeExpansionFailure
@@ -2361,6 +2389,7 @@ spec:
                                           "value". The requirements are ANDed.
                                         type: object
                                     type: object
+                                    x-kubernetes-map-type: atomic
                                   storageClassName:
                                     description: 'storageClassName is the name of
                                       the StorageClass required by the claim. More
@@ -2465,6 +2494,7 @@ spec:
                                 - kind
                                 - name
                                 type: object
+                                x-kubernetes-map-type: atomic
                               dataSourceRef:
                                 description: 'dataSourceRef specifies the object from
                                   which to populate the volume with data, if a non-empty
@@ -2482,13 +2512,13 @@ spec:
                                   them is empty and the other is non-empty. There
                                   are two important differences between DataSource
                                   and DataSourceRef: * While DataSource only allows
-                                  two specific types of objects, DataSourceRef   allows
+                                  two specific types of objects, DataSourceRef allows
                                   any non-core object, as well as PersistentVolumeClaim
                                   objects. * While DataSource ignores disallowed values
-                                  (dropping them), DataSourceRef   preserves all values,
-                                  and generates an error if a disallowed value is   specified.
-                                  (Beta) Using this field requires the AnyVolumeDataSource
-                                  feature gate to be enabled.'
+                                  (dropping them), DataSourceRef preserves all values,
+                                  and generates an error if a disallowed value is
+                                  specified. (Beta) Using this field requires the
+                                  AnyVolumeDataSource feature gate to be enabled.'
                                 properties:
                                   apiGroup:
                                     description: APIGroup is the group for the resource
@@ -2509,6 +2539,7 @@ spec:
                                 - kind
                                 - name
                                 type: object
+                                x-kubernetes-map-type: atomic
                               resources:
                                 description: 'resources represents the minimum resources
                                   the volume should have. If RecoverVolumeExpansionFailure
@@ -2590,6 +2621,7 @@ spec:
                                       The requirements are ANDed.
                                     type: object
                                 type: object
+                                x-kubernetes-map-type: atomic
                               storageClassName:
                                 description: 'storageClassName is the name of the
                                   StorageClass required by the claim. More info: https://kubernetes.io/docs/concepts/storage/persistent-volumes#class-1'
@@ -2777,9 +2809,3 @@ spec:
     storage: true
     subresources:
       status: {}
-status:
-  acceptedNames:
-    kind: ""
-    plural: ""
-  conditions: []
-  storedVersions: []
