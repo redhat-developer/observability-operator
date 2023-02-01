@@ -90,6 +90,7 @@ type SelfContained struct {
 	GrafanaResourceRequirement            *v1.ResourceRequirements `json:"grafanaResourceRequirement,omitempty"`
 	GrafanaOperatorResourceRequirement    *v1.ResourceRequirements `json:"grafanaOperatorResourceRequirement,omitempty"`
 	GrafanaVersion                        string                   `json:"grafanaVersion,omitempty"`
+	GrafanaInitImage                      string                   `json:"grafanaInitImage,omitempty"`
 	DisableLogging                        *bool                    `json:"disableLogging,omitempty"`
 }
 

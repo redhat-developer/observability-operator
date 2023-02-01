@@ -12,7 +12,10 @@ import (
 
 var defaultGrafanaLabelSelectors = map[string]string{"app": "strimzi"}
 
-const GrafanaOldDefaultName = "kafka-grafana"
+const (
+	GrafanaOldDefaultName   = "kafka-grafana"
+	GrafanaDefaultInitImage = "quay.io/grafana-operator/grafana_plugins_init:0.1.0"
+)
 
 func GetDefaultNameGrafana(cr *v1.Observability) string {
 	if cr.Spec.SelfContained != nil && cr.Spec.GrafanaDefaultName != "" {
@@ -138,4 +141,11 @@ func GetGrafanaOperatorResourceRequirement(cr *v1.Observability) *v14.ResourceRe
 		return cr.Spec.SelfContained.GrafanaOperatorResourceRequirement
 	}
 	return &v14.ResourceRequirements{}
+}
+
+func GetGrafanaInitImage(cr *v1.Observability) string {
+	if cr.Spec.SelfContained != nil && cr.Spec.SelfContained.GrafanaInitImage != "" {
+		return cr.Spec.SelfContained.GrafanaInitImage
+	}
+	return GrafanaDefaultInitImage
 }

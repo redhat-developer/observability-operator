@@ -532,3 +532,51 @@ func TestGrafanaResources_GetGrafanaOperatorResourceRequirement(t *testing.T) {
 		})
 	}
 }
+
+func TestGetGrafanaInitImage(t *testing.T) {
+	type args struct {
+		cr *v1.Observability
+	}
+	tests := []struct {
+		name string
+		args args
+		want string
+	}{
+		{
+			name: "test default image is returned when spec selfContained is nil",
+			args: args{
+				cr: buildObservabilityCR(nil),
+			},
+			want: GrafanaDefaultInitImage,
+		},
+		{
+			name: "test default image is returned when spec grafanaInitImage is empty",
+			args: args{
+				cr: buildObservabilityCR(func(obsCR *v1.Observability) {
+					obsCR.Spec.SelfContained = &v1.SelfContained{
+						GrafanaInitImage: "",
+					}
+				}),
+			},
+			want: GrafanaDefaultInitImage,
+		},
+		{
+			name: "test image in spec is returned when specified in spec",
+			args: args{
+				cr: buildObservabilityCR(func(obsCR *v1.Observability) {
+					obsCR.Spec.SelfContained = &v1.SelfContained{
+						GrafanaInitImage: "quay.io/example/test:0.0.1",
+					}
+				}),
+			},
+			want: "quay.io/example/test:0.0.1",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := GetGrafanaInitImage(tt.args.cr); got != tt.want {
+				t.Errorf("GetGrafanaInitImage() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}

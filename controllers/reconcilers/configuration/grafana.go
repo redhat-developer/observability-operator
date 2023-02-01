@@ -100,6 +100,7 @@ func (r *Reconciler) reconcileGrafanaCr(ctx context.Context, cr *v1.Observabilit
 				TargetPort:  "grafana-proxy",
 				Termination: "reencrypt",
 			},
+			InitImage: model.GetGrafanaInitImage(cr),
 			Secrets: []string{
 				"grafana-k8s-tls",
 				"grafana-k8s-proxy",
