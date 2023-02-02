@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"encoding/base64"
 	"fmt"
+	"os"
 
 	v13 "github.com/openshift/api/config/v1"
 	routev1 "github.com/openshift/api/route/v1"
@@ -182,4 +183,14 @@ func WaitForPrometheusToBeRemoved(ctx context.Context, cr *v1.Observability, cli
 	}
 
 	return v1.ResultSuccess, nil
+}
+
+func RunningLocally() bool {
+	// check for cluster namespace
+	namespacePath := "/var/run/secrets/kubernetes.io/serviceaccount/namespace"
+	_, err := os.ReadFile(namespacePath)
+	if err != nil {
+		return os.IsNotExist(err)
+	}
+	return false
 }

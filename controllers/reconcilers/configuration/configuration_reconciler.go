@@ -5,7 +5,7 @@ import (
 	"crypto/tls"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/url"
 	"strings"
@@ -342,7 +342,8 @@ func (r *Reconciler) Reconcile(ctx context.Context, cr *v1.Observability, s *v1.
 					return v1.ResultFailed, err
 				}
 
-				if cr.ResourcesRouteEnabled() {
+				// if running locally a resources route is required
+				if utils.RunningLocally() {
 					err = r.ReconcileResourcesRoute(ctx, cr, s)
 					if err != nil {
 						return v1.ResultFailed, err
@@ -356,10 +357,6 @@ func (r *Reconciler) Reconcile(ctx context.Context, cr *v1.Observability, s *v1.
 	if containerResources {
 		var status v1.ObservabilityStageStatus
 		status, err = r.waitForResourcesDeployment(ctx, cr)
-		if status != v1.ResultSuccess {
-			return status, err
-		}
-		status, err = r.waitForResourcesService(ctx, cr)
 		if status != v1.ResultSuccess {
 			return status, err
 		}
@@ -614,7 +611,7 @@ func (r *Reconciler) deleteUnrequestedCredentialSecrets(ctx context.Context, cr 
 func (r *Reconciler) getResourcesUrl(repo *v1.RepositoryInfo, cr *v1.Observability) (*url.URL, error) {
 	// assume container resources if there is no access token
 	if repo.AccessToken == "" {
-		if cr.ResourcesRouteEnabled() {
+		if utils.RunningLocally() {
 			if cr.Status.ResourcesRoute == "" {
 				return nil, errors.NewBadRequest("resources route not ready yet")
 			}
@@ -661,7 +658,7 @@ func (r *Reconciler) readIndexFile(repo *v1.RepositoryInfo, cr *v1.Observability
 		return nil, fmt.Errorf("unexpected status code when reading index file from %v: %v", req.URL.String(), resp.StatusCode)
 	}
 
-	bytes, err := ioutil.ReadAll(resp.Body)
+	bytes, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, err
 	}
@@ -675,26 +672,20 @@ func (r *Reconciler) fetchResource(path string, tag string, token string) ([]byt
 		return nil, errors2.Wrap(err, fmt.Sprintf("error parsing resource url: %s", path))
 	}
 
-	var containerResources bool
-	if token == "" {
-		containerResources = true
-	}
-
 	req, err := http.NewRequest(http.MethodGet, resourceUrl.String(), nil)
 	if err != nil {
 		return nil, errors2.Wrap(err, "error creating http request")
 	}
-	if !containerResources {
+	if token != "" && strings.Contains(path, "github.com") {
 		req.Header.Set("Authorization", fmt.Sprintf("token %s", token))
 		req.Header.Set("Accept", "application/vnd.github.v3.raw")
-	}
 
-	if tag != "" {
-		q := req.URL.Query()
-		q.Add("ref", tag)
-		req.URL.RawQuery = q.Encode()
+		if tag != "" {
+			q := req.URL.Query()
+			q.Add("ref", tag)
+			req.URL.RawQuery = q.Encode()
+		}
 	}
-
 	resp, err := r.httpClient.Do(req)
 	if err != nil {
 		return nil, errors2.Wrap(err, fmt.Sprintf("error fetching resource from %s", path))
@@ -705,7 +696,7 @@ func (r *Reconciler) fetchResource(path string, tag string, token string) ([]byt
 		return nil, fmt.Errorf("unexpected status code when resource from %v: %v", req.URL.String(), resp.StatusCode)
 	}
 
-	body, err := ioutil.ReadAll(resp.Body)
+	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, errors2.Wrap(err, "error reading response")
 	}

@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"reflect"
 	"strings"
@@ -192,7 +191,7 @@ func (r *ObservabilityReconciler) InitializeOperand(mgr ctrl.Manager) error {
 	r.Log.Info("determining if operand instantiation required")
 	var namespace string
 	namespacePath := "/var/run/secrets/kubernetes.io/serviceaccount/namespace"
-	ns, err := ioutil.ReadFile(namespacePath)
+	ns, err := os.ReadFile(namespacePath)
 	if err != nil {
 		// If that does not work (running locally?) try the env vars
 		namespace = os.Getenv("WATCH_NAMESPACE")

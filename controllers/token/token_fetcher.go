@@ -5,13 +5,14 @@ import (
 	"crypto/tls"
 	"encoding/json"
 	"fmt"
-	_ "github.com/redhat-developer/observability-operator/v4/api/v1"
-	v1 "github.com/redhat-developer/observability-operator/v4/api/v1"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/url"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 	"time"
+
+	_ "github.com/redhat-developer/observability-operator/v4/api/v1"
+	v1 "github.com/redhat-developer/observability-operator/v4/api/v1"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 // Types implementing AuthTokenFetcher can retrieve an auth token for
@@ -99,7 +100,7 @@ func (r *DexTokenFetcher) Fetch(cr *v1.Observability, config *v1.ObservatoriumIn
 		return oldToken, cr.Status.TokenExpires, err
 	}
 	defer resp.Body.Close()
-	body, err := ioutil.ReadAll(resp.Body)
+	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return oldToken, cr.Status.TokenExpires, err
 	}

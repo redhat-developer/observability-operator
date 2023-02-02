@@ -967,8 +967,6 @@ spec:
                     type: string
                   blackboxBearerTokenSecret:
                     type: string
-                  createResourcesRoute:
-                    type: boolean
                   disableBlackboxExporter:
                     type: boolean
                   disableDeadmansSnitch:

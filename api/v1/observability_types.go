@@ -91,7 +91,6 @@ type SelfContained struct {
 	GrafanaOperatorResourceRequirement    *v1.ResourceRequirements `json:"grafanaOperatorResourceRequirement,omitempty"`
 	GrafanaVersion                        string                   `json:"grafanaVersion,omitempty"`
 	DisableLogging                        *bool                    `json:"disableLogging,omitempty"`
-	CreateResourcesRoute                  *bool                    `json:"createResourcesRoute,omitempty"`
 }
 
 // ObservabilitySpec defines the desired state of Observability
@@ -211,13 +210,6 @@ func (in *Observability) GetPrometheusOperatorNamespace() string {
 	}
 
 	return in.Namespace
-}
-
-func (in *Observability) ResourcesRouteEnabled() bool {
-	if in.Spec.SelfContained != nil && in.Spec.SelfContained.CreateResourcesRoute != nil {
-		return *in.Spec.SelfContained.CreateResourcesRoute
-	}
-	return false
 }
 
 func init() {

@@ -3,7 +3,7 @@ package configuration
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	url2 "net/url"
 	"strings"
@@ -235,7 +235,7 @@ func (r *Reconciler) fetchDashboard(path string, tag string, token string) (Sour
 		return SourceTypeUnknown, nil, fmt.Errorf("unexpected status code: %v", resp.StatusCode)
 	}
 
-	body, err := ioutil.ReadAll(resp.Body)
+	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return SourceTypeUnknown, nil, err
 	}
