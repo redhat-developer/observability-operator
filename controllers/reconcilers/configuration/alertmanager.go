@@ -17,6 +17,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
 
+const DefaultOriginOauthProxyImage = "quay.io/openshift/origin-oauth-proxy:4.9"
+
 func (r *Reconciler) reconcileAlertmanager(ctx context.Context, cr *v1.Observability, indexes []v1.RepositoryIndex) error {
 	alertmanager := model.GetAlertmanagerCr(cr)
 	configSecretName := model.GetAlertmanagerSecretName(cr)
@@ -58,7 +60,7 @@ func (r *Reconciler) reconcileAlertmanager(ctx context.Context, cr *v1.Observabi
 			Containers: []v12.Container{
 				{
 					Name:  "oauth-proxy",
-					Image: "quay.io/openshift/origin-oauth-proxy:4.8",
+					Image: DefaultOriginOauthProxyImage,
 					Args: []string{
 						"-provider=openshift",
 						"-https-address=:9091",
