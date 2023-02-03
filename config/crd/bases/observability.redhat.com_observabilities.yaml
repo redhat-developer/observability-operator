@@ -1033,6 +1033,8 @@ spec:
                         type: object
                     type: object
                     x-kubernetes-map-type: atomic
+                  grafanaInitImage:
+                    type: string
                   grafanaOperatorResourceRequirement:
                     description: ResourceRequirements describes the compute resource
                       requirements.
