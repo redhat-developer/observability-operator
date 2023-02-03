@@ -117,13 +117,14 @@ type DescopedMode struct {
 
 // ObservabilityStatus defines the observed state of Observability
 type ObservabilityStatus struct {
-	Stage        ObservabilityStageName   `json:"stage"`
-	StageStatus  ObservabilityStageStatus `json:"stageStatus"`
-	LastMessage  string                   `json:"lastMessage,omitempty"`
-	TokenExpires int64                    `json:"tokenExpires,omitempty"`
-	ClusterID    string                   `json:"clusterId,omitempty"`
-	LastSynced   int64                    `json:"lastSynced,omitempty"`
-	Migrated     bool                     `json:"migrated,omitempty"`
+	Stage          ObservabilityStageName   `json:"stage"`
+	StageStatus    ObservabilityStageStatus `json:"stageStatus"`
+	LastMessage    string                   `json:"lastMessage,omitempty"`
+	TokenExpires   int64                    `json:"tokenExpires,omitempty"`
+	ClusterID      string                   `json:"clusterId,omitempty"`
+	LastSynced     int64                    `json:"lastSynced,omitempty"`
+	Migrated       bool                     `json:"migrated,omitempty"`
+	ResourcesRoute string                   `json:"resourcesRoute,omitempty"`
 }
 
 // +kubebuilder:object:root=true

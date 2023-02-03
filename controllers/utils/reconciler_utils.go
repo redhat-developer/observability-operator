@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"encoding/base64"
 	"fmt"
+	"os"
 
 	v13 "github.com/openshift/api/config/v1"
 	routev1 "github.com/openshift/api/route/v1"
@@ -14,6 +15,7 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	k8sclient "sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -81,6 +83,19 @@ func IsRouteReady(route *routev1.Route) bool {
 			if condition.Type == routev1.RouteAdmitted && condition.Status != corev1.ConditionTrue {
 				return false
 			}
+		}
+	}
+	return true
+}
+
+func IsServiceReady(service *corev1.Service) bool {
+	if service == nil {
+		return false
+	}
+
+	for _, condition := range service.Status.Conditions {
+		if condition.Type == "Ready" && condition.Status != metav1.ConditionTrue {
+			return false
 		}
 	}
 	return true
@@ -168,4 +183,14 @@ func WaitForPrometheusToBeRemoved(ctx context.Context, cr *v1.Observability, cli
 	}
 
 	return v1.ResultSuccess, nil
+}
+
+func RunningLocally() bool {
+	// check for cluster namespace
+	namespacePath := "/var/run/secrets/kubernetes.io/serviceaccount/namespace"
+	_, err := os.ReadFile(namespacePath)
+	if err != nil {
+		return os.IsNotExist(err)
+	}
+	return false
 }

@@ -3,7 +3,7 @@ package configuration
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	url2 "net/url"
 	"strings"
@@ -205,24 +205,26 @@ func (r *Reconciler) fetchDashboard(path string, tag string, token string) (Sour
 	if err != nil {
 		return SourceTypeUnknown, nil, err
 	}
-
+	var containerResources bool
 	if token == "" {
-		return SourceTypeUnknown, nil, fmt.Errorf("repository ConfigMap missing required AccessToken")
+		containerResources = true
 	}
 
 	req, err := http.NewRequest(http.MethodGet, url.String(), nil)
 	if err != nil {
 		return SourceTypeUnknown, nil, err
 	}
-	req.Header.Set("Authorization", fmt.Sprintf("token %s", token))
-	req.Header.Set("Accept", "application/vnd.github.v3.raw")
 
-	if tag != "" {
-		q := req.URL.Query()
-		q.Add("ref", tag)
-		req.URL.RawQuery = q.Encode()
+	if !containerResources {
+		req.Header.Set("Authorization", fmt.Sprintf("token %s", token))
+		req.Header.Set("Accept", "application/vnd.github.v3.raw")
+
+		if tag != "" {
+			q := req.URL.Query()
+			q.Add("ref", tag)
+			req.URL.RawQuery = q.Encode()
+		}
 	}
-
 	resp, err := r.httpClient.Do(req)
 	if err != nil {
 		return SourceTypeUnknown, nil, err
@@ -233,7 +235,7 @@ func (r *Reconciler) fetchDashboard(path string, tag string, token string) (Sour
 		return SourceTypeUnknown, nil, fmt.Errorf("unexpected status code: %v", resp.StatusCode)
 	}
 
-	body, err := ioutil.ReadAll(resp.Body)
+	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return SourceTypeUnknown, nil, err
 	}

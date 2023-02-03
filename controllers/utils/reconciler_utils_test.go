@@ -127,6 +127,80 @@ func TestReconcilerUtils_IsRouteReady(t *testing.T) {
 	}
 }
 
+func TestReconcilerUtils_IsServiceReady(t *testing.T) {
+	type args struct {
+		service *corev1.Service
+	}
+
+	tests := []struct {
+		name string
+		args args
+		want bool
+	}{
+		{
+			name: "return false if route is nil",
+			args: args{
+				service: nil,
+			},
+		},
+		{
+			name: "return false if Ready condition status is false",
+			args: args{
+				service: &corev1.Service{
+					Status: corev1.ServiceStatus{
+						Conditions: []metav1.Condition{
+							{
+								Type:   "Ready",
+								Status: metav1.ConditionFalse,
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "return false if Ready condition status is unknown",
+			args: args{
+				service: &corev1.Service{
+					Status: corev1.ServiceStatus{
+						Conditions: []metav1.Condition{
+							{
+								Type:   "Ready",
+								Status: metav1.ConditionUnknown,
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "return true if Ready condition status is true",
+			args: args{
+				service: &corev1.Service{
+					Status: corev1.ServiceStatus{
+						Conditions: []metav1.Condition{
+							{
+								Type:   "Ready",
+								Status: metav1.ConditionTrue,
+							},
+						},
+					},
+				},
+			},
+			want: true,
+		},
+	}
+
+	for _, tt := range tests {
+		test := tt
+		t.Run(test.name, func(t *testing.T) {
+			g := NewWithT(t)
+			result := IsServiceReady(test.args.service)
+			g.Expect(result).To(Equal(test.want))
+		})
+	}
+}
+
 func TestReconcilerUtils_WaitForGrafanaToBeRemoved(t *testing.T) {
 	scheme := runtime.NewScheme()
 	_ = appsv1.SchemeBuilder.AddToScheme(scheme)

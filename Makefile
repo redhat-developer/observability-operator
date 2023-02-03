@@ -53,9 +53,9 @@ test/unit: generate fmt vet manifests
 	grep -v -e "zz_generated" \
 	-e "priorityclass_resources.go" \
 	-e "github.com/redhat-developer/observability-operator/v4/controllers/reconcilers/configuration/alertmanager.go" \
-	-e "github.com/redhat-developer/observability-operator/v4/controllers/reconcilers/configuration/configuration_reconciler.go" \
 	-e "github.com/redhat-developer/observability-operator/v4/controllers/reconcilers/configuration/grafana.go" \
 	-e "github.com/redhat-developer/observability-operator/v4/controllers/reconcilers/configuration/promtail.go" \
+	-e "github.com/redhat-developer/observability-operator/v4/controllers/reconcilers/configuration/prometheus.go" \
 	-e "github.com/redhat-developer/observability-operator/v4/controllers/reconcilers/token/token_reconciler.go" \
 	-e "github.com/redhat-developer/observability-operator/v4/controllers/reconcilers/alertmanager_installation/" \
 	-e "github.com/redhat-developer/observability-operator/v4/controllers/reconcilers/csv/" \
