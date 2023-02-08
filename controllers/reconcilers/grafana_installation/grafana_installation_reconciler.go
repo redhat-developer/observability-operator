@@ -17,7 +17,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
 
-const GrafanaOperatorDefaultVersion = "v3.10.7"
+const GrafanaOperatorDefaultVersion = "v3.10.8"
 
 type Reconciler struct {
 	client client.Client
