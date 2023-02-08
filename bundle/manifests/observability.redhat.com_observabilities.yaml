@@ -632,6 +632,8 @@ spec:
                         type: object
                     type: object
                     x-kubernetes-map-type: atomic
+                  grafanaInitImage:
+                    type: string
                   grafanaOperatorResourceRequirement:
                     description: ResourceRequirements describes the compute resource requirements.
                     properties:
@@ -1681,6 +1683,8 @@ spec:
                 type: integer
               migrated:
                 type: boolean
+              resourcesRoute:
+                type: string
               stage:
                 type: string
               stageStatus:
