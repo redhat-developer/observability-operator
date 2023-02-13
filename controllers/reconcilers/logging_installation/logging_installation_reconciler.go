@@ -306,47 +306,40 @@ func (r *Reconciler) createClusterLoggingCr(ctx context.Context, cr *v1.Observab
 }
 
 func (r *Reconciler) createClusterLogForwarderCr(ctx context.Context, cr *v1.Observability) (v1.ObservabilityStageStatus, error) {
-
 	// Is there any clusterLogForwarder CR?
-	opts := &client.ListOptions{
+	logForwarderList := &v14.ClusterLogForwarderList{}
+	err := r.client.List(ctx, logForwarderList, &client.ListOptions{
 		Namespace: "openshift-logging",
-	}
-
-	list := &v14.ClusterLogForwarderList{}
-	err := r.client.List(ctx, list, opts)
+	})
 	if err != nil {
 		return v1.ResultFailed, err
 	}
 
 	// Is there a clusterLogForwarder CR with our label?
-	labelOpts := &client.ListOptions{
+	labelledLogForwarderList := &v14.ClusterLogForwarderList{}
+	err = r.client.List(ctx, labelledLogForwarderList, &client.ListOptions{
 		Namespace: "openshift-logging",
 		LabelSelector: labels.SelectorFromSet(map[string]string{
 			"app.kubernetes.io/managed-by": "observability-operator",
 		}),
-	}
-	labelList := &v14.ClusterLogForwarderList{}
-	err = r.client.List(ctx, labelList, labelOpts)
+	})
 	if err != nil {
 		return v1.ResultFailed, err
 	}
 
-	if len(list.Items) == 0 || len(labelList.Items) > 0 {
+	if len(logForwarderList.Items) == 0 || len(labelledLogForwarderList.Items) > 0 {
 		// There's no ClusterLogforwarder or one that we manage
 		// Add the operator namespaces
 		clusterLogForwarder := model.GetClusterLogForwarderCR()
-		newPipeline := model.GetClusterLogForwarderPipeline()
-		clusterLogForwarder.Spec.Pipelines = append(clusterLogForwarder.Spec.Pipelines, *newPipeline)
 
 		// Check for any namespaces that contain a managedkafka resource
 		// and add them to the clusterLogForwarder
-		opts := &client.ListOptions{
+		namespaceList := &corev1.NamespaceList{}
+		err := r.client.List(ctx, namespaceList, &client.ListOptions{
 			LabelSelector: labels.SelectorFromSet(map[string]string{
 				"app.kubernetes.io/managed-by": "kas-fleetshard-operator",
 			}),
-		}
-		list := &corev1.NamespaceList{}
-		err := r.client.List(ctx, list, opts)
+		})
 		if err != nil {
 			return v1.ResultFailed, err
 		}
@@ -360,12 +353,44 @@ func (r *Reconciler) createClusterLogForwarderCr(ctx context.Context, cr *v1.Obs
 			return nil
 		}
 
-		newPipeline.InputRefs = append(newPipeline.InputRefs, "kafka-log-resources")
-
 		_, err = controllerutil.CreateOrUpdate(ctx, r.client, clusterLogForwarder, func() error {
-			clusterLogForwarder.Spec.Pipelines = []v14.PipelineSpec{*newPipeline}
+			clusterLogForwarder.Spec.Inputs = []v14.InputSpec{
+				{
+					Name: "kafka-operator-application-logs",
+					Application: &v14.Application{Namespaces: []string{"redhat-kas-fleetshard-operator", "redhat-managed-kafka-operator",
+						"redhat-kas-fleetshard-operator-qe", "redhat-managed-kafka-operator-qe"}},
+					Infrastructure: nil,
+					Audit:          nil,
+				},
+			}
+
+			clusterLogForwarder.Spec.Outputs = []v14.OutputSpec{
+				{
+					Name: "cloudwatch",
+					Type: "cloudwatch",
+					OutputTypeSpec: v14.OutputTypeSpec{
+						Cloudwatch: &v14.Cloudwatch{
+							Region:  "eu-west-1",
+							GroupBy: "namespaceName",
+						},
+					},
+					TLS: &v14.OutputTLSSpec{},
+					Secret: &v14.OutputSecretSpec{
+						Name: "clo-cloudwatchlogs-creds",
+					},
+				},
+			}
+
+			clusterLogForwarder.Spec.Pipelines = []v14.PipelineSpec{
+				{
+					OutputRefs: []string{"cloudwatch"},
+					InputRefs:  []string{"kafka-operator-application-logs", "kafka-log-resources"},
+					Name:       "observability-app-logs",
+				},
+			}
+
 			var namespaces []string
-			for _, namespace := range list.Items {
+			for _, namespace := range namespaceList.Items {
 				namespaces = append(namespaces, namespace.Name)
 			}
 
@@ -386,6 +411,7 @@ func (r *Reconciler) createClusterLogForwarderCr(ctx context.Context, cr *v1.Obs
 			} else {
 				input.Application.Namespaces = namespaces
 			}
+
 			return nil
 		})
 		if err != nil {
