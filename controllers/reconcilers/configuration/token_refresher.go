@@ -20,7 +20,7 @@ import (
 )
 
 const (
-	TokenRefresherImageTag = "0b54d2e"
+	TokenRefresherImageTag = "e96a181"
 )
 
 // Return a set of credentials and configuration for either logs or metrics
@@ -235,7 +235,7 @@ func (r *Reconciler) reconcileTokenRefresher(ctx context.Context, cr *v1.Observa
 		}
 
 		promtailDisabled := false
-		if index.Config.Promtail == nil || index.Config.Promtail.Enabled == false {
+		if index.Config.Promtail == nil || !index.Config.Promtail.Enabled {
 			promtailDisabled = true
 		}
 
