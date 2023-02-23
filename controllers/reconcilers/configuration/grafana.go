@@ -51,7 +51,7 @@ func (r *Reconciler) reconcileGrafanaCr(ctx context.Context, cr *v1.Observabilit
 			Containers: []core.Container{
 				{
 					Name:  "grafana-proxy",
-					Image: DefaultOriginOauthProxyImage,
+					Image: GetOriginOauthProxyImage(cr),
 					Args: []string{
 						"-provider=openshift",
 						"-pass-basic-auth=false",
