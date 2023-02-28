@@ -53,6 +53,7 @@ type ObservabilityReconciler struct {
 	Log             logr.Logger
 	Scheme          *runtime.Scheme
 	installComplete bool
+	noInit          bool
 }
 
 // +kubebuilder:rbac:groups=observability.redhat.com,resources=observabilities,verbs=get;list;watch;create;update;patch;delete
@@ -92,8 +93,8 @@ func (r *ObservabilityReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 		return ctrl.Result{}, err
 	}
 
-	// Add a cleanup finalizer if not already present
-	if obs.DeletionTimestamp == nil && len(obs.Finalizers) == 0 {
+	// Add a cleanup finalizer if not already present and only if the CR is manually created
+	if obs.DeletionTimestamp == nil && len(obs.Finalizers) == 0 && r.noInit {
 		obs.Finalizers = append(obs.Finalizers, ObservabilityFinalizer)
 		err = r.Update(ctx, obs)
 		return ctrl.Result{}, err
@@ -208,24 +209,16 @@ func (r *ObservabilityReconciler) InitializeOperand(mgr ctrl.Manager) error {
 	mgrClient := mgr.GetClient()
 	apiReader := mgr.GetAPIReader()
 
-	// don't initialise the operand if the following config map is found in the operator namespace
-	configMap := &v1.ConfigMap{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      NoInitConfigMapName,
-			Namespace: strings.TrimSpace(namespace),
-		},
-	}
-	key := client.ObjectKeyFromObject(configMap)
-
-	err = apiReader.Get(context.Background(), key, configMap)
-	if err == nil {
-		// if there is no error that means that the config map is found.
-		r.Log.Info(fmt.Sprintf("found config map '%s' so wont create observability cr", NoInitConfigMapName))
-		return nil
-	}
-	if !k8sutil.IsResourceNotFoundError(err) {
-		// report error if any other error than NotFound
+	noInitExists, err := r.noInitConfigmapExists(namespace, mgr)
+	if err != nil {
+		r.Log.Error(err, "error checking for no-init config map")
 		return err
+	}
+
+	r.noInit = noInitExists
+
+	if noInitExists {
+		return nil
 	}
 
 	runningOnCloud := false
@@ -329,6 +322,29 @@ func (r *ObservabilityReconciler) updateStatus(cr *apiv1.Observability, nextStat
 		Requeue:      true,
 		RequeueAfter: RequeueDelaySuccess,
 	}, nil
+}
+
+func (r *ObservabilityReconciler) noInitConfigmapExists(namespace string, mgr ctrl.Manager) (bool, error) {
+	apiReader := mgr.GetAPIReader()
+
+	configMap := &v1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      NoInitConfigMapName,
+			Namespace: strings.TrimSpace(namespace),
+		},
+	}
+	key := client.ObjectKeyFromObject(configMap)
+	err := apiReader.Get(context.Background(), key, configMap)
+
+	if err != nil {
+		if k8sutil.IsResourceNotFoundError(err) {
+			return false, nil
+		}
+
+		return false, err
+	}
+
+	return true, nil
 }
 
 func observabilityInstanceWithStorage(namespace string) apiv1.Observability {
