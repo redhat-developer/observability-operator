@@ -609,8 +609,8 @@ func (r *Reconciler) deleteUnrequestedCredentialSecrets(ctx context.Context, cr 
 }
 
 func (r *Reconciler) getResourcesUrl(repo *v1.RepositoryInfo, cr *v1.Observability) (*url.URL, error) {
-	// assume container resources if there is no access token
-	if repo.AccessToken == "" {
+	// assume container resources if repo is not GitHub
+	if !strings.HasPrefix(repo.Repository, "https://api.github.com") {
 		if utils.RunningLocally() {
 			if cr.Status.ResourcesRoute == "" {
 				return nil, errors.NewBadRequest("resources route not ready yet")
