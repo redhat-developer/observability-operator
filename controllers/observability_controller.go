@@ -165,6 +165,16 @@ func (r *ObservabilityReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 		return ctrl.Result{}, err
 	}
 
+	// remove finalizers from existing CRs (unless the CR is manually created)
+	if len(obs.Finalizers) > 0 && r.noInit == false {
+		obs.Finalizers = []string{}
+		err = r.Update(ctx, obs)
+		return ctrl.Result{
+			Requeue:      true,
+			RequeueAfter: RequeueDelaySuccess,
+		}, err
+	}
+
 	return r.updateStatus(obs, nextStatus)
 }
 
