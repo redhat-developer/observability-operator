@@ -100,7 +100,7 @@ func (r *Reconciler) createNetworkPolicyFor(ctx context.Context, cr *v1.Observab
 	case model.LogsTokenRefresher:
 		selector["app"] = "promtail"
 	case model.MetricsTokenRefresher:
-		selector["app"] = "prometheus"
+		selector["app.kubernetes.io/name"] = "prometheus"
 	}
 
 	_, err := controllerutil.CreateOrUpdate(ctx, r.client, policy, func() error {
