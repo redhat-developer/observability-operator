@@ -54,7 +54,7 @@ func TestPrometheusInstallationReconciler_ReconcileCatalogSource(t *testing.T) {
 							Namespace: "test-namespace",
 						},
 						Spec: v1alpha1.CatalogSourceSpec{
-							Image: "quay.io/integreatly/custom-prometheus-index:1.0.0",
+							Image: "quay.io/integreatly/custom-prometheus-index:2.0.0",
 						},
 					},
 				),

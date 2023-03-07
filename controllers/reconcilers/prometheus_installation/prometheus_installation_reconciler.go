@@ -161,7 +161,7 @@ func (r *Reconciler) reconcileCatalogSource(ctx context.Context, cr *v1.Observab
 	_, err = controllerutil.CreateOrUpdate(ctx, r.client, source, func() error {
 		source.Spec = v1alpha1.CatalogSourceSpec{
 			SourceType: v1alpha1.SourceTypeGrpc,
-			Image:      "quay.io/integreatly/custom-prometheus-index:1.0.1",
+			Image:      "quay.io/integreatly/custom-prometheus-index:2.0.0",
 		}
 		return nil
 	})
