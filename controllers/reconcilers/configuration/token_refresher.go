@@ -197,6 +197,18 @@ func (r *Reconciler) reconcileTokenRefresherFor(ctx context.Context, cr *v1.Obse
 		return errors2.New(fmt.Sprintf("incomplete observatorium config, tenant or gateway missing for %v", observatorium.Id))
 	}
 
+	s, err := r.GetOauth2ConfigSecret(ctx, cr)
+	if err != nil {
+		return err
+	}
+
+	// OAuth2 config secret found, skip token refresher stop and configure Prometheus to talk to the
+	// Control Plane proxy instead
+	if s != nil {
+		r.logger.Info("oauth2 config secret found, skip creating token refresher")
+		return nil
+	}
+
 	for _, t := range []model.TokenRefresherType{model.MetricsTokenRefresher, model.LogsTokenRefresher} {
 		// Don't deploy a token refresher for promtail when logs are disabled
 		if t == model.LogsTokenRefresher && logsDisabled {
@@ -268,8 +280,18 @@ func (r *Reconciler) deleteUnrequestedNetworkPolicies(ctx context.Context, cr *v
 		return err
 	}
 
+	oauth2Secret, err := r.GetOauth2ConfigSecret(ctx, cr)
+	if err != nil {
+		return err
+	}
+
 	shouldExist := func(name string) bool {
 		if cr.ExternalSyncDisabled() || cr.ObservatoriumDisabled() {
+			return false
+		}
+
+		// remove all network policies if the oauth2 secret is found
+		if oauth2Secret != nil {
 			return false
 		}
 
@@ -329,11 +351,21 @@ func (r *Reconciler) deleteUnrequestedTokenRefreshers(ctx context.Context, cr *v
 		return err
 	}
 
+	oauth2Secret, err := r.GetOauth2ConfigSecret(ctx, cr)
+	if err != nil {
+		return err
+	}
+
 	shouldExist := func(name string) bool {
 		if cr.ExternalSyncDisabled() || cr.ObservatoriumDisabled() {
 			return false
 		}
 
+		// remove all network policies if the oauth2 secret is found
+		if oauth2Secret != nil {
+			return false
+		}
+		
 		for _, index := range indexes {
 			if index.Config == nil {
 				return false

@@ -23,8 +23,9 @@ import (
 )
 
 const (
-	PrometheusBaseImage = "quay.io/prometheus/prometheus"
-	PrometheusRetention = "45d"
+	PrometheusBaseImage       = "quay.io/prometheus/prometheus"
+	PrometheusRetention       = "45d"
+	RemoteWriteOIDCSecretName = "observability-proxy-credentials"
 )
 
 func (r *Reconciler) fetchFederationConfigs(cr *v1.Observability, indexes []v1.RepositoryIndex) ([]string, error) {
@@ -150,12 +151,20 @@ func (r *Reconciler) getRemoteWriteSpecForDex(index v1.RepositoryIndex, observat
 }
 
 // Proxy requests through the token refresher
-func (r *Reconciler) getRemoteWriteSpecForRedHat(cr *v1.Observability, index v1.RepositoryIndex, observatoriumConfig *v1.ObservatoriumIndex, remoteWrite *v1.RemoteWriteIndex) (*prometheusv1.RemoteWriteSpec, string, error) {
-	tokenRefresherName := model.GetTokenRefresherName(observatoriumConfig.Id, model.MetricsTokenRefresher)
-	tokenRefresherUrl := fmt.Sprintf("http://%v.%v.svc.cluster.local", tokenRefresherName, cr.GetPrometheusOperatorNamespace())
+func (r *Reconciler) getRemoteWriteSpecForRedHat(ctx context.Context, cr *v1.Observability, index v1.RepositoryIndex, observatoriumConfig *v1.ObservatoriumIndex, remoteWrite *v1.RemoteWriteIndex) (*prometheusv1.RemoteWriteSpec, string, error) {
+	oauth2Config, err := r.GetRemoteWriteOauth2Config(ctx, cr)
+	if err != nil {
+		return nil, "", err
+	}
+
+	remoteWriteTarget := observatoriumConfig.Gateway
+	if oauth2Config == nil {
+		tokenRefresherName := model.GetTokenRefresherName(observatoriumConfig.Id, model.MetricsTokenRefresher)
+		remoteWriteTarget = fmt.Sprintf("http://%v.%v.svc.cluster.local", tokenRefresherName, cr.GetPrometheusOperatorNamespace())
+	}
 
 	return &prometheusv1.RemoteWriteSpec{
-		URL:                 tokenRefresherUrl,
+		URL:                 remoteWriteTarget,
 		Name:                index.Id,
 		RemoteTimeout:       prometheusv1.Duration(remoteWrite.RemoteTimeout),
 		WriteRelabelConfigs: remoteWrite.WriteRelabelConfigs,
@@ -166,10 +175,11 @@ func (r *Reconciler) getRemoteWriteSpecForRedHat(cr *v1.Observability, index v1.
 		},
 		ProxyURL:    remoteWrite.ProxyUrl,
 		QueueConfig: remoteWrite.QueueConfig,
+		OAuth2:      oauth2Config,
 	}, "", nil
 }
 
-func (r *Reconciler) getRemoteWriteSpec(cr *v1.Observability, index v1.RepositoryIndex, remoteWrite *v1.RemoteWriteIndex) (*prometheusv1.RemoteWriteSpec, string, error) {
+func (r *Reconciler) getRemoteWriteSpec(ctx context.Context, cr *v1.Observability, index v1.RepositoryIndex, remoteWrite *v1.RemoteWriteIndex) (*prometheusv1.RemoteWriteSpec, string, error) {
 	if index.Config == nil || index.Config.Prometheus == nil || index.Config.Prometheus.Observatorium == "" {
 		return nil, "", fmt.Errorf("no observatorium config found for %v / prometheus", index.Id)
 	}
@@ -183,7 +193,7 @@ func (r *Reconciler) getRemoteWriteSpec(cr *v1.Observability, index v1.Repositor
 	case v1.AuthTypeDex:
 		return r.getRemoteWriteSpecForDex(index, observatoriumConfig, remoteWrite)
 	case v1.AuthTypeRedhat:
-		return r.getRemoteWriteSpecForRedHat(cr, index, observatoriumConfig, remoteWrite)
+		return r.getRemoteWriteSpecForRedHat(ctx, cr, index, observatoriumConfig, remoteWrite)
 	default:
 		return nil, "", errors2.New(fmt.Sprintf("unknown auth type %v", observatoriumConfig.AuthType))
 	}
@@ -247,7 +257,7 @@ func (r *Reconciler) reconcilePrometheus(ctx context.Context, cr *v1.Observabili
 				return err
 			}
 
-			remoteWrite, tokenSecret, err := r.getRemoteWriteSpec(cr, index, rw)
+			remoteWrite, tokenSecret, err := r.getRemoteWriteSpec(ctx, cr, index, rw)
 			if err != nil {
 				logrus.Error(err)
 				continue
