@@ -793,3 +793,58 @@ func (r *Reconciler) waitForResourcesDeployment(ctx context.Context, cr *v1.Obse
 	}
 	return v1.ResultInProgress, nil
 }
+
+func (r *Reconciler) GetOauth2ConfigSecret(ctx context.Context, cr *v1.Observability) (*corev1.Secret, error) {
+	secret := &corev1.Secret{}
+	selector := client.ObjectKey{
+		Name:      RemoteWriteOIDCSecretName,
+		Namespace: cr.Namespace,
+	}
+
+	err := r.client.Get(ctx, selector, secret)
+	if err != nil {
+		if errors.IsNotFound(err) {
+			return nil, nil
+		}
+
+		return nil, err
+	}
+
+	return secret, nil
+}
+
+func (r *Reconciler) GetRemoteWriteOauth2Config(ctx context.Context, cr *v1.Observability) (*prometheusv1.OAuth2, error) {
+	secret, err := r.GetOauth2ConfigSecret(ctx, cr)
+	if err != nil {
+		return nil, err
+	}
+
+	if secret == nil {
+		return nil, nil
+	}
+
+	tokenUrl, err := url.JoinPath(string(secret.Data["issuer_url"]), "/protocol/openid-connect/token")
+	if err != nil {
+		return nil, err
+	}
+
+	config := &prometheusv1.OAuth2{
+		ClientID: prometheusv1.SecretOrConfigMap{
+			Secret: &corev1.SecretKeySelector{
+				LocalObjectReference: corev1.LocalObjectReference{
+					Name: RemoteWriteOIDCSecretName,
+				},
+				Key: "client_id",
+			},
+		},
+		ClientSecret: corev1.SecretKeySelector{
+			LocalObjectReference: corev1.LocalObjectReference{
+				Name: RemoteWriteOIDCSecretName,
+			},
+			Key: "client_secret",
+		},
+		TokenURL: tokenUrl,
+	}
+
+	return config, nil
+}
