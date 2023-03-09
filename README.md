@@ -296,7 +296,7 @@ review the content of each!
 
     * The following parameters can be modified:
       * NAMESPACE: Defaults to current namespace in use.
-      * OBSERVATORIUM_TENANT:       Defaults to `managedKafka`
+      * OBSERVATORIUM_TENANT:       Defaults to ``
       * OBSERVATORIUM_GATEWAY:      Defaults to `https://observatorium-mst.api.stage.openshift.com`
       * OBSERVATORIUM_AUTH_TYPE:    Defaults to `redhat`
       * OBSERVATORIUM_RHSSO_URL:    Defaults to `https://sso.redhat.com/auth/`

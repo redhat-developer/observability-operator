@@ -198,7 +198,7 @@ index-push:
 
 # deploy required secrets to cluster
 NAMESPACE ?= "$(shell oc project | sed -e 's/Using project \"\([^"]*\)\".*/\1/g')"
-OBSERVATORIUM_TENANT ?= "managedKafka"
+OBSERVATORIUM_TENANT ?= ""
 OBSERVATORIUM_GATEWAY ?= "https://observatorium-mst.api.stage.openshift.com"
 OBSERVATORIUM_AUTH_TYPE ?= "redhat"
 OBSERVATORIUM_RHSSO_URL ?= "https://sso.redhat.com/auth/"

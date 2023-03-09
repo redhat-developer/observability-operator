@@ -3,6 +3,8 @@ package token
 import (
 	"context"
 	"fmt"
+	"strconv"
+
 	"github.com/go-logr/logr"
 	errors2 "github.com/pkg/errors"
 	v1 "github.com/redhat-developer/observability-operator/v4/api/v1"
@@ -13,7 +15,6 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
-	"strconv"
 )
 
 const (
