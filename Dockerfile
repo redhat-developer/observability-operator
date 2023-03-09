@@ -1,5 +1,11 @@
-# Build the manager binary
-FROM registry.access.redhat.com/ubi9/go-toolset:1.18 as builder
+FROM registry.access.redhat.com/ubi9-minimal:9.1.0 AS builder
+ 
+RUN microdnf install -y tar gzip
+
+# install go 1.19.6
+RUN curl -O -J https://dl.google.com/go/go1.19.6.linux-amd64.tar.gz
+RUN tar -C /usr/local -xzf go1.19.6.linux-amd64.tar.gz
+RUN ln -s /usr/local/go/bin/go /usr/local/bin/go
 
 USER root
 
@@ -22,7 +28,7 @@ RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 GO111MODULE=on go build -a -o manager 
 
 # Use distroless as minimal base image to package the manager binary
 # Refer to https://github.com/GoogleContainerTools/distroless for more details
-FROM registry.access.redhat.com/ubi9/ubi-minimal:9.1
+FROM registry.access.redhat.com/ubi9/ubi-minimal:9.1.0
 
 WORKDIR /
 COPY --from=builder /workspace/manager .
