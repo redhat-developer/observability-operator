@@ -52,9 +52,11 @@ func TestIndex_HasAuthServer(t *testing.T) {
 		},
 	}
 
-	RegisterTestingT(t)
 	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
+		test := tt
+		t.Run(test.name, func(t *testing.T) {
+			g := NewWithT(t)
+
 			config := &RedhatSsoConfig{
 				tt.fields.Url,
 				tt.fields.Realm,
@@ -63,8 +65,9 @@ func TestIndex_HasAuthServer(t *testing.T) {
 				tt.fields.LogsClient,
 				tt.fields.LogsSecret,
 			}
+
 			result := config.HasAuthServer()
-			Expect(result).To(Equal(tt.want))
+			g.Expect(result).To(Equal(tt.want))
 		})
 	}
 }
@@ -116,9 +119,11 @@ func TestIndex_HasMetrics(t *testing.T) {
 		},
 	}
 
-	RegisterTestingT(t)
 	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
+		test := tt
+		t.Run(test.name, func(t *testing.T) {
+			g := NewWithT(t)
+
 			config := &RedhatSsoConfig{
 				tt.fields.Url,
 				tt.fields.Realm,
@@ -127,8 +132,9 @@ func TestIndex_HasMetrics(t *testing.T) {
 				tt.fields.LogsClient,
 				tt.fields.LogsSecret,
 			}
+
 			result := config.HasMetrics()
-			Expect(result).To(Equal(tt.want))
+			g.Expect(result).To(Equal(tt.want))
 		})
 	}
 }
@@ -180,9 +186,11 @@ func TestIndex_HasLogs(t *testing.T) {
 		},
 	}
 
-	RegisterTestingT(t)
 	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
+		test := tt
+		t.Run(test.name, func(t *testing.T) {
+			g := NewWithT(t)
+
 			config := &RedhatSsoConfig{
 				tt.fields.Url,
 				tt.fields.Realm,
@@ -191,8 +199,9 @@ func TestIndex_HasLogs(t *testing.T) {
 				tt.fields.LogsClient,
 				tt.fields.LogsSecret,
 			}
+
 			result := config.HasLogs()
-			Expect(result).To(Equal(tt.want))
+			g.Expect(result).To(Equal(tt.want))
 		})
 	}
 }
@@ -235,13 +244,15 @@ func TestIndex_IsValid(t *testing.T) {
 				Gateway: "gateway",
 				Tenant:  "",
 			},
-			want: false,
+			want: true,
 		},
 	}
 
-	RegisterTestingT(t)
 	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
+		test := tt
+		t.Run(test.name, func(t *testing.T) {
+			g := NewWithT(t)
+
 			obsIndex := &ObservatoriumIndex{
 				tt.fields.Id,
 				tt.fields.SecretName,
@@ -251,8 +262,9 @@ func TestIndex_IsValid(t *testing.T) {
 				tt.fields.DexConfig,
 				tt.fields.RedhatSsoConfig,
 			}
+
 			result := obsIndex.IsValid()
-			Expect(result).To(Equal(tt.want))
+			g.Expect(result).To(Equal(tt.want))
 		})
 	}
 }

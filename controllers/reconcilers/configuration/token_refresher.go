@@ -365,7 +365,7 @@ func (r *Reconciler) deleteUnrequestedTokenRefreshers(ctx context.Context, cr *v
 		if oauth2Secret != nil {
 			return false
 		}
-		
+
 		for _, index := range indexes {
 			if index.Config == nil {
 				return false
