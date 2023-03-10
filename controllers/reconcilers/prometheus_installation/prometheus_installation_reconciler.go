@@ -162,6 +162,9 @@ func (r *Reconciler) reconcileCatalogSource(ctx context.Context, cr *v1.Observab
 		source.Spec = v1alpha1.CatalogSourceSpec{
 			SourceType: v1alpha1.SourceTypeGrpc,
 			Image:      "quay.io/integreatly/custom-prometheus-index:2.0.0",
+			GrpcPodConfig: &v1alpha1.GrpcPodConfig{
+				SecurityContextConfig: v1alpha1.Restricted,
+			},
 		}
 		return nil
 	})
