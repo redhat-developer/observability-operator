@@ -680,6 +680,8 @@ spec:
                     type: object
                   grafanaVersion:
                     type: string
+                  originOauthProxyImage:
+                    type: string
                   overrideSelectors:
                     type: boolean
                   podMonitorLabelSelector:
