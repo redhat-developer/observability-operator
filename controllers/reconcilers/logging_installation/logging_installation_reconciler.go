@@ -357,8 +357,10 @@ func (r *Reconciler) createClusterLogForwarderCr(ctx context.Context, cr *v1.Obs
 			clusterLogForwarder.Spec.Inputs = []v14.InputSpec{
 				{
 					Name: "kafka-operator-application-logs",
-					Application: &v14.Application{Namespaces: []string{"redhat-kas-fleetshard-operator", "redhat-managed-kafka-operator",
-						"redhat-kas-fleetshard-operator-qe", "redhat-managed-kafka-operator-qe"}},
+					Application: &v14.Application{Namespaces: []string{"redhat-kas-fleetshard-operator",
+						"redhat-managed-kafka-operator", "redhat-kas-fleetshard-operator-qe",
+						"redhat-managed-kafka-operator-qe", "openshift-logging",
+						"managed-application-services-observability"}},
 					Infrastructure: nil,
 					Audit:          nil,
 				},
@@ -371,7 +373,7 @@ func (r *Reconciler) createClusterLogForwarderCr(ctx context.Context, cr *v1.Obs
 					OutputTypeSpec: v14.OutputTypeSpec{
 						Cloudwatch: &v14.Cloudwatch{
 							Region:  "eu-west-1",
-							GroupBy: "namespaceName",
+							GroupBy: "logType",
 						},
 					},
 					TLS: &v14.OutputTLSSpec{},
