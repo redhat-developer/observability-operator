@@ -5,4 +5,4 @@ kind: Kustomization
 images:
 - name: controller
   newName: quay.io/rhoas/observability-operator
-  newTag: v4.2.0
+  newTag: v4.2.1
