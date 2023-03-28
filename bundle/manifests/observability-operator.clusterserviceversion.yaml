@@ -60,7 +60,7 @@ metadata:
     capabilities: Basic Install
     operators.operatorframework.io/builder: operator-sdk-v1.4.2
     operators.operatorframework.io/project_layout: go.kubebuilder.io/v2
-  name: observability-operator.v4.2.0
+  name: observability-operator.v4.2.1
   namespace: placeholder
 spec:
   apiservicedefinitions: {}
