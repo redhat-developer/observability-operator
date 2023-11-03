@@ -45,7 +45,7 @@ operator needs in order to read from it. At current, it's expected that configur
 ['bf2' organization](https://github.com/bf2fc6cc711aee1a0c2a) as we use a special read-only mechanism limited to 
 within our organization for access. 
 
-As an example, first take a look at the [configuration repository](https://github.com/bf2fc6cc711aee1a0c2a/observability-resources-mk) 
+As an example, first take a look at the [configuration repository](https://github.com/bf2fc6cc711aee1a0c2a/cos-observability-resources) 
 for the first service we've onboarded, Managed Kafka. There you'll find an index file and various configuration files referenced from within. In order to use this config 
 repo, the Observability Operator must be told about it via a `Secret`:
 
